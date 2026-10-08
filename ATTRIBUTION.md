@@ -4,7 +4,7 @@
 
 Every asset PdfCraft includes, bundles or uses to build its published material, with its author, source and licence. The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with SHA-256 hashes, is [ATTRIBUTION.toml](ATTRIBUTION.toml). Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).
 
-## In this repository (269)
+## In this repository (270)
 
 | Asset | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
@@ -277,6 +277,7 @@ Every asset PdfCraft includes, bundles or uses to build its published material, 
 | `crates/sign/tests/data/x509-rsa-sha1.pdf` | One-page PDF with a legacy adbe.x509.rsa_sha1 signature by the RSA test key | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: hand-written PDF objects; signature made with `openssl dgst -sha1 -sign` over its byte ranges (see crates/sign/tests/data/README.md) | Signature validation tests (crates/sign/tests/pdf.rs): the legacy adbe.x509.rsa_sha1 format |
 | `assets/icons/monitor.svg` | Lucide icon "monitor" | Lucide Contributors (portions Cole Bemis, Feather) | ISC | https://github.com/lucide-icons/lucide (npm lucide-static 1.49.0, icons/monitor.svg) | UI icon, embedded via crates/ui-egui/src/icon_data.rs |
 | `crates/ui-egui/src/i18n/sl.tsv` | Slovene interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources | Slovene UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
+| `crates/sign/data/builtin-roots.der` | Root certificates of CAs for PDF signatures (DigiCert, GlobalSign, Sectigo, Entrust, QuoVadis, Certum, WISeKey) | The certificate authorities named in builtin-roots.toml | LicenseRef-Public-Domain | Each root from its CA's own repository (URLs in crates/sign/data/builtin-roots.toml), never from Adobe; pinned by SHA-256 and rebuilt by `cargo xtask trust-roots`, which fails on any difference. Pins were compared with Mozilla's TLS and S/MIME root sets, and for Entrust.net 2048 and OISTE WISeKey Global Root GB CA with the root inside a signed PDF. All 22 downloads were re-verified against their pins on 2026-10-10. A root certificate is public key and name data published by its CA for everyone to install; no copyright is claimed or known. | Optional trust anchors for signature validation (crates/sign/src/trust.rs), off unless the user switches them on (sign_trust builtin_roots) |
 
 ## Compiled in through dependencies (6)
 

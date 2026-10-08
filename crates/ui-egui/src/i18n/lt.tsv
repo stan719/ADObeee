@@ -1718,6 +1718,8 @@
 	The signer's certificate was not valid at the time of signing.	Pasirašiusiojo sertifikatas pasirašymo metu negaliojo.
 	The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.	Pasirašiusiojo tapatybė nežinoma, nes jo sertifikato nėra patikimų sertifikatų sąraše ir nė vienas aukštesnio lygio sertifikatas nėra patikimas.
 	The signer's identity is valid.	Pasirašiusiojo tapatybė patvirtinta.
+	Its certificate chains to a root built into PdfCraft that you switched on ({}).	Jo sertifikatas grindžiamas PdfCraft įtaisytu šakniniu sertifikatu, kurį įjungėte ({}).
+	Its certificate chains to {} in the trust list “{}”.	Jo sertifikatas grindžiamas sertifikatu {} patikimumo sąraše „{}“.
 	The timestamp authority's certificate was not valid at the time of timestamping.	Laiko žymą išdavusios įstaigos sertifikatas žymos sukūrimo metu negaliojo.
 	The timestamp contents are not hexadecimal.	Laiko žymos turinys nėra šešioliktainis.
 	The timestamp has no valid byte range.	Laiko žyma neturi tinkamo baitų intervalo.
