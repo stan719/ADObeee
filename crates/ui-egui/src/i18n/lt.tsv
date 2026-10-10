@@ -1725,6 +1725,7 @@
 	The timestamp has no valid byte range.	Laiko žyma neturi tinkamo baitų intervalo.
 	The timestamp token could not be read ({}).	Nepavyko perskaityti laiko žymos žetono ({}).
 	The timestamp token is valid and its authority is trusted.	Laiko žymos žetonas galioja, o jį išdavusi įstaiga patikima.
+	The timestamp authority's certificate chains to a root in a trust set you switched on, but it is not meant for time stamps (RFC 3161 §2.3 asks for the time-stamping purpose), so the set does not vouch for it.	Laiko žymų išdavėjo sertifikatas grindžiamas jūsų įjungto patikimumo rinkinio šakniniu sertifikatu, tačiau jis neskirtas laiko žymoms (RFC 3161 §2.3 reikalauja laiko žymų paskirties), todėl rinkinys jo nepatvirtina.
 	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.	Laiko žymos žetonas galioja, tačiau ją išdavusios įstaigos nėra patikimų sertifikatų sąraše.
 	The timestamp's byte range does not exclude exactly its contents.	Laiko žymos baitų intervalas neišskiria tiksliai jos turinio.
 	The timestamp's byte range does not match the file.	Laiko žymos baitų intervalas neatitinka failo.
