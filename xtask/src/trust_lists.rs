@@ -8,7 +8,21 @@
 //!
 //! Fetches the List of Trusted Lists from the European Commission, then every national list it
 //! points to (XML), and keeps the certificates of services of type `CA/QC` whose status is
-//! `granted` or `recognisedatnationallevel`. Withdrawn and deprecated services are left out.
+//! `granted` or `recognisedatnationallevel`. Withdrawn and deprecated services are left out, and
+//! so are the ones that issue only certificates for web site authentication (QWAC CAs): their
+//! `AdditionalServiceInformation` names `ForWebSiteAuthentication` and neither `ForeSignatures`
+//! nor `ForeSeals`. A service that says nothing about it is kept.
+//!
+//! Not done, and why it matters:
+//! - Only a service's current status is read, not its `ServiceHistory`. Whether a CA vouched is
+//!   judged as of today, not when the document was signed (ETSI TS 119 615 does the latter): a
+//!   service withdrawn since drops out, so its older signatures show as unknown, and one granted
+//!   since vouches for older signatures too.
+//! - `TSA/QTST` (qualified time-stamp) services are not collected. About a thousand are granted
+//!   (1,081 certificates on 2026-10-11, which would about double the bundle), and nine in ten of
+//!   those are time-stamp units, not CAs, so they belong in a list of their own that vouches
+//!   only for time stamps.
+//!
 //! The bundle is every certificate's DER, concatenated and sorted by SHA-256, so a rerun with the
 //! same lists gives the same bytes. The XML signatures on the lists are *not* checked, and nothing
 //! is pinned, so everything is fetched over HTTPS only: a list the List of Trusted Lists points to
@@ -66,17 +80,32 @@ fn text<'a>(n: roxmltree::Node<'a, '_>, name: &str) -> Option<&'a str> {
     n.descendants().find(|d| d.has_tag_name(name)).and_then(|d| d.text()).map(str::trim)
 }
 
-/// The XML list locations in the List of Trusted Lists (not itself, not the post-Brexit UK list).
+/// The XML list locations in the List of Trusted Lists (not itself, not the post-Brexit UK list,
+/// which the Commission still points to: a frozen copy, no longer an EU list).
 fn national_lists(lotl: &str) -> Result<Vec<String>> {
     let doc = roxmltree::Document::parse(lotl).context("parsing the LOTL")?;
     Ok(doc
         .descendants()
         .filter(|n| n.has_tag_name("OtherTSLPointer"))
         .filter(|n| n.descendants().any(|d| d.has_tag_name("MimeType") && d.text().map(str::trim) == Some(TSL_XML)))
+        .filter(|n| text(*n, "SchemeTerritory") != Some("UK"))
         .filter_map(|n| text(n, "TSLLocation"))
-        .filter(|u| !u.ends_with("eu-lotl.xml") && !u.contains("UKsigned"))
+        .filter(|u| !u.ends_with("eu-lotl.xml"))
         .map(str::to_string)
         .collect())
+}
+
+/// Whether a `CA/QC` service issues certificates that sign documents. Its additional service
+/// information (ETSI TS 119 612 §5.5.9.4) says what the qualified certificates are for; a CA that
+/// names only `ForWebSiteAuthentication` issues QWACs, which are not signing certificates.
+fn issues_for_documents(svc: roxmltree::Node) -> bool {
+    let uses: Vec<&str> = svc
+        .descendants()
+        .filter(|n| n.has_tag_name("AdditionalServiceInformation"))
+        .flat_map(|n| n.descendants().filter(|d| d.has_tag_name("URI")).filter_map(|d| d.text()))
+        .filter_map(|u| u.trim().rsplit('/').next())
+        .collect();
+    uses.iter().any(|u| matches!(*u, "ForeSignatures" | "ForeSeals")) || !uses.contains(&"ForWebSiteAuthentication")
 }
 
 /// DER certificates of the granted qualified CA services of one list.
@@ -87,7 +116,7 @@ fn qualified_cas(list: &str) -> Result<Vec<Vec<u8>>> {
         let kind = text(svc, "ServiceTypeIdentifier").unwrap_or_default();
         let status = text(svc, "ServiceStatus").unwrap_or_default();
         let granted = status.ends_with("/granted") || status.ends_with("/recognisedatnationallevel");
-        if kind.ends_with("/CA/QC") && granted {
+        if kind.ends_with("/CA/QC") && granted && issues_for_documents(svc) {
             for c in svc.descendants().filter(|n| n.has_tag_name("X509Certificate")) {
                 if let Some(der) = c.text().and_then(base64) {
                     out.push(der);
@@ -165,6 +194,64 @@ pub fn run(args: &[String]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn service(kind: &str, status: &str, info: &[&str], cert: &str) -> String {
+        let uris: String = info.iter().map(|i| format!("<URI>http://uri.etsi.org/TrstSvc/TrustedList/SvcInfoExt/{i}</URI>")).collect();
+        let extension = if info.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "<ServiceInformationExtensions><Extension><AdditionalServiceInformation>{uris}</AdditionalServiceInformation></Extension></ServiceInformationExtensions>"
+            )
+        };
+        format!(
+            "<TSPService><ServiceInformation><ServiceTypeIdentifier>http://uri.etsi.org/TrstSvc/Svctype/{kind}</ServiceTypeIdentifier>\
+             <ServiceDigitalIdentity><DigitalId><X509Certificate>{cert}</X509Certificate></DigitalId></ServiceDigitalIdentity>\
+             <ServiceStatus>http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/{status}</ServiceStatus>{extension}</ServiceInformation></TSPService>"
+        )
+    }
+
+    #[test]
+    fn only_granted_qualified_cas_that_issue_for_documents_are_collected() {
+        let list = format!(
+            "<TrustServiceStatusList>{}</TrustServiceStatusList>",
+            [
+                service("CA/QC", "granted", &["ForeSignatures"], "AQID"),
+                // A QWAC CA does not vouch for people who sign documents.
+                service("CA/QC", "granted", &["ForWebSiteAuthentication"], "BAUG"),
+                service("CA/QC", "granted", &["RootCA-QC", "ForWebSiteAuthentication"], "EBES"),
+                // One that issues for web sites and for seals, or says nothing, still does.
+                service("CA/QC", "granted", &["ForWebSiteAuthentication", "ForeSeals"], "BwgJ"),
+                service("CA/QC", "recognisedatnationallevel", &[], "CgsM"),
+                service("CA/QC", "withdrawn", &["ForeSignatures"], "DQ4P"),
+                service("TSA/QTST", "granted", &[], "FBUW"),
+            ]
+            .concat()
+        );
+        assert_eq!(qualified_cas(&list).unwrap(), vec![vec![1, 2, 3], vec![7, 8, 9], vec![10, 11, 12]]);
+    }
+
+    #[test]
+    fn the_uk_list_is_left_out_by_its_territory_not_its_address() {
+        let pointer = |territory: &str, url: &str, mime: &str| {
+            format!(
+                "<OtherTSLPointer><TSLLocation>{url}</TSLLocation><AdditionalInformation>\
+                 <OtherInformation><SchemeTerritory>{territory}</SchemeTerritory></OtherInformation>\
+                 <OtherInformation><MimeType>{mime}</MimeType></OtherInformation></AdditionalInformation></OtherTSLPointer>"
+            )
+        };
+        let lotl = format!(
+            "<TrustServiceStatusList>{}</TrustServiceStatusList>",
+            [
+                pointer("DE", "https://tl.example/de.xml", TSL_XML),
+                pointer("UK", "https://tl.example/a-new-address-for-the-uk.xml", TSL_XML),
+                pointer("EU", "https://ec.example/eu-lotl.xml", TSL_XML),
+                pointer("FR", "https://tl.example/fr.pdf", "application/pdf"),
+            ]
+            .concat()
+        );
+        assert_eq!(national_lists(&lotl).unwrap(), vec!["https://tl.example/de.xml".to_string()]);
+    }
 
     #[test]
     fn lists_are_only_fetched_over_https() {

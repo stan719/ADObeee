@@ -27,7 +27,8 @@ static ROOTS: &[u8] = include_bytes!("../data/builtin-roots.der");
 /// root is a trust decision for the project owner. Off unless `TrustStore::builtin_roots` is set.
 pub fn builtin_roots() -> &'static [Certificate] {
     static PARSED: OnceLock<Vec<Certificate>> = OnceLock::new();
-    PARSED.get_or_init(|| parse_concatenated(ROOTS))
+    // The embedded file is checked against its manifest by a test, so it always parses.
+    PARSED.get_or_init(|| parse_concatenated(ROOTS).unwrap_or_default())
 }
 
 /// Whether `c` is one of [`builtin_roots`].
@@ -35,17 +36,21 @@ pub fn is_builtin_root(c: &Certificate) -> bool {
     builtin_roots().iter().any(|t| t.raw == c.raw)
 }
 
-/// Certificates as DER one after the other. Entries that don't parse are skipped.
-fn parse_concatenated(mut rest: &[u8]) -> Vec<Certificate> {
+/// Certificates as DER one after the other. A certificate that doesn't parse (a key type PdfCraft
+/// doesn't read, say) is skipped. Bytes that aren't a DER element at all, as in a file cut short,
+/// are an error, so a damaged list doesn't load as a smaller one without a word.
+fn parse_concatenated(mut rest: &[u8]) -> Result<Vec<Certificate>, SignError> {
     let mut out = Vec::new();
-    while !rest.is_empty() {
-        let Ok((t, r)) = Tlv::parse(rest) else { break };
+    while !rest.iter().all(u8::is_ascii_whitespace) {
+        let Ok((t, r)) = Tlv::parse(rest) else {
+            return Err(SignError::Malformed(format!("the trust list is damaged after {} certificates ({} bytes left)", out.len(), rest.len())));
+        };
         if let Ok(c) = Certificate::parse(t.raw) {
             out.push(c);
         }
         rest = r;
     }
-    out
+    Ok(out)
 }
 
 /// The most a list file may hold: far above the roughly 1.5 MB of the EU qualified CAs.
@@ -61,12 +66,16 @@ pub struct TrustList {
 impl TrustList {
     /// A list from a file's bytes: certificates as DER one after the other (what
     /// `cargo xtask trust-lists` writes), or a PEM bundle. Certificates that don't parse are
-    /// skipped; a file with none, or one over [`MAX_LIST_BYTES`], is an error.
+    /// skipped; a file with none, a damaged one, or one over [`MAX_LIST_BYTES`], is an error.
     pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<TrustList, SignError> {
         if bytes.len() > MAX_LIST_BYTES {
             return Err(SignError::Malformed(format!("trust list over {} MiB", MAX_LIST_BYTES >> 20)));
         }
-        let mut certs = if bytes.first() == Some(&0x30) { parse_concatenated(bytes) } else { crate::x509::load_certificates(bytes)? };
+        let mut certs = if bytes.first() == Some(&0x30) && !crate::x509::is_pem(bytes) {
+            parse_concatenated(bytes)?
+        } else {
+            crate::x509::load_certificates(bytes)?
+        };
         let mut seen = std::collections::HashSet::new();
         certs.retain(|c| seen.insert(c.raw.clone()));
         if certs.is_empty() {
@@ -133,6 +142,14 @@ mod tests {
         assert!(TrustList::from_bytes("none", b"not certificates").is_err());
         assert!(TrustList::from_bytes("none", &[]).is_err());
         assert!(TrustList::from_bytes("big", &vec![0x30; MAX_LIST_BYTES + 1]).is_err());
+        // A file cut short is refused, not loaded as the certificates before the cut.
+        assert!(TrustList::from_bytes("cut", &file[..file.len() - 5]).is_err());
+        // Whitespace after the last certificate is not damage.
+        let spaced = [file.as_slice(), b"\n"].concat();
+        assert_eq!(TrustList::from_bytes("spaced", &spaced).unwrap().certs.len(), 3);
+        // PEM that follows a note starting with "0" (the first byte DER starts with) is still PEM.
+        let noted = format!("0 certificates have been revoked in this bundle\n{pem}");
+        assert_eq!(TrustList::from_bytes("noted", noted.as_bytes()).unwrap().certs.len(), 3);
         // A certificate listed twice, even apart, is one entry.
         let repeated = [roots[0].raw.clone(), roots[1].raw.clone(), roots[0].raw.clone()].concat();
         assert_eq!(TrustList::from_bytes("dups", &repeated).unwrap().certs.len(), 2);

@@ -548,10 +548,16 @@ pub fn build_chain_noted<'a>(
     (chain, refused)
 }
 
+/// Whether `bytes` hold PEM. PEM may start with explanatory text, even text that begins with a
+/// "0" (0x30), which is also the first byte of every DER certificate.
+pub(crate) fn is_pem(bytes: &[u8]) -> bool {
+    bytes.windows(10).any(|w| w == b"-----BEGIN")
+}
+
 /// Certificates from a file: DER, or PEM with one or more `CERTIFICATE` blocks (`.cer`, `.crt`,
 /// `.pem`, Acrobat's `.fdf`-free exports).
 pub fn load_certificates(bytes: &[u8]) -> Result<Vec<Certificate>, SignError> {
-    if bytes.first() == Some(&0x30) {
+    if bytes.first() == Some(&0x30) && !is_pem(bytes) {
         return Ok(vec![Certificate::parse(bytes)?]);
     }
     let text = String::from_utf8_lossy(bytes);

@@ -105,8 +105,9 @@ needs a prompt to open is listed and asks at signing (issue #179).
   `builtin_roots`, the roots of commercial CAs embedded in the crate (`trust`, pinned one by one in
   `data/builtin-roots.toml`; `cargo xtask trust-roots` rebuilds them and fails on any difference),
   and trust lists loaded from a file at run time (`TrustStore::lists`; `cargo xtask trust-lists`
-  writes the EU Trusted Lists' qualified CAs to `dist/trust/`, fetched over HTTPS only; nothing of
-  the kind is embedded). The details name the set that vouched.
+  writes the EU Trusted Lists' qualified CAs to `dist/trust/`, fetched over HTTPS only, leaving
+  out the ones for web site certificates; nothing of the kind is embedded). The details name the
+  set that vouched. Neither set has a switch in the app yet, and neither is saved between sessions.
 - **A set vouches for what it is meant for.** The sets trust a CA for everything it issues, and most
   of those CAs issue TLS certificates. The signer is held to the same rules whatever vouches for it
   (its certificate must allow signing documents, above); a set also vouches only for a time-stamp

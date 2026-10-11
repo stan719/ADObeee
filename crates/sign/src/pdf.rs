@@ -217,6 +217,12 @@ impl TrustStore {
         self.lists.extend(list);
     }
 
+    /// Whether a trust set is switched on, so a certificate that isn't trusted is missing from it as
+    /// well as from the user's own list, which the details that say it isn't then say.
+    fn sets_on(&self) -> bool {
+        self.builtin_roots || !self.lists.is_empty()
+    }
+
     /// Every certificate that is a trust anchor right now: the user's, then the sets switched on.
     fn anchors(&self) -> impl Iterator<Item = &Certificate> + Clone {
         let builtin: &[Certificate] = if self.builtin_roots { crate::trust::builtin_roots() } else { &[] };
@@ -446,6 +452,7 @@ pub const WORDINGS: &[&str] = &[
     "The certificate of {} does not allow this many CA certificates below it (path length), so it is not used to vouch for {}.",
     "The certificate of {} was not valid at the time of signing, so it is not used to vouch for {}.",
     "The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.",
+    "The signer's identity is unknown because it has not been included in your list of trusted certificates or the trust sets you switched on, and none of its parent certificates are trusted certificates.",
     "The signer's identity is valid.",
     "Its certificate chains to a root built into PdfCraft that you switched on ({}).",
     "Its certificate chains to {} in the trust list “{}”.",
@@ -456,6 +463,7 @@ pub const WORDINGS: &[&str] = &[
     "The signature's timestamp token could not be verified ({}).",
     "The embedded timestamp token is valid and its authority is trusted; trusted time is {}.",
     "The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.",
+    "The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates or the trust sets you switched on, so the signing time claimed by the signer is used instead.",
     // What the document's own revocation evidence says about the signer.
     "The signer's certificate has been revoked ({}).",
     "The document's embedded revocation information shows that the signer's certificate has not been revoked.",
@@ -472,6 +480,7 @@ pub const WORDINGS: &[&str] = &[
     "The document has been altered since this timestamp was applied in ways it does not permit ({}).",
     "The timestamp token is valid and its authority is trusted.",
     "The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.",
+    "The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates or the trust sets you switched on.",
     "The timestamp authority's certificate chains to a root in a trust set you switched on, but it is not meant for time stamps (RFC 3161 §2.3 asks for the time-stamping purpose), so the set does not vouch for it.",
     // The one line that stands for all of it.
     "Unsigned signature field",
@@ -969,9 +978,15 @@ fn finish_validation(
         problems = true;
     }
     if !trusted {
-        info.details.push(Detail::plain(
-            "The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.",
-        ));
+        info.details.push(if trust.sets_on() {
+            Detail::plain(
+                "The signer's identity is unknown because it has not been included in your list of trusted certificates or the trust sets you switched on, and none of its parent certificates are trusted certificates.",
+            )
+        } else {
+            Detail::plain(
+                "The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.",
+            )
+        });
         if !problems && !revoked {
             info.status = Status::Unknown;
         }
@@ -1000,10 +1015,17 @@ fn finish_validation(
         info.details
             .push(Detail::of("The embedded timestamp token is valid and its authority is trusted; trusted time is {}.", Fill::Value(t.to_string())));
     } else if let Some(t) = unverified_time {
-        info.details.push(Detail::of(
-            "The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.",
-            Fill::Value(t.to_string()),
-        ));
+        info.details.push(if trust.sets_on() {
+            Detail::of(
+                "The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates or the trust sets you switched on, so the signing time claimed by the signer is used instead.",
+                Fill::Value(t.to_string()),
+            )
+        } else {
+            Detail::of(
+                "The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.",
+                Fill::Value(t.to_string()),
+            )
+        });
     }
 }
 
@@ -1157,8 +1179,13 @@ fn validate_doc_timestamp(doc: &Document, bytes: &[u8], v: &Dict, info: &mut Sig
             info.status = Status::Unknown;
         } else {
             info.status = Status::Unknown;
-            info.details
-                .push(Detail::plain("The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates."));
+            info.details.push(if trust.sets_on() {
+                Detail::plain(
+                    "The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates or the trust sets you switched on.",
+                )
+            } else {
+                Detail::plain("The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.")
+            });
             if wrong_purpose {
                 info.details.push(not_a_time_stamp_authority());
             }

@@ -5,7 +5,8 @@
 //! the SHA-256 pinned there; a difference stops the run and changes nothing, so a CA replacing a
 //! file, or a hijacked download, is noticed instead of shipped. The manifest names, per root, the
 //! independent source its pin was compared with. The file is the DER certificates one after the
-//! other, in manifest order.
+//! other, in manifest order. curl is limited to http and https (a few of the CAs' certificate
+//! hosts speak HTTP only; the pin is what makes that safe).
 
 use std::path::Path;
 use std::process::Command;
@@ -51,7 +52,21 @@ pub fn run(_args: &[String]) -> Result<()> {
     let mut problems = Vec::new();
     for r in &manifest.root {
         let fetched = Command::new("curl")
-            .args(["-sSfL", "-m", "60", "--max-filesize", MAX_CERT_BYTES, "--retry", "3", "--retry-all-errors", &r.url])
+            .args([
+                "-sSfL",
+                "--proto",
+                "=http,https",
+                "--proto-redir",
+                "=http,https",
+                "-m",
+                "60",
+                "--max-filesize",
+                MAX_CERT_BYTES,
+                "--retry",
+                "3",
+                "--retry-all-errors",
+                &r.url,
+            ])
             .output()
             .context("running curl")?;
         if !fetched.status.success() {

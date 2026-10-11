@@ -370,6 +370,61 @@ fn trust_sets_are_off_by_default_and_a_loaded_list_is_named_when_it_vouches() {
     assert_eq!(status, Status::Unknown, "{details:?}");
 }
 
+/// A time-stamp authority that answers in-process, with whatever certificate it is given.
+struct Stamper {
+    key: PrivateKey,
+    cert: Certificate,
+    time: Time,
+}
+
+impl pdfcraft_sign::TimestampAuthority for Stamper {
+    fn timestamp(&self, request: &[u8]) -> Result<Vec<u8>, pdfcraft_sign::SignError> {
+        let q = pdfcraft_sign::timestamp::parse_request(request)?;
+        pdfcraft_sign::timestamp::respond(&self.key, &self.cert, &[], pdfcraft_sign::DigestAlg::Sha256, &q, "1.2.3.4", self.time, 7)
+    }
+}
+
+#[test]
+fn a_list_holding_only_the_issuing_ca_vouches_for_a_signature_that_carries_only_its_leaf() {
+    use pdfcraft_sign::trust::TrustList;
+    // The shape of a CAdES signature under a qualified service (#775): the list holds the issuing
+    // CA (not a root), the CMS embeds only the leaf, and the time-stamp authority is not trusted.
+    let r = root();
+    let i = ca("Issuing CA", &r, None);
+    let leaf = end_entity("Signer", &i);
+    let tsa = end_entity("Some Stamper", &root());
+    let stamper = Stamper { key: tsa.key, cert: tsa.cert.clone(), time: time(2026) };
+    let id = DigitalId { key: leaf.key, certificate: leaf.cert, chain: Vec::new(), friendly_name: None };
+    let doc = Document::open(Arc::new(fixture())).unwrap();
+    let opts = SignOptions { page: 0, rect: None, date: "D:20260601120000Z".into(), ..SignOptions::default() };
+    let signed = pdfcraft_sign::sign_with_timestamp(&doc, &id, &opts, &stamper).unwrap();
+    let check =
+        |trust: &TrustStore| signatures(&Document::open(Arc::new(signed.clone())).unwrap(), &signed, trust).into_iter().rfind(|s| s.signed).unwrap();
+    let said = |s: &pdfcraft_sign::SignatureInfo, what: &str| s.details.iter().any(|d| d.message.contains(what));
+
+    // Nothing loaded: unknown, and the details name the user's list as the only way to trust it.
+    let s = check(&TrustStore::default());
+    assert_eq!(s.status, Status::Unknown, "{:?}", s.details);
+    assert!(said(&s, "included in your list of trusted certificates and none"), "{:?}", s.details);
+    assert!(said(&s, "not in your list of trusted certificates, so the signing time"), "{:?}", s.details);
+
+    // The list with the issuing CA completes the chain the file leaves out: valid, and named.
+    let list = TrustList::from_bytes("Test List", &i.cert.raw).unwrap();
+    let s = check(&TrustStore { lists: vec![list], ..TrustStore::default() });
+    assert_eq!(s.status, Status::Valid, "{:?}", s.details);
+    assert!(said(&s, "trust list “Test List”"), "{:?}", s.details);
+    // The authority isn't in the list: the time stays unverified, and the details don't pretend
+    // the user's own list is the only place to put it.
+    assert!(s.timestamp && s.timestamp_time.is_none(), "{:?}", s.details);
+    assert!(said(&s, "not in your list of trusted certificates or the trust sets you switched on, so the signing time"), "{:?}", s.details);
+
+    // A list that doesn't vouch for the signer leaves it unknown, and says where else to look.
+    let other = TrustList::from_bytes("Other List", &tsa.cert.raw).unwrap();
+    let s = check(&TrustStore { lists: vec![other], ..TrustStore::default() });
+    assert_eq!(s.status, Status::Unknown, "{:?}", s.details);
+    assert!(said(&s, "included in your list of trusted certificates or the trust sets you switched on, and none"), "{:?}", s.details);
+}
+
 #[test]
 fn the_builtin_roots_only_anchor_when_switched_on() {
     // Trust is decided by `source_of`, which is what validation uses.

@@ -6,6 +6,9 @@
 #   mozilla-tls    Mozilla's TLS root program (as shipped by curl.se/ca and ca-certificates)
 #   mozilla-email  Mozilla's S/MIME trust set (closer to document signing than TLS)
 #   signed-pdf     the root inside a DocuSign-signed PDF's signature, byte for byte
+# The three http:// URLs (USERTrust RSA and ECC, AAA Certificate Services) are Sectigo's and
+# Comodo's certificate hosts, which speak HTTP only: HTTPS fails their TLS handshake. The pin
+# is the integrity check, so a changed or intercepted download stops the run. Everything else is https.
 # Adding a root is a trust decision: say why in the commit.
 
 [[root]]

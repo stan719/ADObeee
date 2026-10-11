@@ -1696,6 +1696,7 @@
 	The security settings don't allow screen readers to read the text	Saugos nuostatos neleidžia ekrano skaitymo programoms skaityti teksto
 	The signature algorithm and the SignerInfo's digest algorithm name different hashes; the signature was made with the SignerInfo's.	Parašo algoritmas ir „SignerInfo“ santraukos algoritmas nurodo skirtingas maišos funkcijas; pasirašyta naudojant „SignerInfo“ nurodytą funkciją.
 	The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.	Parašas turi nepatikrintą laiko žymą ({}): ją išdavusios įstaigos nėra patikimų sertifikatų sąraše, todėl naudojamas pasirašiusiojo nurodytas pasirašymo laikas.
+	The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates or the trust sets you switched on, so the signing time claimed by the signer is used instead.	Parašas turi nepatikrintą laiko žymą ({}): ją išdavusios įstaigos nėra nei jūsų patikimų sertifikatų sąraše, nei įjungtuose patikimumo rinkiniuose, todėl naudojamas pasirašiusiojo nurodytas pasirašymo laikas.
 	The signature contents are not hexadecimal.	Parašo turinys nėra šešioliktainis.
 	The signature could not be checked ({}).	Nepavyko patikrinti parašo ({}).
 	The signature could not be read ({}).	Nepavyko perskaityti parašo ({}).
@@ -1717,6 +1718,7 @@
 	The signer's certificate is not issued for signing documents (its extended key usage has no document-signing purpose).	Pasirašiusiojo sertifikatas neskirtas dokumentams pasirašyti (išplėstinėje rakto paskirtyje nenurodytas dokumentų pasirašymas).
 	The signer's certificate was not valid at the time of signing.	Pasirašiusiojo sertifikatas pasirašymo metu negaliojo.
 	The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.	Pasirašiusiojo tapatybė nežinoma, nes jo sertifikato nėra patikimų sertifikatų sąraše ir nė vienas aukštesnio lygio sertifikatas nėra patikimas.
+	The signer's identity is unknown because it has not been included in your list of trusted certificates or the trust sets you switched on, and none of its parent certificates are trusted certificates.	Pasirašiusiojo tapatybė nežinoma, nes jo sertifikato nėra nei jūsų patikimų sertifikatų sąraše, nei įjungtuose patikimumo rinkiniuose, ir nė vienas aukštesnio lygio sertifikatas nėra patikimas.
 	The signer's identity is valid.	Pasirašiusiojo tapatybė patvirtinta.
 	Its certificate chains to a root built into PdfCraft that you switched on ({}).	Jo sertifikatas grindžiamas PdfCraft įtaisytu šakniniu sertifikatu, kurį įjungėte ({}).
 	Its certificate chains to {} in the trust list “{}”.	Jo sertifikatas grindžiamas sertifikatu {} patikimumo sąraše „{}“.
@@ -1727,6 +1729,7 @@
 	The timestamp token is valid and its authority is trusted.	Laiko žymos žetonas galioja, o jį išdavusi įstaiga patikima.
 	The timestamp authority's certificate chains to a root in a trust set you switched on, but it is not meant for time stamps (RFC 3161 §2.3 asks for the time-stamping purpose), so the set does not vouch for it.	Laiko žymų išdavėjo sertifikatas grindžiamas jūsų įjungto patikimumo rinkinio šakniniu sertifikatu, tačiau jis neskirtas laiko žymoms (RFC 3161 §2.3 reikalauja laiko žymų paskirties), todėl rinkinys jo nepatvirtina.
 	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.	Laiko žymos žetonas galioja, tačiau ją išdavusios įstaigos nėra patikimų sertifikatų sąraše.
+	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates or the trust sets you switched on.	Laiko žymos žetonas galioja, tačiau ją išdavusios įstaigos nėra nei jūsų patikimų sertifikatų sąraše, nei įjungtuose patikimumo rinkiniuose.
 	The timestamp's byte range does not exclude exactly its contents.	Laiko žymos baitų intervalas neišskiria tiksliai jos turinio.
 	The timestamp's byte range does not match the file.	Laiko žymos baitų intervalas neatitinka failo.
 	The window shows the file name, not the title (Initial View > Show)	Lange rodomas failo vardas, o ne dokumento pavadinimas („Pradinis rodinys“ > „Rodyti:“)
