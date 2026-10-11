@@ -2620,8 +2620,8 @@ milestone = "M4"
 status = "shipped"
 commands = ["page.rotate", "page.rotate_ccw"]
 tools = ["page_rotate"]
-evidence = ["crates/organize/src/tests.rs::rotate_uses_inherited_rotation_and_round_trips", "crates/ui-egui/tests/editing.rs::command_click_toggles_and_rotation_applies_to_selection", "crates/ui-egui/tests/editing.rs::organize_page_actions_rotate_only_the_named_page_and_undo", "crates/ui-egui/tests/editing.rs::organize_local_actions_respect_document_permissions"]
-notes = ""
+evidence = ["crates/organize/src/tests.rs::rotate_uses_inherited_rotation_and_round_trips", "crates/ui-egui/tests/editing.rs::command_click_toggles_and_rotation_applies_to_selection", "crates/ui-egui/tests/editing.rs::organize_page_actions_rotate_only_the_named_page_and_undo", "crates/ui-egui/tests/editing.rs::organize_toolbar_rotates_all_pages_until_a_selection_is_made", "crates/ui-egui/tests/editing.rs::organize_local_actions_respect_document_permissions"]
+notes = "The Organize toolbar rotates all pages without an explicit selection, and only selected pages otherwise; thumbnail actions target their named page."
 
 [[feature]]
 id = "organize.rotate-filters"
@@ -2800,8 +2800,8 @@ milestone = "M4"
 status = "shipped"
 commands = ["page.duplicate"]
 tools = ["page_duplicate"]
-evidence = ["crates/ui-egui/tests/ui_group/pageboxes.rs::duplicate_pages_copies_the_current_page", "crates/organize/src/tests.rs::duplicate_pages_inserts_copies_after_the_last"]
-notes = "copies share fonts and images with the originals"
+evidence = ["crates/ui-egui/tests/ui_group/pageboxes.rs::duplicate_pages_copies_the_current_page", "crates/organize/src/tests.rs::duplicate_pages_inserts_copies_after_the_last", "crates/organize/src/tests.rs::duplicate_pages_at_inserts_copies_at_the_drop_gap", "crates/ui-egui/tests/editing.rs::control_dragging_organize_thumbnail_copies_at_drop_gap", "crates/automation/tests/automation.rs::duplicating_pages_at_a_chosen_gap_through_tools"]
+notes = "Control-drag copies selected pages at the drop gap; the page_duplicate tool accepts a chosen gap. Copies share fonts and images with the originals."
 
 [[feature]]
 id = "organize.reverse-pages"

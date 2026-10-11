@@ -1685,6 +1685,18 @@ fn duplicate_pages_inserts_copies_after_the_last() {
 }
 
 #[test]
+fn duplicate_pages_at_inserts_copies_at_the_drop_gap() {
+    let mut doc = open(fixture());
+    duplicate_pages_at(&mut doc, &[0, 2], 1).unwrap();
+    let doc = open(write_full(&doc, &SaveOptions::default()).unwrap());
+    assert_eq!(labels(&doc), ["Page 1", "Page 1", "Page 3", "Page 2", "Page 3"]);
+
+    let mut doc = open(fixture());
+    assert_eq!(duplicate_pages_at(&mut doc, &[0], 4), Err(OrganizeError::NoSuchPage(4)));
+    assert_eq!(labels(&doc), ["Page 1", "Page 2", "Page 3"]);
+}
+
+#[test]
 fn replace_pages_swaps_content_but_keeps_annotations() {
     // Page 2 of the target gets an annotation; replacing its content keeps it.
     let mut doc = open(fixture());

@@ -349,7 +349,16 @@ impl Automation {
             }
             "page_duplicate" => {
                 let pages = self.pages(&a, "pages")?;
-                self.apply(&a, Edit::DuplicatePages { pages })?
+                let at = a
+                    .opt_int("at")?
+                    .map(|p| {
+                        p.checked_sub(1)
+                            .filter(|p| *p >= 0)
+                            .and_then(|p| usize::try_from(p).ok())
+                            .ok_or_else(|| ToolError::InvalidArgs("at must be a page gap numbered from 1".into()))
+                    })
+                    .transpose()?;
+                self.apply(&a, Edit::DuplicatePages { pages, at })?
             }
             "page_set_box" => self.page_set_box(&a)?,
             "doc_create" => self.doc_create(&a)?,

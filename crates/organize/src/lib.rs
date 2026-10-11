@@ -439,11 +439,24 @@ pub fn duplicate_pages(doc: &mut Document, indices: &[usize]) -> Result<(), Orga
     let n = page_count(doc)?;
     check(indices, n)?;
     let Some(&last) = indices.iter().max() else { return Ok(()) };
+    duplicate_pages_at(doc, indices, last + 1)
+}
+
+/// Duplicate pages into a chosen gap (0 = before the first page), preserving their order.
+pub fn duplicate_pages_at(doc: &mut Document, indices: &[usize], at: usize) -> Result<(), OrganizeError> {
+    let n = page_count(doc)?;
+    check(indices, n)?;
+    if at > n {
+        return Err(OrganizeError::NoSuchPage(at));
+    }
+    if indices.is_empty() {
+        return Ok(());
+    }
     let mut order = indices.to_vec();
     order.sort_unstable();
     order.dedup();
     let src = doc.clone();
-    import_pages(doc, &src, &order, last + 1).map(|_| ())
+    import_pages(doc, &src, &order, at).map(|_| ())
 }
 
 /// Replace Pages: the content of `targets` (in order) is replaced by that of `src_pages` of
