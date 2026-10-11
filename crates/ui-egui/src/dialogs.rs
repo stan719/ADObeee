@@ -1552,12 +1552,17 @@ fn form_submission_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let modal = egui::Modal::new(egui::Id::new("form_submission_prompt")).show(ctx, |ui| {
         ui.set_width(460.0);
         let title = match pending.format {
-            crate::SubmissionFormat::Html | crate::SubmissionFormat::Fdf | crate::SubmissionFormat::Xfdf => tl!("Submit a form"),
+            crate::SubmissionFormat::Html | crate::SubmissionFormat::HtmlGet | crate::SubmissionFormat::Fdf | crate::SubmissionFormat::Xfdf => {
+                tl!("Submit a form")
+            }
             crate::SubmissionFormat::Pdf => tl!("Submit PDF document"),
         };
         ui.label(egui::RichText::new(title).font(theme::semibold(16.0)));
         ui.add_space(6.0);
         match pending.format {
+            crate::SubmissionFormat::HtmlGet => {
+                ui.label("GET");
+            }
             crate::SubmissionFormat::Fdf => {
                 ui.label("FDF");
             }
@@ -1570,7 +1575,7 @@ fn form_submission_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
             ui.label(tl!("Comments to send"));
         }
         match pending.format {
-            crate::SubmissionFormat::Html | crate::SubmissionFormat::Fdf | crate::SubmissionFormat::Xfdf => {
+            crate::SubmissionFormat::Html | crate::SubmissionFormat::HtmlGet | crate::SubmissionFormat::Fdf | crate::SubmissionFormat::Xfdf => {
                 ui.label(crate::i18n::fmt(tl!("Form values to send: {count}"), &[("count", &pending.values.to_string())]));
             }
             crate::SubmissionFormat::Pdf => {
@@ -1587,6 +1592,7 @@ fn form_submission_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
             crate::SubmissionFormat::Html | crate::SubmissionFormat::Fdf | crate::SubmissionFormat::Xfdf => {
                 tl!("Only send if you trust this document and destination. The form values leave this computer.")
             }
+            crate::SubmissionFormat::HtmlGet => tl!("Only send if you trust this document and destination. GET puts form values in the URL."),
             crate::SubmissionFormat::Pdf => tl!("Only send if you trust this document and destination. The entire PDF leaves this computer."),
         };
         ui.label(egui::RichText::new(warning).color(t.text_muted).small());

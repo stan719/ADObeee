@@ -76,6 +76,8 @@ pub enum FieldAction {
     ShowHide { fields: Vec<String>, hide: bool },
     /// Submit a form.
     Submit(String),
+    /// Submit current form values as an HTML form in an HTTP GET query.
+    SubmitGet(String),
     /// Submit current form values as FDF.
     SubmitFdf(String),
     /// Submit current form values as XFDF.
@@ -98,6 +100,7 @@ impl FieldAction {
             FieldAction::GoTo(p) => format!("Go to a page view: page {}", p + 1),
             FieldAction::ShowHide { fields, hide } => format!("{} a field: {}", if *hide { "Hide" } else { "Show" }, fields.join(", ")),
             FieldAction::Submit(u) => format!("Submit a form: {u}"),
+            FieldAction::SubmitGet(u) => format!("Submit a form with GET: {u}"),
             FieldAction::SubmitFdf(u) => format!("Submit FDF data: {u}"),
             FieldAction::SubmitXfdf(u) => format!("Submit XFDF data: {u}"),
             FieldAction::SubmitPdf(u) => format!("Submit PDF document: {u}"),
@@ -135,7 +138,7 @@ fn read(doc: &Document, o: &Object, pages: &[pdfcraft_cos::ObjRef]) -> Option<Fi
             // Keep imported selections and unsupported flag combinations opaque so editing
             // another trigger cannot silently rewrite their submission semantics.
             let flags = d.get(b"Flags").and_then(|f| doc.resolve(f).as_int()).unwrap_or(0);
-            if !matches!(flags, 0 | 4 | 32 | 256) || d.contains(b"Fields") {
+            if !matches!(flags, 0 | 4 | 12 | 32 | 256) || d.contains(b"Fields") {
                 FieldAction::Other("SubmitForm with unsupported options".into())
             } else {
                 let url = d
@@ -151,6 +154,7 @@ fn read(doc: &Document, o: &Object, pages: &[pdfcraft_cos::ObjRef]) -> Option<Fi
                     0 => FieldAction::SubmitFdf(url),
                     32 => FieldAction::SubmitXfdf(url),
                     256 => FieldAction::SubmitPdf(url),
+                    12 => FieldAction::SubmitGet(url),
                     _ => FieldAction::Submit(url),
                 }
             }
@@ -214,7 +218,7 @@ fn write(doc: &mut Document, a: &FieldAction, pages: &[pdfcraft_cos::ObjRef]) ->
             d.set(b"T".to_vec(), list(fields));
             d.set(b"H".to_vec(), Object::Bool(*hide));
         }
-        FieldAction::Submit(u) | FieldAction::SubmitFdf(u) | FieldAction::SubmitXfdf(u) | FieldAction::SubmitPdf(u) => {
+        FieldAction::Submit(u) | FieldAction::SubmitGet(u) | FieldAction::SubmitFdf(u) | FieldAction::SubmitXfdf(u) | FieldAction::SubmitPdf(u) => {
             d.set(b"S".to_vec(), Object::name("SubmitForm"));
             let mut fs = Dict::new();
             fs.set(b"FS".to_vec(), Object::name("URL"));
@@ -224,6 +228,7 @@ fn write(doc: &mut Document, a: &FieldAction, pages: &[pdfcraft_cos::ObjRef]) ->
                 FieldAction::SubmitFdf(_) => 0,
                 FieldAction::SubmitXfdf(_) => 32,
                 FieldAction::SubmitPdf(_) => 256,
+                FieldAction::SubmitGet(_) => 12,
                 _ => 4,
             };
             d.set(b"Flags".to_vec(), Object::Int(flags));

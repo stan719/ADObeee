@@ -688,6 +688,7 @@
 	Show a field	إظهار حقل
 	Hide a field	إخفاء حقل
 	Submit a form	إرسال نموذج
+	Submit a form with GET	إرسال نموذج (GET)
 	Fields to reset (comma-separated; empty: all)	الحقول المراد إعادة ضبطها (مفصولة بفواصل؛ فارغ: الكل)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print أو NextPage أو PrevPage أو FirstPage أو LastPage
 	Field names (comma-separated)	أسماء الحقول (مفصولة بفواصل)
@@ -2378,6 +2379,7 @@ animation effects	Off	معطّلة
 # HTML form submission
 	Form values to send: {count}	قيم النموذج المراد إرسالها: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. ستغادر قيم النموذج هذا الكمبيوتر.
+	Only send if you trust this document and destination. GET puts form values in the URL.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. يضع GET قيم النموذج في عنوان URL.
 	Form submission is not available in the browser.	إرسال النماذج غير متاح في المتصفح.
 	Couldn't send the form: {error}	تعذر إرسال النموذج: {error}
 	Form sent to {url} (HTTP {status}).	أُرسل النموذج إلى {url} (HTTP {status}).

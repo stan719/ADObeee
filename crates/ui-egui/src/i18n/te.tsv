@@ -666,6 +666,7 @@ comment menu	Edit	సవరించు
 	Show a field	ఫీల్డ్‌ను చూపించు
 	Hide a field	ఫీల్డ్‌ను దాచు
 	Submit a form	ఫారాన్ని సమర్పించు
+	Submit a form with GET	ఫారాన్ని సమర్పించు (GET)
 	Fields to reset (comma-separated; empty: all)	రీసెట్ చేయాల్సిన ఫీల్డ్‌లు (కామాలతో వేరు చేయండి; ఖాళీగా ఉంటే: అన్నీ)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage లేదా LastPage
 	Field names (comma-separated)	ఫీల్డ్ పేర్లు (కామాలతో వేరు చేయండి)
@@ -2270,6 +2271,7 @@ animation effects	Off	ఆఫ్
 # HTML form submission
 	Form values to send: {count}	పంపాల్సిన ఫారమ్ విలువలు: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	ఈ పత్రాన్ని, గమ్యస్థానాన్ని నమ్మితేనే పంపండి. ఫారమ్ విలువలు ఈ కంప్యూటర్‌ను విడిచిపెడతాయి.
+	Only send if you trust this document and destination. GET puts form values in the URL.	ఈ పత్రం మరియు గమ్యస్థానాన్ని విశ్వసిస్తేనే పంపండి. GET ఫారమ్ విలువలను URLలో ఉంచుతుంది.
 	Form submission is not available in the browser.	బ్రౌజర్‌లో ఫారమ్ పంపడం అందుబాటులో లేదు.
 	Couldn't send the form: {error}	ఫారమ్‌ను పంపలేకపోయాం: {error}
 	Form sent to {url} (HTTP {status}).	ఫారమ్ {url}కు పంపబడింది (HTTP {status}).

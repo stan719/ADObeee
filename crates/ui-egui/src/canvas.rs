@@ -3587,7 +3587,7 @@ fn run_button(app: &mut PdfCraftApp, index: usize, name: &str, action: pdfcraft_
         B::Alert(m) => app.notify(m),
         B::Submit { url, flags, has_fields, fields } => {
             let id = app.views[index].id;
-            if flags < 0 || flags & 8 != 0 {
+            if flags < 0 {
                 app.notify_tr("This form's submission format or field selection is not supported yet.");
                 return;
             }
@@ -3603,7 +3603,8 @@ fn run_button(app: &mut PdfCraftApp, index: usize, name: &str, action: pdfcraft_
             let (format, allowed) = if flags & 32 != 0 {
                 (crate::SubmissionFormat::Xfdf, 1 | 2 | 32)
             } else if flags & 4 != 0 {
-                (crate::SubmissionFormat::Html, 1 | 2 | 4)
+                // PDF 32000-1 Table 237: GetMethod (bit 4) is valid only with HTML ExportFormat.
+                (if flags & 8 != 0 { crate::SubmissionFormat::HtmlGet } else { crate::SubmissionFormat::Html }, 1 | 2 | 4 | 8)
             } else {
                 (crate::SubmissionFormat::Fdf, 1 | 2 | 128)
             };

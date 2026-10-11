@@ -686,6 +686,7 @@
 	Show a field	Показати поле
 	Hide a field	Приховати поле
 	Submit a form	Надіслати форму
+	Submit a form with GET	Надіслати форму (GET)
 	Fields to reset (comma-separated; empty: all)	Поля для скидання (через кому; порожньо: усі)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage або LastPage
 	Field names (comma-separated)	Назви полів (через кому)
@@ -2379,6 +2380,7 @@ animation effects	Off	Вимкнено
 # HTML form submission
 	Form values to send: {count}	Значення форми для надсилання: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	Надсилайте дані, лише якщо довіряєте документу й адресі призначення. Значення форми залишать цей комп’ютер.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Надсилайте лише тоді, коли довіряєте цьому документу та адресі призначення. GET додає значення форми до URL.
 	Form submission is not available in the browser.	Надсилання форм у браузері недоступне.
 	Couldn't send the form: {error}	Не вдалося надіслати форму: {error}
 	Form sent to {url} (HTTP {status}).	Форму надіслано на {url} (HTTP {status}).

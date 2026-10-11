@@ -828,6 +828,7 @@ pub struct PendingRemoteLink {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubmissionFormat {
     Html,
+    HtmlGet,
     Fdf,
     Xfdf,
     Pdf,
@@ -1943,7 +1944,9 @@ impl PdfCraftApp {
                 return;
             }
             let payload = match format {
-                SubmissionFormat::Html => self.session.html_form_selected(id, options).map(|form| (form.body, form.fields)),
+                SubmissionFormat::Html | SubmissionFormat::HtmlGet => {
+                    self.session.html_form_selected(id, options).map(|form| (form.body, form.fields))
+                }
                 SubmissionFormat::Fdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Fdf, options, include_annotations),
                 SubmissionFormat::Xfdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Xfdf, options, false),
                 SubmissionFormat::Pdf => return,
@@ -2003,6 +2006,7 @@ impl PdfCraftApp {
                 let result = pdfcraft_platform::form_submit::FormDestination::new(&pending.url)
                     .and_then(|destination| match pending.format {
                         SubmissionFormat::Html => destination.post_html(&pending.body),
+                        SubmissionFormat::HtmlGet => destination.get_html(&pending.body),
                         SubmissionFormat::Fdf => destination.post_fdf(&pending.body),
                         SubmissionFormat::Xfdf => destination.post_xfdf(&pending.body),
                         SubmissionFormat::Pdf => destination.post_pdf(&pending.body),

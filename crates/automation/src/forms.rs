@@ -194,11 +194,20 @@ impl Automation {
                 exclude: a.opt_bool("exclude")?.unwrap_or(false),
                 include_empty: a.opt_bool("include_empty")?.unwrap_or(false),
             };
-            match a.opt_str("format")?.unwrap_or("html") {
+            let format_name = a.opt_str("format")?.unwrap_or("html");
+            let method = a.opt_str("method")?.unwrap_or("post");
+            if !matches!(method, "post" | "get") {
+                return Err(bad(format!("unsupported form submission method {method:?} (post, get)")));
+            }
+            if method == "get" && format_name != "html" {
+                return Err(bad("GET is available for HTML form data only"));
+            }
+            match format_name {
                 "html" => {
                     let payload = self.session.html_form_selected(id, &options).map_err(failed)?;
-                    let status = destination.post_html(&payload.body).map_err(failed)?;
-                    Ok(json!({ "status": status, "format": "html", "values": payload.fields, "url": url }))
+                    let status =
+                        if method == "get" { destination.get_html(&payload.body) } else { destination.post_html(&payload.body) }.map_err(failed)?;
+                    Ok(json!({ "status": status, "format": "html", "method": method, "values": payload.fields, "url": url }))
                 }
                 "fdf" | "xfdf" => {
                     let format =

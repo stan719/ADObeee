@@ -689,6 +689,7 @@
 	Show a field	フィールドを表示
 	Hide a field	フィールドを非表示
 	Submit a form	フォームを送信
+	Submit a form with GET	フォームを送信 (GET)
 	Fields to reset (comma-separated; empty: all)	リセットするフィールド（カンマ区切り、空欄ならすべて）
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print、NextPage、PrevPage、FirstPage、LastPage のいずれか
 	Field names (comma-separated)	フィールド名（カンマ区切り）
@@ -2357,6 +2358,7 @@ animation effects	Off	オフ
 # HTML form submission
 	Form values to send: {count}	送信するフォームの値: {count} 件
 	Only send if you trust this document and destination. The form values leave this computer.	この文書と送信先を信頼できる場合だけ送信してください。フォームの値はこのコンピューターから外部に送られます。
+	Only send if you trust this document and destination. GET puts form values in the URL.	この文書と送信先を信頼できる場合だけ送信してください。GET はフォームの値を URL に含めます。
 	Form submission is not available in the browser.	ブラウザーではフォームを送信できません。
 	Couldn't send the form: {error}	フォームを送信できませんでした: {error}
 	Form sent to {url} (HTTP {status}).	フォームを {url} に送信しました (HTTP {status})。

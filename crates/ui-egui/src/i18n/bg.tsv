@@ -364,6 +364,7 @@
 	Show a field	Покажи поле
 	Hide a field	Скрий поле
 	Submit a form	Изпрати формуляр
+	Submit a form with GET	Изпрати формуляр (GET)
 	Fields to reset (comma-separated; empty: all)	Полета за нулиране (разделени със запетая; празно: всички)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage или LastPage
 	Field names (comma-separated)	Имена на полета (разделени със запетая)
@@ -2320,6 +2321,7 @@ animation effects	Off	Изключени
 # HTML form submission
 	Form values to send: {count}	Стойности на формуляра за изпращане: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	Изпращайте само ако имате доверие на документа и получателя. Стойностите от формуляра ще напуснат този компютър.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Изпращайте само ако имате доверие на този документ и получателя. GET поставя стойностите на формуляра в URL адреса.
 	Form submission is not available in the browser.	Изпращането на формуляри не е налично в браузъра.
 	Couldn't send the form: {error}	Формулярът не можа да бъде изпратен: {error}
 	Form sent to {url} (HTTP {status}).	Формулярът е изпратен до {url} (HTTP {status}).

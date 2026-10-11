@@ -685,6 +685,7 @@
 	Show a field	Mostra un campo
 	Hide a field	Nascondi un campo
 	Submit a form	Invia un modulo
+	Submit a form with GET	Invia un modulo (GET)
 	Fields to reset (comma-separated; empty: all)	Campi da reimpostare (separati da virgola; vuoto: tutti)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage o LastPage
 	Field names (comma-separated)	Nomi dei campi (separati da virgola)
@@ -2366,6 +2367,7 @@ animation effects	Off	Disattivati
 # HTML form submission
 	Form values to send: {count}	Valori del modulo da inviare: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	Invia i dati solo se ti fidi del documento e della destinazione. I valori del modulo lasceranno questo computer.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Invia solo se ritieni attendibili il documento e la destinazione. GET inserisce i valori del modulo nell’URL.
 	Form submission is not available in the browser.	L’invio dei moduli non è disponibile nel browser.
 	Couldn't send the form: {error}	Impossibile inviare il modulo: {error}
 	Form sent to {url} (HTTP {status}).	Modulo inviato a {url} (HTTP {status}).

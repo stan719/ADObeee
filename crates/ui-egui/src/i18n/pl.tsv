@@ -684,6 +684,7 @@
 	Show a field	Pokaż pole
 	Hide a field	Ukryj pole
 	Submit a form	Wyślij formularz
+	Submit a form with GET	Wyślij formularz (GET)
 	Fields to reset (comma-separated; empty: all)	Pola do zresetowania (oddzielone przecinkami; puste: wszystkie)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage lub LastPage
 	Field names (comma-separated)	Nazwy pól (oddzielone przecinkami)
@@ -2337,6 +2338,7 @@ animation effects	Off	Wyłączone
 # HTML form submission
 	Form values to send: {count}	Wartości formularza do wysłania: {count}
 	Only send if you trust this document and destination. The form values leave this computer.	Wyślij dane tylko wtedy, gdy ufasz temu dokumentowi i odbiorcy. Wartości formularza opuszczą ten komputer.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Wyślij tylko wtedy, gdy ufasz temu dokumentowi i miejscu docelowemu. GET umieszcza wartości formularza w adresie URL.
 	Form submission is not available in the browser.	Wysyłanie formularzy nie jest dostępne w przeglądarce.
 	Couldn't send the form: {error}	Nie można wysłać formularza: {error}
 	Form sent to {url} (HTTP {status}).	Formularz wysłano do {url} (HTTP {status}).

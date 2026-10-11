@@ -1243,9 +1243,11 @@ fn push_buttons_keep_submit_format_and_field_selection() {
         field(&fields(&doc), "go").button,
         Some(af::ButtonAction::Submit { url: "https://forms.example/pdf".into(), flags: 256, has_fields: false, fields: None })
     );
-    for (authored, expected_flags) in
-        [(FieldAction::SubmitFdf("https://forms.example/fdf".into()), 0), (FieldAction::SubmitXfdf("https://forms.example/xfdf".into()), 32)]
-    {
+    for (authored, expected_flags) in [
+        (FieldAction::SubmitFdf("https://forms.example/fdf".into()), 0),
+        (FieldAction::SubmitXfdf("https://forms.example/xfdf".into()), 32),
+        (FieldAction::SubmitGet("https://forms.example/get".into()), 12),
+    ] {
         set_field_actions(&mut doc, "go", &[(Trigger::MouseUp, authored.clone())]).unwrap();
         assert_eq!(field_actions(&doc, "go").unwrap(), [(Trigger::MouseUp, authored)]);
         assert!(matches!(field(&fields(&doc), "go").button, Some(af::ButtonAction::Submit { flags, fields: None, .. }) if flags == expected_flags));

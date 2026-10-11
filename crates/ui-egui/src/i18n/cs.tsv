@@ -2430,7 +2430,9 @@ animation effects	Off	Vypnuto
 	Move tag later	Přesunout značku později
 # HTML form submission
 	Form values to send: {count}	Hodnoty formuláře k odeslání: {count}
+	Submit a form with GET	Odeslat formulář (GET)
 	Only send if you trust this document and destination. The form values leave this computer.	Odesílejte pouze tehdy, pokud tomuto dokumentu a cíli důvěřujete. Hodnoty formuláře opustí tento počítač.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Odesílejte pouze tehdy, pokud tomuto dokumentu a cíli důvěřujete. GET vloží hodnoty formuláře do adresy URL.
 	Form submission is not available in the browser.	Odesílání formulářů není v prohlížeči dostupné.
 	Couldn't send the form: {error}	Formulář se nepodařilo odeslat: {error}
 	Form sent to {url} (HTTP {status}).	Formulář byl odeslán na {url} (HTTP {status}).

@@ -326,6 +326,7 @@
 	Show a field	顯示欄位
 	Hide a field	隱藏欄位
 	Submit a form	提交表單
+	Submit a form with GET	提交表單 (GET)
 	Fields to reset (comma-separated; empty: all)	要重置的欄位（逗號分隔；為空表示全部）
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print、NextPage、PrevPage、FirstPage 或 LastPage
 	Field names (comma-separated)	欄位名（逗號分隔）
@@ -2231,6 +2232,7 @@ animation effects	Off	關
 # HTML form submission
 	Form values to send: {count}	要傳送的表單值：{count} 個
 	Only send if you trust this document and destination. The form values leave this computer.	只有在信任此文件與目的地時才傳送。表單值將離開這部電腦。
+	Only send if you trust this document and destination. GET puts form values in the URL.	只有在信任此文件與目的地時才傳送。GET 會將表單值放入 URL。
 	Form submission is not available in the browser.	瀏覽器中無法提交表單。
 	Couldn't send the form: {error}	無法提交表單：{error}
 	Form sent to {url} (HTTP {status}).	表單已傳送至 {url}（HTTP {status}）。
