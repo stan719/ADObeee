@@ -2317,3 +2317,11 @@ animation effects	Off	Изключени
 	This document is trying to open a local file:	Този документ се опитва да отвори локален файл:
 	Move tag earlier	Преместване на етикета по-рано
 	Move tag later	Преместване на етикета по-късно
+# HTML form submission
+	Form values to send: {count}	Стойности на формуляра за изпращане: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Изпращайте само ако имате доверие на документа и получателя. Стойностите от формуляра ще напуснат този компютър.
+	Form submission is not available in the browser.	Изпращането на формуляри не е налично в браузъра.
+	Couldn't send the form: {error}	Формулярът не можа да бъде изпратен: {error}
+	Form sent to {url} (HTTP {status}).	Формулярът е изпратен до {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Форматът за изпращане или изборът на полета в този формуляр още не се поддържа.
+	Scripted submission to {u} is not supported yet.	Изпращането чрез скрипт до {u} още не се поддържа.

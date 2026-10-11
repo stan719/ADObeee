@@ -2353,3 +2353,11 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+# HTML form submission
+	Form values to send: {count}	Elküldendő űrlapértékek: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Csak akkor küldd el, ha megbízol a dokumentumban és a címzettben. Az űrlapértékek elhagyják ezt a számítógépet.
+	Form submission is not available in the browser.	Az űrlapok elküldése böngészőben nem érhető el.
+	Couldn't send the form: {error}	Nem sikerült elküldeni az űrlapot: {error}
+	Form sent to {url} (HTTP {status}).	Az űrlap elküldve ide: {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Az űrlap beküldési formátuma vagy mezőválasztása még nem támogatott.
+	Scripted submission to {u} is not supported yet.	A szkriptből történő beküldés ide: {u} még nem támogatott.

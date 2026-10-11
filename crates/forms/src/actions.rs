@@ -122,16 +122,26 @@ fn read(doc: &Document, o: &Object, pages: &[pdfcraft_cos::ObjRef]) -> Option<Fi
             fields: d.get(b"T").map(|t| texts(doc, t)).unwrap_or_default(),
             hide: !matches!(d.get(b"H"), Some(Object::Bool(false))),
         },
-        b"SubmitForm" => FieldAction::Submit(
-            d.get(b"F")
-                .map(|f| doc.resolve(f))
-                .and_then(|f| {
-                    f.as_string()
-                        .map(|s| s.to_text())
-                        .or_else(|| f.as_dict().and_then(|fd| fd.get(b"F")).and_then(|x| doc.resolve(x).as_string().map(|s| s.to_text())))
-                })
-                .unwrap_or_default(),
-        ),
+        b"SubmitForm" => {
+            // The editor currently authors HTML POST of all exportable fields. Keep other
+            // imported formats/selections opaque so editing another trigger cannot rewrite
+            // an FDF, XFDF or selected-fields submission as an HTML POST.
+            let flags = d.get(b"Flags").and_then(|f| doc.resolve(f).as_int()).unwrap_or(0);
+            if flags != 4 || d.contains(b"Fields") {
+                FieldAction::Other("SubmitForm with unsupported options".into())
+            } else {
+                FieldAction::Submit(
+                    d.get(b"F")
+                        .map(|f| doc.resolve(f))
+                        .and_then(|f| {
+                            f.as_string()
+                                .map(|s| s.to_text())
+                                .or_else(|| f.as_dict().and_then(|fd| fd.get(b"F")).and_then(|x| doc.resolve(x).as_string().map(|s| s.to_text())))
+                        })
+                        .unwrap_or_default(),
+                )
+            }
+        }
         other => FieldAction::Other(String::from_utf8_lossy(other).into_owned()),
     })
 }

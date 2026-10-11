@@ -178,6 +178,22 @@ fn value_for(f: &FormField, v: &Value) -> Result<FieldValue> {
 }
 
 impl Automation {
+    pub(crate) fn form_submit(&mut self, a: &Args) -> Result<Value> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = a;
+            Err(failed("form submission is not available in the browser"))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let id = self.doc(a)?.id;
+            let url = a.str("url")?;
+            let destination = pdfcraft_platform::form_submit::HtmlFormDestination::new(url).map_err(bad)?;
+            let payload = self.session.html_form(id).map_err(failed)?;
+            let status = destination.post(&payload.body).map_err(failed)?;
+            Ok(json!({ "status": status, "values": payload.fields, "url": url }))
+        }
+    }
     pub(crate) fn form_fields(&self, a: &Args) -> Result<Value> {
         let doc = self.doc(a)?;
         let out: Vec<Value> = doc
@@ -204,6 +220,7 @@ impl Automation {
                     "rotation": w.map(|w| w.rotation).unwrap_or(0),
                     "read_only": f.read_only(),
                     "required": f.has(field_flags::REQUIRED),
+                    "no_export": f.has(field_flags::NO_EXPORT),
                 });
                 let mut more = serde_json::Map::new();
                 let o = &mut more;
@@ -438,6 +455,7 @@ impl Automation {
                             "rich_text" => (ff::RICH_TEXT, false),
                             "password" => (ff::PASSWORD, false),
                             "file_select" => (ff::FILE_SELECT, false),
+                            "no_export" => (ff::NO_EXPORT, false),
                             "spell_check" => (ff::DO_NOT_SPELL_CHECK, true),
                             "comb" => (ff::COMB, false),
                             "sort" => (ff::SORT, false),

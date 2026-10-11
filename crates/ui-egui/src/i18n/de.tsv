@@ -2355,3 +2355,11 @@ animation effects	Off	Aus
 	This document is trying to open a local file:	Dieses Dokument versucht, eine lokale Datei zu öffnen:
 	Move tag earlier	Tag früher verschieben
 	Move tag later	Tag später verschieben
+# HTML form submission
+	Form values to send: {count}	Zu sendende Formularwerte: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Nur senden, wenn Sie diesem Dokument und dem Ziel vertrauen. Die Formularwerte verlassen diesen Computer.
+	Form submission is not available in the browser.	Das Senden von Formularen ist im Browser nicht verfügbar.
+	Couldn't send the form: {error}	Das Formular konnte nicht gesendet werden: {error}
+	Form sent to {url} (HTTP {status}).	Formular an {url} gesendet (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Das Übermittlungsformat oder die Feldauswahl dieses Formulars wird noch nicht unterstützt.
+	Scripted submission to {u} is not supported yet.	Das skriptgesteuerte Senden an {u} wird noch nicht unterstützt.

@@ -2228,3 +2228,11 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+# HTML form submission
+	Form values to send: {count}	要傳送的表單值：{count} 個
+	Only send if you trust this document and destination. The form values leave this computer.	只有在信任此文件與目的地時才傳送。表單值將離開這部電腦。
+	Form submission is not available in the browser.	瀏覽器中無法提交表單。
+	Couldn't send the form: {error}	無法提交表單：{error}
+	Form sent to {url} (HTTP {status}).	表單已傳送至 {url}（HTTP {status}）。
+	This form's submission format or field selection is not supported yet.	尚未支援此表單的提交格式或欄位選擇。
+	Scripted submission to {u} is not supported yet.	尚未支援透過指令碼提交至 {u}。

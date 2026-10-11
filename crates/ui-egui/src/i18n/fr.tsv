@@ -2354,3 +2354,11 @@ animation effects	Off	Désactivés
 	This document is trying to open a local file:	Ce document tente d’ouvrir un fichier local :
 	Move tag earlier	Déplacer la balise plus tôt
 	Move tag later	Déplacer la balise plus tard
+# HTML form submission
+	Form values to send: {count}	Valeurs du formulaire à envoyer : {count}
+	Only send if you trust this document and destination. The form values leave this computer.	N’envoyez ces données que si vous faites confiance au document et à la destination. Les valeurs du formulaire quittent cet ordinateur.
+	Form submission is not available in the browser.	L’envoi de formulaires n’est pas disponible dans le navigateur.
+	Couldn't send the form: {error}	Impossible d’envoyer le formulaire : {error}
+	Form sent to {url} (HTTP {status}).	Formulaire envoyé à {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Le format d’envoi ou la sélection des champs de ce formulaire ne sont pas encore pris en charge.
+	Scripted submission to {u} is not supported yet.	L’envoi par script à {u} n’est pas encore pris en charge.

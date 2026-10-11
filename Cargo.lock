@@ -4176,6 +4176,9 @@ version = "0.7.1"
 dependencies = [
  "async-channel",
  "futures-lite",
+ "rustls-native-certs",
+ "ureq",
+ "url",
  "zbus",
 ]
 

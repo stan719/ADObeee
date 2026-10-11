@@ -1132,8 +1132,13 @@ pub enum ButtonAction {
     },
     /// `app.alert("…")`.
     Alert(String),
-    /// Submit the form to a URL (not sent: PdfCraft never posts form data on its own).
-    Submit(String),
+    /// Submit the form to a URL. Only HTML POST with all exportable fields is currently run;
+    /// other flag combinations remain visible but are not silently sent in the wrong format.
+    Submit {
+        url: String,
+        flags: i64,
+        has_fields: bool,
+    },
     /// `event.target.buttonImportIcon()`: choose an image for the button (an image field).
     ImportIcon,
     /// A script PdfCraft can't run yet.
