@@ -2331,3 +2331,8 @@ animation effects	Off	关
 	Submit PDF document	发送 PDF 文档
 	Entire PDF document to send: {bytes} bytes	要发送的完整 PDF 文档：{bytes} 字节
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	仅在信任此文档和目标地址时发送。完整 PDF 将离开此计算机。
+
+# FDF and XFDF submission actions
+	Submit FDF data	提交 FDF 数据
+	Submit XFDF data	提交 XFDF 数据
+	Comments to send	要发送的批注

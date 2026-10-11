@@ -872,6 +872,8 @@ impl Automation {
                     A::ShowHide { fields, hide: true } => json!({ "hide": fields }),
                     A::ShowHide { fields, hide: false } => json!({ "show": fields }),
                     A::Submit(u) => json!({ "submit": u }),
+                    A::SubmitFdf(u) => json!({ "submit_fdf": u }),
+                    A::SubmitXfdf(u) => json!({ "submit_xfdf": u }),
                     A::SubmitPdf(u) => json!({ "submit_pdf": u }),
                     A::Other(s) => json!({ "other": s }),
                 };
@@ -909,10 +911,16 @@ impl Automation {
                 A::ShowHide { fields: names(&it["hide"]), hide: true }
             } else if let Some(u) = it["submit"].as_str() {
                 A::Submit(u.into())
+            } else if let Some(u) = it["submit_fdf"].as_str() {
+                A::SubmitFdf(u.into())
+            } else if let Some(u) = it["submit_xfdf"].as_str() {
+                A::SubmitXfdf(u.into())
             } else if let Some(u) = it["submit_pdf"].as_str() {
                 A::SubmitPdf(u.into())
             } else {
-                return Err(bad(format!("{tid}: give one action (javascript, url, reset, menu, page, show, hide, submit or submit_pdf)")));
+                return Err(bad(format!(
+                    "{tid}: give one action (javascript, url, reset, menu, page, show, hide, submit, submit_fdf, submit_xfdf or submit_pdf)"
+                )));
             };
             acts.push((t, act));
         }

@@ -189,18 +189,38 @@ impl Automation {
             let id = self.doc(a)?.id;
             let url = a.str("url")?;
             let destination = pdfcraft_platform::form_submit::FormDestination::new(url).map_err(bad)?;
+            let options = pdfcraft_engine::form_submit::SubmitOptions {
+                names: a.get("fields").map(|_| a.strs("fields").map(|names| names.into_iter().map(str::to_owned).collect())).transpose()?,
+                exclude: a.opt_bool("exclude")?.unwrap_or(false),
+                include_empty: a.opt_bool("include_empty")?.unwrap_or(false),
+            };
             match a.opt_str("format")?.unwrap_or("html") {
                 "html" => {
-                    let payload = self.session.html_form(id).map_err(failed)?;
+                    let payload = self.session.html_form_selected(id, &options).map_err(failed)?;
                     let status = destination.post_html(&payload.body).map_err(failed)?;
                     Ok(json!({ "status": status, "format": "html", "values": payload.fields, "url": url }))
+                }
+                "fdf" | "xfdf" => {
+                    let format =
+                        if a.opt_str("format")? == Some("fdf") { pdfcraft_engine::DataFormat::Fdf } else { pdfcraft_engine::DataFormat::Xfdf };
+                    let annotations = a.opt_bool("include_annotations")?.unwrap_or(false);
+                    if annotations && format != pdfcraft_engine::DataFormat::Fdf {
+                        return Err(bad("include_annotations is supported only for FDF"));
+                    }
+                    let (payload, fields) = self.session.form_data_submission(id, format, &options, annotations).map_err(failed)?;
+                    let status =
+                        if format == pdfcraft_engine::DataFormat::Fdf { destination.post_fdf(&payload) } else { destination.post_xfdf(&payload) }
+                            .map_err(failed)?;
+                    Ok(
+                        json!({ "status": status, "format": if format == pdfcraft_engine::DataFormat::Fdf { "fdf" } else { "xfdf" }, "fields": fields, "bytes": payload.len(), "url": url }),
+                    )
                 }
                 "pdf" => {
                     let payload = self.session.save_bytes(id).map_err(failed)?;
                     let status = destination.post_pdf(&payload).map_err(failed)?;
                     Ok(json!({ "status": status, "format": "pdf", "bytes": payload.len(), "url": url }))
                 }
-                other => Err(bad(format!("unsupported submission format {other:?} (html, pdf)"))),
+                other => Err(bad(format!("unsupported submission format {other:?} (html, fdf, xfdf, pdf)"))),
             }
         }
     }

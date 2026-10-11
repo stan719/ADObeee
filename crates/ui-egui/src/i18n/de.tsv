@@ -2368,3 +2368,8 @@ animation effects	Off	Aus
 	Submit PDF document	PDF-Dokument senden
 	Entire PDF document to send: {bytes} bytes	Gesamtes PDF-Dokument zum Senden: {bytes} Byte
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Nur senden, wenn Sie diesem Dokument und dem Ziel vertrauen. Das gesamte PDF verlässt diesen Computer.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF-Daten senden
+	Submit XFDF data	XFDF-Daten senden
+	Comments to send	Zu sendende Kommentare

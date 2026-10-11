@@ -2280,3 +2280,8 @@ animation effects	Off	ఆఫ్
 	Submit PDF document	PDF పత్రాన్ని పంపండి
 	Entire PDF document to send: {bytes} bytes	పంపాల్సిన పూర్తి PDF పత్రం: {bytes} బైట్లు
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	ఈ పత్రం మరియు గమ్యస్థానాన్ని నమ్మితే మాత్రమే పంపండి. మొత్తం PDF ఈ కంప్యూటర్‌ను వదిలి వెళ్తుంది.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF డేటాను పంపు
+	Submit XFDF data	XFDF డేటాను పంపు
+	Comments to send	పంపే వ్యాఖ్యలు

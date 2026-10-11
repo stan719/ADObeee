@@ -168,6 +168,62 @@ fn submit_pdf_button_reviews_entire_current_document() {
 }
 
 #[test]
+fn submit_xfdf_button_reviews_current_form_data() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada & Co".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::SubmitXfdf("https://forms.example/xfdf".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("XFDF button opens a prompt");
+    assert_eq!(pending.format, SubmissionFormat::Xfdf);
+    assert_eq!(pending.url, "https://forms.example/xfdf");
+    assert!(String::from_utf8_lossy(&pending.body).contains("Ada &amp; Co"));
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn fdf_submission_reviews_comments_option() {
+    use pdfcraft_engine::{Edit, FieldValue, form_submit::SubmitOptions};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    h.state_mut().request_selected_form_submission(id, "https://forms.example/fdf", SubmissionFormat::Fdf, &SubmitOptions::default(), true);
+    h.run_steps(2);
+    let pending = h.state().pending_submission.as_ref().unwrap();
+    assert_eq!(pending.format, SubmissionFormat::Fdf);
+    assert!(pending.include_annotations);
+    assert!(pending.body.starts_with(b"%FDF-"));
+    assert!(h.query_all_by_label("Comments to send").count() >= 1);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
 fn approved_form_submission_posts_in_the_background() {
     use pdfcraft_engine::{Edit, FieldValue};
     use std::io::{Read, Write};

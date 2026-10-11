@@ -2367,3 +2367,8 @@ animation effects	Off	オフ
 	Submit PDF document	PDF 文書を送信
 	Entire PDF document to send: {bytes} bytes	送信する PDF 文書全体: {bytes} バイト
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	この文書と送信先を信頼できる場合のみ送信してください。PDF 全体がこのコンピューターから送信されます。
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF データを送信
+	Submit XFDF data	XFDF データを送信
+	Comments to send	送信するコメント

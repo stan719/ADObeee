@@ -3945,6 +3945,7 @@ dependencies = [
  "pdfcraft-platform",
  "pdfcraft-render",
  "pdfcraft-xfa",
+ "pdfcraft-xfdf",
  "png 0.18.1",
  "serde_json",
  "sha2 0.11.0",

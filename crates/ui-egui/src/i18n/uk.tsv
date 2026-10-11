@@ -2389,3 +2389,8 @@ animation effects	Off	Вимкнено
 	Submit PDF document	Надіслати документ PDF
 	Entire PDF document to send: {bytes} bytes	Увесь документ PDF для надсилання: {bytes} байтів
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Надсилайте лише якщо довіряєте документу та адресату. Увесь PDF залишить цей комп’ютер.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Надіслати дані FDF
+	Submit XFDF data	Надіслати дані XFDF
+	Comments to send	Коментарі для надсилання

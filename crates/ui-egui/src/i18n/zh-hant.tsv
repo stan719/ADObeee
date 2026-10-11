@@ -2241,3 +2241,8 @@ animation effects	Off	關
 	Submit PDF document	傳送 PDF 文件
 	Entire PDF document to send: {bytes} bytes	要傳送的完整 PDF 文件：{bytes} 位元組
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	僅在信任此文件和目的地時傳送。完整 PDF 將離開這部電腦。
+
+# FDF and XFDF submission actions
+	Submit FDF data	傳送 FDF 資料
+	Submit XFDF data	傳送 XFDF 資料
+	Comments to send	要傳送的註解

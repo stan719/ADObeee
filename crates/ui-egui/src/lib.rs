@@ -828,6 +828,8 @@ pub struct PendingRemoteLink {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubmissionFormat {
     Html,
+    Fdf,
+    Xfdf,
     Pdf,
 }
 
@@ -838,6 +840,7 @@ pub struct PendingSubmission {
     pub body: std::sync::Arc<Vec<u8>>,
     pub values: usize,
     pub format: SubmissionFormat,
+    pub include_annotations: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1909,9 +1912,22 @@ impl PdfCraftApp {
     /// A document button requests an HTML form POST. Commit any field being typed before
     /// preparing the payload, and show the exact destination before anything is sent.
     pub fn request_form_submission(&mut self, id: DocId, url: &str) {
+        self.request_selected_form_submission(id, url, SubmissionFormat::Html, &pdfcraft_engine::form_submit::SubmitOptions::default(), false);
+    }
+
+    /// Prepare a selected HTML, FDF or XFDF payload from the current unsaved form and show the
+    /// reviewed destination before a worker sends the frozen bytes.
+    pub fn request_selected_form_submission(
+        &mut self,
+        id: DocId,
+        url: &str,
+        format: SubmissionFormat,
+        options: &pdfcraft_engine::form_submit::SubmitOptions,
+        include_annotations: bool,
+    ) {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (id, url);
+            let _ = (id, url, format, options, include_annotations);
             self.notify_tr("Form submission is not available in the browser.");
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -1926,14 +1942,16 @@ impl PdfCraftApp {
             if !self.commit_typing_in(id) {
                 return;
             }
-            match self.session.html_form(id) {
-                Ok(form) => {
-                    self.pending_submission = Some(PendingSubmission {
-                        url: url.into(),
-                        body: std::sync::Arc::new(form.body),
-                        values: form.fields,
-                        format: SubmissionFormat::Html,
-                    })
+            let payload = match format {
+                SubmissionFormat::Html => self.session.html_form_selected(id, options).map(|form| (form.body, form.fields)),
+                SubmissionFormat::Fdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Fdf, options, include_annotations),
+                SubmissionFormat::Xfdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Xfdf, options, false),
+                SubmissionFormat::Pdf => return,
+            };
+            match payload {
+                Ok((body, values)) => {
+                    self.pending_submission =
+                        Some(PendingSubmission { url: url.into(), body: std::sync::Arc::new(body), values, format, include_annotations })
                 }
                 Err(e) => self.notify_error(e),
             }
@@ -1962,7 +1980,8 @@ impl PdfCraftApp {
             }
             match self.session.save_bytes(id) {
                 Ok(body) => {
-                    self.pending_submission = Some(PendingSubmission { url: url.into(), body, values: 0, format: SubmissionFormat::Pdf });
+                    self.pending_submission =
+                        Some(PendingSubmission { url: url.into(), body, values: 0, format: SubmissionFormat::Pdf, include_annotations: false });
                 }
                 Err(e) => self.notify_error(e),
             }
@@ -1984,6 +2003,8 @@ impl PdfCraftApp {
                 let result = pdfcraft_platform::form_submit::FormDestination::new(&pending.url)
                     .and_then(|destination| match pending.format {
                         SubmissionFormat::Html => destination.post_html(&pending.body),
+                        SubmissionFormat::Fdf => destination.post_fdf(&pending.body),
+                        SubmissionFormat::Xfdf => destination.post_xfdf(&pending.body),
                         SubmissionFormat::Pdf => destination.post_pdf(&pending.body),
                     })
                     .map(|status| (pending.url, status));

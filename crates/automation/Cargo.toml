@@ -30,6 +30,7 @@ mcp = ["dep:base64"]
 pdfcraft-cos = { workspace = true }
 flate2.workspace = true
 pdfcraft-forms = { workspace = true }
+pdfcraft-xfdf = { workspace = true }
 pdfcraft-fonts = { workspace = true }
 pdfcraft-model = { workspace = true }
 pdfcraft-xfa = { workspace = true }

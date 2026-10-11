@@ -2330,3 +2330,8 @@ animation effects	Off	Изключени
 	Submit PDF document	Изпрати PDF документ
 	Entire PDF document to send: {bytes} bytes	Целият PDF документ за изпращане: {bytes} байта
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Изпращайте само ако имате доверие на документа и получателя. Целият PDF напуска този компютър.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Изпращане на FDF данни
+	Submit XFDF data	Изпращане на XFDF данни
+	Comments to send	Коментари за изпращане

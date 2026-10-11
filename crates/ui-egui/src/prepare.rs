@@ -686,7 +686,7 @@ pub enum FieldTab {
 }
 
 /// Actions tab: the "Select Action" choices.
-pub const ACTION_KINDS: [&str; 9] = [
+pub const ACTION_KINDS: [&str; 11] = [
     "Run a JavaScript",
     "Open a web link",
     "Reset a form",
@@ -696,6 +696,8 @@ pub const ACTION_KINDS: [&str; 9] = [
     "Hide a field",
     "Submit a form",
     "Submit PDF document",
+    "Submit FDF data",
+    "Submit XFDF data",
 ];
 
 /// Actions tab: the action being added.
@@ -728,7 +730,9 @@ impl ActionDraft {
             6 if !t.is_empty() => A::ShowHide { fields: names(), hide: true },
             7 if !t.is_empty() => A::Submit(t.to_string()),
             8 if !t.is_empty() => A::SubmitPdf(t.to_string()),
-            1 | 7 | 8 => return Err("Enter a URL".into()),
+            9 if !t.is_empty() => A::SubmitFdf(t.to_string()),
+            10 if !t.is_empty() => A::SubmitXfdf(t.to_string()),
+            1 | 7 | 8 | 9 | 10 => return Err("Enter a URL".into()),
             _ => return Err("Enter the field names".into()),
         })
     }

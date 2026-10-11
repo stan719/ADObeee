@@ -3585,15 +3585,35 @@ fn run_button(app: &mut PdfCraftApp, index: usize, name: &str, action: pdfcraft_
             set_layers(app, index, &changes, preserve_rb);
         }
         B::Alert(m) => app.notify(m),
-        B::Submit { url, flags: 4, has_fields: false } => {
+        B::Submit { url, flags, has_fields, fields } => {
             let id = app.views[index].id;
-            app.request_form_submission(id, &url);
+            if flags < 0 || flags & 8 != 0 {
+                app.notify_tr("This form's submission format or field selection is not supported yet.");
+                return;
+            }
+            if flags & 256 != 0 {
+                // SubmitPDF ignores the other flags and the Fields array (§12.7.6.5).
+                app.request_pdf_submission(id, &url);
+                return;
+            }
+            if has_fields && fields.is_none() {
+                app.notify_tr("This form's submission format or field selection is not supported yet.");
+                return;
+            }
+            let (format, allowed) = if flags & 32 != 0 {
+                (crate::SubmissionFormat::Xfdf, 1 | 2 | 32)
+            } else if flags & 4 != 0 {
+                (crate::SubmissionFormat::Html, 1 | 2 | 4)
+            } else {
+                (crate::SubmissionFormat::Fdf, 1 | 2 | 128)
+            };
+            if flags & !allowed != 0 {
+                app.notify_tr("This form's submission format or field selection is not supported yet.");
+                return;
+            }
+            let options = pdfcraft_engine::form_submit::SubmitOptions { names: fields, exclude: flags & 1 != 0, include_empty: flags & 2 != 0 };
+            app.request_selected_form_submission(id, &url, format, &options, flags & 128 != 0);
         }
-        B::Submit { url, flags: 256, .. } => {
-            let id = app.views[index].id;
-            app.request_pdf_submission(id, &url);
-        }
-        B::Submit { .. } => app.notify_tr("This form's submission format or field selection is not supported yet."),
         B::ImportIcon => app.choose_field_image(name),
         B::Script(js) => {
             let id = app.views[index].id;

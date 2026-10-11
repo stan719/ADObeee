@@ -293,6 +293,15 @@ fn button_action(doc: &Document, d: &Dict, widgets: &[ObjRef]) -> Option<af::But
                 .unwrap_or_default(),
             flags: a.get(b"Flags").and_then(|f| doc.resolve(f).as_int()).unwrap_or(0),
             has_fields: a.contains(b"Fields"),
+            fields: a.get(b"Fields").and_then(|items| doc.resolve(items).as_array().cloned()).and_then(|items| {
+                items
+                    .iter()
+                    .map(|item| match item {
+                        Object::Ref(reference) => qualified_name(doc, *reference),
+                        _ => text_of(&doc.resolve(item)),
+                    })
+                    .collect::<Option<Vec<_>>>()
+            }),
         },
         b"GoTo" => {
             let dest = doc.resolve(a.get(b"D")?);

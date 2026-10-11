@@ -31,6 +31,14 @@ impl FormDestination {
         self.post(body, "application/pdf")
     }
 
+    pub fn post_fdf(&self, body: &[u8]) -> Result<u16, String> {
+        self.post(body, "application/vnd.fdf")
+    }
+
+    pub fn post_xfdf(&self, body: &[u8]) -> Result<u16, String> {
+        self.post(body, "application/vnd.adobe.xfdf")
+    }
+
     fn post(&self, body: &[u8], content_type: &str) -> Result<u16, String> {
         let found = rustls_native_certs::load_native_certs();
         let certs: Vec<ureq::tls::Certificate<'static>> =

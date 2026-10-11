@@ -117,7 +117,8 @@ fn view_history_select_all_and_find_options() {
         h.run_steps(2);
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert_eq!(h.state().views[0].find.as_ref().unwrap().matches.len(), 15);
+    let matches = &h.state().views[0].find.as_ref().unwrap().matches;
+    assert_eq!(matches.len(), 15, "matched pages: {:?}", matches.iter().map(|(p, _)| p).collect::<Vec<_>>());
     {
         let f = h.state_mut().views[0].find.as_mut().unwrap();
         f.whole_words = true;

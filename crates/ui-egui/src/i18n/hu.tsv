@@ -2366,3 +2366,8 @@ animation effects	Off	Ki
 	Submit PDF document	PDF-dokumentum küldése
 	Entire PDF document to send: {bytes} bytes	Elküldendő teljes PDF-dokumentum: {bytes} bájt
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Csak akkor küldje el, ha megbízik a dokumentumban és a címzettben. A teljes PDF elhagyja ezt a számítógépet.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF-adatok küldése
+	Submit XFDF data	XFDF-adatok küldése
+	Comments to send	Elküldendő megjegyzések

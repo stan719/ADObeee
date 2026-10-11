@@ -2280,3 +2280,8 @@ animation effects	Off	Выкл
 	Submit PDF document	Отправить документ PDF
 	Entire PDF document to send: {bytes} bytes	Весь документ PDF для отправки: {bytes} байт
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Отправляйте только если доверяете документу и адресу назначения. Весь PDF покинет этот компьютер.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Отправить данные FDF
+	Submit XFDF data	Отправить данные XFDF
+	Comments to send	Отправляемые комментарии

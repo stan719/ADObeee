@@ -2388,3 +2388,8 @@ animation effects	Off	معطّلة
 	Submit PDF document	إرسال مستند PDF
 	Entire PDF document to send: {bytes} bytes	ملف PDF الكامل للإرسال: {bytes} بايت
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. يغادر ملف PDF الكامل هذا الكمبيوتر.
+
+# FDF and XFDF submission actions
+	Submit FDF data	إرسال بيانات FDF
+	Submit XFDF data	إرسال بيانات XFDF
+	Comments to send	التعليقات التي سيتم إرسالها

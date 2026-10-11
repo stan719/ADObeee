@@ -2376,3 +2376,8 @@ animation effects	Off	Disattivati
 	Submit PDF document	Invia documento PDF
 	Entire PDF document to send: {bytes} bytes	Documento PDF completo da inviare: {bytes} byte
 	Only send if you trust this document and destination. The entire PDF leaves this computer.	Invia solo se ritieni attendibili il documento e la destinazione. L’intero PDF lascia questo computer.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Invia dati FDF
+	Submit XFDF data	Invia dati XFDF
+	Comments to send	Commenti da inviare

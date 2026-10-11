@@ -1132,12 +1132,13 @@ pub enum ButtonAction {
     },
     /// `app.alert("…")`.
     Alert(String),
-    /// Submit the form to a URL. Only HTML POST with all exportable fields is currently run;
-    /// other flag combinations remain visible but are not silently sent in the wrong format.
+    /// Submit the form to a URL. `has_fields` distinguishes omitted `/Fields` from an empty
+    /// array; `fields: None` with `has_fields: true` means an unsupported field reference.
     Submit {
         url: String,
         flags: i64,
         has_fields: bool,
+        fields: Option<Vec<String>>,
     },
     /// `event.target.buttonImportIcon()`: choose an image for the button (an image field).
     ImportIcon,
