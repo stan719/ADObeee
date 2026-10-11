@@ -4367,14 +4367,19 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                     view.click_page(i, egui::Modifiers::COMMAND, false);
                     view.current = i;
                 }
-                // Local actions always target the labelled page. The toolbar above the grid
-                // remains the place for actions on the whole selection.
+                // Keep page actions beside the hovered thumbnail, where they stay visible for
+                // a selected page as well. The toolbar above the grid acts on the selection.
                 if selected || resp.contains_pointer() || resp.has_focus() {
-                    let actions = Rect::from_center_size(pos2(c.center().x, c.bottom() - 24.0), vec2(84.0, 26.0));
+                    let actions = Rect::from_min_size(pos2((pr.right() - 3.0).min(c.right() - 38.0), pr.top() + 8.0), vec2(34.0, 116.0));
+                    ui.painter().rect_filled(actions, CornerRadius::same(6), t.chrome);
+                    ui.painter().rect_stroke(actions, CornerRadius::same(6), Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
                     ui.scope_builder(
-                        egui::UiBuilder::new().id_salt(("org-actions", i)).max_rect(actions).layout(egui::Layout::left_to_right(egui::Align::Center)),
+                        egui::UiBuilder::new()
+                            .id_salt(("org-actions", i))
+                            .max_rect(actions.shrink(3.0))
+                            .layout(egui::Layout::top_down(egui::Align::Center)),
                         |ui| {
-                            ui.spacing_mut().item_spacing.x = 3.0;
+                            ui.spacing_mut().item_spacing.y = 2.0;
                             ui.add_enabled_ui(editable, |ui| {
                                 for (icon, degrees, key) in
                                     [("rotate-ccw", -90, "Rotate page {label} counterclockwise"), ("rotate-cw", 90, "Rotate page {label} clockwise")]
@@ -4387,6 +4392,26 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                                 let label = crate::i18n::fmt(tl!("Delete page {label}"), &[("label", &p.label)]);
                                 if ui.add_enabled_ui(info.pages.len() > 1, |ui| icons::button(ui, "trash-2", 26.0, false, &label)).inner.clicked() {
                                     view.pending_edit = Some(Edit::DeletePages { pages: vec![i] });
+                                }
+                            });
+                            let more = icons::button(ui, "ellipsis", 26.0, false, tl!("More"));
+                            if more.clicked() {
+                                view.selected = [i].into();
+                                view.select_anchor = Some(i);
+                                view.current = i;
+                            }
+                            egui::Popup::menu(&more).show(|ui| {
+                                if ui.add_enabled(editable, egui::Button::new(tl!("Cut"))).clicked() {
+                                    view.pending_action = Some(ViewAction::CopyPages { cut: true });
+                                    ui.close();
+                                }
+                                if ui.button(tl!("Copy")).clicked() {
+                                    view.pending_action = Some(ViewAction::CopyPages { cut: false });
+                                    ui.close();
+                                }
+                                if ui.add_enabled(editable, egui::Button::new(tl!("Paste after"))).clicked() {
+                                    view.pending_action = Some(ViewAction::PastePages);
+                                    ui.close();
                                 }
                             });
                         },
