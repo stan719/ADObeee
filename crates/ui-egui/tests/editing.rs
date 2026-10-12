@@ -2684,6 +2684,106 @@ fn selected_text_formatting_keeps_the_rest_of_the_paragraph_and_reopens() {
     assert_eq!(reopen.get(rid).unwrap().text_lines(0), lines);
 }
 
+#[test]
+fn source_arabic_editor_keeps_logical_history_cancel_and_two_save_cycles() {
+    let font = std::env::var_os("PDFCRAFT_TEST_ARABIC_FONT")
+        .map(|p| std::fs::read(p).unwrap())
+        .or_else(|| pdfcraft_fonts::document_arabic_font().map(|f| f.bytes.to_vec()));
+    let Some(font) = font.filter(|bytes| pdfcraft_fonts::embedding::validate(bytes).is_ok()) else {
+        eprintln!("set PDFCRAFT_TEST_ARABIC_FONT to a licensed static Arabic face for source-editor proof");
+        return;
+    };
+    let original = "مرحبا بالعالم PDFCraft 123";
+    let full_font = font.clone();
+    let mut h = harness(1, move |app| {
+        let id = app.views[0].id;
+        app.session.apply(id, pdfcraft_engine::Edit::RegisterTextFont { page: 0, bytes: std::sync::Arc::new(font.clone()) }).unwrap();
+        let resource = app.session.get(id).unwrap().text_editor_fonts(0).into_iter().find(|f| f.bytes == font).unwrap().resource;
+        assert!(app.apply_edit(pdfcraft_engine::Edit::EditTextBlock {
+            page: 0,
+            block: 0,
+            text: original.into(),
+            style: pdfcraft_engine::BlockStyle { resource: Some(resource), size: Some(18.0), width: Some(155.0), ..Default::default() },
+        }));
+    });
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(4);
+    let doc = h.state().session.get(h.state().views[0].id).unwrap();
+    let block = doc.text_blocks(0)[0].clone();
+    let full_resource = doc.text_editor_fonts(0).into_iter().find(|f| f.resource.starts_with("PCFull") && f.bytes == full_font).unwrap().resource;
+    if let Ok(dir) = std::env::var("PDFCRAFT_SHOTS") {
+        std::fs::write(format!("{dir}/arabic-source.pdf"), doc.bytes.as_ref()).unwrap();
+    }
+    let original_editor = block.editor_text.clone();
+    assert_eq!(original_editor.replace('\n', " "), original);
+    let r = h.state().views[0].page_screen_rect(0).unwrap();
+    let at =
+        egui::pos2(r.left() + (block.rect[0] + 2.0) as f32 / 200.0 * r.width(), r.top() + (300.0 - block.rect[3] + 2.0) as f32 / 300.0 * r.height());
+    h.hover_at(at);
+    h.run_steps(1);
+    h.drag_at(at);
+    h.run_steps(1);
+    h.drop_at(at);
+    h.run_steps(4);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, original_editor);
+    let replacement = "سَلَام PDF 456";
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.event(egui::Event::Text(replacement.into()));
+    h.run_steps(3);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, replacement);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(2);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, original_editor);
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+    h.run_steps(2);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, replacement);
+    h.key_press(Key::Escape);
+    h.run_steps(3);
+    assert!(h.state().views[0].line_editor.is_none());
+    assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().text_blocks(0)[0].editor_text, original_editor);
+    h.hover_at(at);
+    h.run_steps(1);
+    h.drag_at(at);
+    h.run_steps(1);
+    h.drop_at(at);
+    h.run_steps(4);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.event(egui::Event::Text(replacement.into()));
+    h.run_steps(3);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, replacement, "second edit receives keyboard input");
+    if let Ok(dir) = std::env::var("PDFCRAFT_SHOTS") {
+        h.render().unwrap().save(format!("{dir}/arabic-source-editor.png")).unwrap();
+    }
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Enter);
+    h.run_steps(4);
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, replacement, "a rejected contextual edit keeps its draft");
+    assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().text_blocks(0)[0].editor_text, original_editor);
+    let saved_path = temp_path("arabic-open-draft.pdf");
+    h.state_mut().save_override = Some(saved_path.to_string_lossy().into_owned());
+    assert!(!h.state_mut().save_active(pdfcraft_ui_egui::SaveTarget::As), "Save must stop on a rejected draft");
+    assert!(!saved_path.exists());
+    assert_eq!(h.state().views[0].line_editor.as_ref().unwrap().text, replacement);
+    // Select the already registered complete source face explicitly. The engine
+    // still rejects unsupported mixed contextual resources instead of flattening styles.
+    h.state_mut().views[0].line_editor.as_mut().unwrap().font_resource = Some(full_resource);
+    assert!(h.state_mut().save_active(pdfcraft_ui_egui::SaveTarget::As), "Save applies the selected complete face");
+    assert!(h.state().views[0].line_editor.is_none(), "full-face apply: {:?}", h.state().toast);
+    assert_eq!(
+        h.state().session.get(h.state().views[0].id).unwrap().text_blocks(0)[0].editor_text,
+        replacement,
+        "Apply changes the source document; toast: {:?}",
+        h.state().toast
+    );
+    let mut bytes = std::sync::Arc::new(std::fs::read(&saved_path).unwrap());
+    let mut reopened = pdfcraft_engine::Session::new();
+    for _ in 0..2 {
+        let id = reopened.open("arabic.pdf", None, bytes, None).unwrap();
+        assert_eq!(reopened.get(id).unwrap().text_blocks(0)[0].editor_text, replacement);
+        bytes = reopened.save_bytes(id).unwrap();
+    }
+    let _ = std::fs::remove_file(saved_path);
+}
+
 /// Drag with the pointer from `from` to `to` in a few steps.
 fn drag(h: &mut Harness<'static, PdfCraftApp>, from: egui::Pos2, to: egui::Pos2) {
     h.hover_at(from);

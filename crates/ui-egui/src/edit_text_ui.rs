@@ -206,6 +206,19 @@ pub(crate) fn extras_panel(ui: &mut egui::Ui, e: &mut Extras) -> bool {
 }
 
 impl LineEditor {
+    pub(crate) fn request_focus(&mut self) {
+        self.focus = true;
+    }
+
+    pub(crate) fn edit(&self) -> Option<Edit> {
+        let style = self.style();
+        (self.text != self.original || style != pdfcraft_engine::BlockStyle::default()).then(|| Edit::EditTextBlock {
+            page: self.page,
+            block: self.block,
+            text: self.text.clone(),
+            style,
+        })
+    }
     pub(crate) fn has_changes(&self) -> bool {
         self.text != self.original || self.look != self.look0 || self.extras != self.extras0
     }
@@ -972,6 +985,53 @@ fn editor_galley(ui: &egui::Ui, ed: &LineEditor, text: &str, scale: f32, width: 
     galley
 }
 
+/// Use logical style ranges before reordering paint pieces. Preserve the source
+/// row anchors; direction never overrides explicit or saved alignment.
+fn mapped_layout(ui: &egui::Ui, ed: &LineEditor, text: &str, scale: f32, width: f32) -> crate::bidi_edit::Layout {
+    let mut job = editor_job(ui, ed, text, scale, width);
+    job.justify = ed.look.align == pdfcraft_engine::TextAlign::Justify;
+    let centered = job.halign == egui::Align::Center;
+    job.halign = egui::Align::LEFT;
+    let mut layout = crate::bidi_edit::layout(ui, job);
+    let Some((block, lines)) = &ed.source else { return layout };
+    let sources: Vec<_> = block
+        .rows
+        .iter()
+        .filter_map(|row| {
+            let first = row.first().and_then(|i| lines.get(*i))?;
+            let rect = row
+                .iter()
+                .filter_map(|i| lines.get(*i))
+                .map(|l| l.rect)
+                .reduce(|a, b| [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])])?;
+            Some((first.baseline()[1], rect))
+        })
+        .collect();
+    let Some((first_baseline, _)) = sources.first().copied() else { return layout };
+    let leading = if ed.extras.line_spacing > 0.0 {
+        ed.extras.line_spacing * ed.look.size
+    } else {
+        sources.windows(2).map(|r| (r[0].0 - r[1].0).abs()).rfind(|v| *v > 0.0).unwrap_or(block.size * 1.5)
+    };
+    layout.place_rows(|row, row_width, _height, ascent| {
+        let (baseline, rect) = sources.get(row).copied().unwrap_or((first_baseline - row as f64 * leading, block.rect));
+        let left = if ed.look.align != ed.look0.align {
+            match ed.look.align {
+                pdfcraft_engine::TextAlign::Right => width - row_width,
+                pdfcraft_engine::TextAlign::Center => (width - row_width) / 2.0,
+                _ => 0.0,
+            }
+        } else if centered {
+            (width - row_width) / 2.0
+        } else {
+            (rect[0] - block.rect[0]) as f32 * scale
+        };
+        let top = (block.rect[3] - baseline) as f32 * scale - ascent;
+        egui::vec2(left, top)
+    });
+    layout
+}
+
 /// The inline editor; returns the edit once the text is applied.
 pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo) -> Option<Edit> {
     // Clicks outside the document (the Format text panel) keep the paragraph open.
@@ -1043,24 +1103,39 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo) -
                     if background_ready { if luminance(text_color) < 0.5 { Color32::BLACK } else { Color32::WHITE } } else { caret_color_on(fill) };
                 let rows = 1;
                 let snapshot = ed.clone();
-                let mut layouter =
-                    |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| editor_galley(ui, &snapshot, text.as_str(), scale, wrap_width);
-                let output = egui::TextEdit::multiline(&mut ed.text)
-                    .id(egui::Id::new("edit-text-line-input"))
-                    .font(font.clone())
-                    .margin(egui::Margin::ZERO)
-                    .layouter(&mut layouter)
-                    .text_color(text_color)
-                    .frame(egui::Frame::NONE)
-                    .desired_width(width)
-                    .desired_rows(rows)
-                    .show(ui);
-                if let Some(cursor) = output.cursor_range {
-                    let selected = cursor.as_sorted_char_range();
-                    let byte = |index| ed.text.char_indices().nth(index).map_or(ed.text.len(), |(at, _)| at);
-                    ed.selection = (!selected.is_empty()).then(|| byte(selected.start.into())..byte(selected.end.into()));
+                let text_id = egui::Id::new("edit-text-line-input");
+                if ed.focus {
+                    crate::bidi_edit::reset(ctx, text_id);
                 }
-                let r = output.response;
+                let r = if crate::bidi_edit::active(ctx, text_id, &ed.text) {
+                    let output = crate::bidi_edit::show(
+                        ui,
+                        &mut ed.text,
+                        crate::bidi_edit::Options { id: text_id, width, margin: 0.0, fill, color: text_color, hint: String::new() },
+                        |ui, text, width| mapped_layout(ui, &snapshot, text, scale, width),
+                    );
+                    ed.selection = output.selection;
+                    output.response
+                } else {
+                    let mut layouter =
+                        |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| editor_galley(ui, &snapshot, text.as_str(), scale, wrap_width);
+                    let output = egui::TextEdit::multiline(&mut ed.text)
+                        .id(text_id)
+                        .font(font.clone())
+                        .margin(egui::Margin::ZERO)
+                        .layouter(&mut layouter)
+                        .text_color(text_color)
+                        .frame(egui::Frame::NONE)
+                        .desired_width(width)
+                        .desired_rows(rows)
+                        .show(ui);
+                    if let Some(cursor) = output.cursor_range {
+                        let selected = cursor.as_sorted_char_range();
+                        let byte = |index| ed.text.char_indices().nth(index).map_or(ed.text.len(), |(at, _)| at);
+                        ed.selection = (!selected.is_empty()).then(|| byte(selected.start.into())..byte(selected.end.into()));
+                    }
+                    output.response.response
+                };
                 if r.changed() {
                     // The next pass measures the updated draft with the Apply/Save rewrite.
                     ctx.request_repaint();
@@ -1083,12 +1158,12 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo) -
         Some(apply) => {
             let ed = view.line_editor.take()?;
             let style = ed.style();
-            (apply && (ed.text != ed.original || style != pdfcraft_engine::BlockStyle::default())).then_some(Edit::EditTextBlock {
-                page: ed.page,
-                block: ed.block,
-                text: ed.text,
-                style,
-            })
+            if apply && (ed.text != ed.original || style != pdfcraft_engine::BlockStyle::default()) {
+                view.pending_line_editor = Some(ed.clone());
+                Some(Edit::EditTextBlock { page: ed.page, block: ed.block, text: ed.text, style })
+            } else {
+                None
+            }
         }
         None => None,
     }

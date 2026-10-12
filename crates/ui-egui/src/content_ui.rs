@@ -68,6 +68,8 @@ pub struct TextDraft {
     pub text: String,
     pub style: AddedText,
     pub focus: bool,
+    /// Saved items and explicit Format choices outrank inferred direction.
+    pub alignment_explicit: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -87,6 +89,7 @@ pub struct ContentView {
     grab: Option<(usize, Grab, Pos2)>,
     undrawable: UndrawableMemo,
     layout: Option<(AddedText, f32, f64, [f64; 4])>,
+    pub(crate) alignment_explicit: bool,
 }
 
 impl ContentView {
@@ -236,7 +239,8 @@ pub(crate) fn page_input(
             style.text.clear();
             let rect = [at[0], at[1] - style.size * 1.2, (at[0] + 200.0).min(info.pages[page].width as f64), at[1]];
             style.rect = rect;
-            cv.draft = Some(TextDraft { page, index: None, rect, text: String::new(), style, focus: true });
+            let alignment_explicit = cv.alignment_explicit || style.align != TextAlign::Left;
+            cv.draft = Some(TextDraft { page, index: None, rect, text: String::new(), style, focus: true, alignment_explicit });
             consumed = true;
             if typed.is_some() {
                 view.pending_edit = typed;
@@ -274,7 +278,8 @@ pub(crate) fn page_input(
         if let Some(edit) = cv.finish_draft(added) {
             view.pending_edit = Some(edit);
         }
-        cv.draft = Some(TextDraft { page, index: Some(i), rect: t.rect, text: t.text.clone(), style: t.clone(), focus: true });
+        cv.draft =
+            Some(TextDraft { page, index: Some(i), rect: t.rect, text: t.text.clone(), style: t.clone(), focus: true, alignment_explicit: true });
         cv.selected = Some((page, i));
         consumed = true;
         return consumed;
@@ -354,6 +359,9 @@ pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, ad
     let Some(xf) = view.page_xform(page) else { return (None, false) };
     let zoom = xf.rect.width() / xf.pw.max(1.0);
     let Some(draft) = view.content.draft.as_mut() else { return (None, false) };
+    if !draft.alignment_explicit {
+        draft.style.align = if crate::bidi::base_is_rtl(&draft.text) { TextAlign::Right } else { TextAlign::Left };
+    }
     let font = crate::edit_text_ui::editor_font(&draft.style, (draft.style.size as f32 * zoom).clamp(1.0, 300.0));
     let text = AddedText { text: draft.text.clone(), ..draft.style.clone() };
     let page_width = info.pages[page].width as f64;
@@ -395,16 +403,48 @@ pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, ad
         let [cr, cg, cb] = t.style.color.map(|v| (v.clamp(0.0, 1.0) * 255.0) as u8);
         ui.horizontal_top(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
-            let resp = ui.add(
-                egui::TextEdit::multiline(&mut t.text)
-                    .font(font)
-                    .desired_width(r.width().max(60.0))
-                    .desired_rows(1)
-                    .background_color(if background_ready { Color32::TRANSPARENT } else { Color32::WHITE })
-                    .text_color(Color32::from_rgb(cr, cg, cb))
-                    .hint_text(tl!("Type text"))
-                    .id_salt("added-text-edit"),
-            );
+            let text_id = ui.make_persistent_id("added-text-edit");
+            if t.focus {
+                crate::bidi_edit::reset(ctx, text_id);
+            }
+            let color = Color32::from_rgb(cr, cg, cb);
+            let fill = if background_ready { Color32::TRANSPARENT } else { Color32::WHITE };
+            let resp = if crate::bidi_edit::active(ctx, text_id, &t.text) {
+                crate::bidi_edit::show(
+                    ui,
+                    &mut t.text,
+                    crate::bidi_edit::Options { id: text_id, width: r.width().max(60.0), margin: 4.0, fill, color, hint: tl!("Type text").into() },
+                    |ui, text, width| {
+                        let mut job = egui::text::LayoutJob::default();
+                        job.append(text, 0.0, egui::TextFormat { font_id: font.clone(), color, ..Default::default() });
+                        job.wrap.max_width = width;
+                        job.justify = t.style.align == TextAlign::Justify;
+                        job.halign = match t.style.align {
+                            TextAlign::Center => egui::Align::Center,
+                            TextAlign::Right => egui::Align::RIGHT,
+                            _ => egui::Align::LEFT,
+                        };
+                        crate::bidi_edit::layout(ui, job)
+                    },
+                )
+                .response
+            } else {
+                ui.add(
+                    egui::TextEdit::multiline(&mut t.text)
+                        .font(font)
+                        .desired_width(r.width().max(60.0))
+                        .desired_rows(1)
+                        .background_color(fill)
+                        .text_color(color)
+                        .horizontal_align(match t.style.align {
+                            TextAlign::Center => egui::Align::Center,
+                            TextAlign::Right => egui::Align::RIGHT,
+                            _ => egui::Align::LEFT,
+                        })
+                        .hint_text(tl!("Type text"))
+                        .id(text_id),
+                )
+            };
             if t.focus {
                 resp.request_focus();
                 t.focus = false;
@@ -469,7 +509,12 @@ fn finish(cv: &mut ContentView, d: TextDraft, added: &[Added]) -> Option<Edit> {
 /// Format text (shown in the Edit panel while a text item is selected, or for new text).
 /// Returns the changed style; for a selected item the caller turns it into an update.
 pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> Option<AddedText> {
+    format_panel_alignment(ui, t, style).0
+}
+
+pub(crate) fn format_panel_alignment(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> (Option<AddedText>, bool) {
     let mut s = style.clone();
+    let mut alignment_clicked = false;
     widgets::section_title(ui, tl!("Format text"));
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt("font-family").selected_text(s.family.label()).width(110.0).show_ui(ui, |ui| {
@@ -500,6 +545,7 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
         ] {
             if crate::icons::button(ui, icon, 26.0, s.align == a, tip).clicked() {
                 s.align = a;
+                alignment_clicked = true;
             }
         }
     });
@@ -508,7 +554,7 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
         s.color = picked;
     }
     ui.label(egui::RichText::new(tl!("Thai and Arabic use regular fallback fonts when available.")).small().color(t.text_faint));
-    (s != *style).then_some(s)
+    ((s != *style).then_some(s), alignment_clicked)
 }
 
 /// How to use the tools, under the Add content list.

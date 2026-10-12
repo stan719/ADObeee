@@ -141,6 +141,7 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 
 ## Progress log
 
+- **2026-10-12 (M7, Arabic inline editing candidate):** both text editors keep logical text for typing, clipboard and history while painting mapped bidi runs. Grapheme deletion, pointer/drag selection, composition, explicit/saved alignment, source styles and rejected-draft retention have regressions; a selected complete Arabic face passes two saves/reopens. Save/Print/Export commit open page-text drafts before proceeding. Mixed contextual resource/style rows and legacy font coverage remain partial; estimates unchanged.
 - **2026-10-12 (M7, local text-box candidate):** Add Text opens source text for editing and both text tools retype added items on one click. Draft boxes grow toward the page edge and downwards, with the grown width saved. Single visual rows grow across style boundaries, while multi-row paragraph widths stay fixed. Added-text previews remove only the selected item on a clone, with UI and read-only tool regressions. Arabic shaping, ordering and alignment are outside this candidate. Estimates unchanged.
 - **2026-10-12 (M1, #1339):** An incremental save of an unchanged classic-table file used to append `xref` and then `trailer` with no subsection, which qpdf reports as a damaged file. The section now has a zero-length subsection, so no object entry changes and a trailer-only edit is still written. Estimates unchanged.
 - **2026-10-12 (M12, auto-tag preview):** The engine and `accessibility_autotag_preview` propose paragraph and large-heading roles for bounded text blocks on one page, with locations and reasons. Every proposal needs review; images remain unclassified. No PDF tags are written yet. Synthetic tool tests cover normal text, a larger heading, bounds and unchanged source bytes. Estimates unchanged.
@@ -404,6 +405,7 @@ Newest first: the date, what moved, and the new overall estimate.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | M7: logical Arabic inline-editor candidate, mapped interaction/history and rejected-draft retention; contextual font restrictions and estimates unchanged. |
 | 2026-10-12 | minor | M7/#1200 candidate: bounded local GoToR opening, root-confined automation, and action-preserving appearance edits; named destinations and window behavior remain partial; estimates unchanged. |
 | 2026-10-12 | minor | Exclusive image crops resize with their pixels across nested states, intervening operators and content streams; shared clips remain fixed. Synthetic engine/tool regressions and private image save/reopen checks; estimates unchanged. |
 | 2026-10-11 | minor | M10: borderless inferred tables and positioned invoice watermarks (#773); estimates unchanged. |

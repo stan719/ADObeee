@@ -389,6 +389,8 @@ pub struct DocView {
     select_anchor: Option<usize>,
     /// An edit requested by the view (organize toolbar, keys), applied by the app this frame.
     pub pending_edit: Option<Edit>,
+    /// A source-text draft awaiting an engine verdict; restore it on rejection.
+    pub(crate) pending_line_editor: Option<crate::edit_text_ui::LineEditor>,
     /// Edit text: the lines per page (with the document generation they were read at), and the
     /// line being edited.
     pub(crate) edit_lines: HashMap<usize, (u64, Vec<pdfcraft_engine::TextBlock>)>,
@@ -632,6 +634,7 @@ impl DocView {
             select_anchor: None,
             organize_range: Default::default(),
             pending_edit: None,
+            pending_line_editor: None,
             edit_lines: HashMap::new(),
             line_editor: None,
             text_background: Default::default(),

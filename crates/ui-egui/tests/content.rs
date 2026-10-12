@@ -132,6 +132,91 @@ fn text_tool_single_click_retypes_added_text_without_another_item() {
 }
 
 #[test]
+fn incremental_arabic_typing_history_alignment_and_two_reopens_keep_logical_text() {
+    if pdfcraft_fonts::document_arabic_font().is_none() {
+        return;
+    }
+    let mut h = harness();
+    assert!(h.state_mut().execute("edit.text"));
+    h.run_steps(2);
+    let point = at(&h, 40.0, 300.0);
+    click(&mut h, point);
+    let expected = "مرحبا بالعالم 123 PDFCraft";
+    for ch in expected.chars() {
+        h.event(egui::Event::Text(ch.to_string()));
+        h.run_steps(2);
+    }
+    let draft = h.state().views[0].content.draft.as_ref().unwrap();
+    assert_eq!(draft.text, expected);
+    assert_eq!(draft.style.align, pdfcraft_engine::TextAlign::Right);
+    if let Ok(dir) = std::env::var("PDFCRAFT_SHOTS") {
+        h.render().unwrap().save(format!("{dir}/arabic-added-editor.png")).unwrap();
+    }
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+    h.event(egui::Event::Text("سلام".into()));
+    h.run_steps(2);
+    assert_eq!(h.state().views[0].content.draft.as_ref().unwrap().text, "سلام");
+    h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    h.run_steps(2);
+    assert_eq!(h.state().views[0].content.draft.as_ref().unwrap().text, expected);
+    h.get_by_label("Done adding text").click();
+    h.run_steps(3);
+    assert_eq!(texts(&h), [expected]);
+    let state = h.state();
+    let bytes = state.session.save_bytes(state.views[0].id).unwrap();
+    let mut session = pdfcraft_engine::Session::new();
+    let mut id = session.open("saved.pdf", None, bytes, None).unwrap();
+    for _ in 0..2 {
+        let doc = session.get(id).unwrap();
+        let pdfcraft_engine::AddedContent::Text(text) = &doc.added[0].content else { panic!() };
+        assert_eq!(text.text, expected);
+        assert_eq!(text.align, pdfcraft_engine::TextAlign::Right);
+        let bytes = session.save_bytes(id).unwrap();
+        id = session.open("again.pdf", None, bytes, None).unwrap();
+    }
+}
+
+#[test]
+fn arabic_draft_respects_explicit_left_alignment_even_when_it_matches_the_default() {
+    let mut h = harness();
+    assert!(h.state_mut().execute("edit.text"));
+    h.run_steps(2);
+    h.get_by_label("Align left").click();
+    h.run_steps(2);
+    let point = at(&h, 40.0, 300.0);
+    click(&mut h, point);
+    h.event(egui::Event::Text("مرحبا بالعالم".into()));
+    h.run_steps(3);
+    assert_eq!(h.state().views[0].content.draft.as_ref().unwrap().style.align, pdfcraft_engine::TextAlign::Left);
+}
+
+#[test]
+fn save_commits_an_open_arabic_added_draft_without_done() {
+    if pdfcraft_fonts::document_arabic_font().is_none() {
+        return;
+    }
+    let mut h = harness();
+    assert!(h.state_mut().execute("edit.text"));
+    h.run_steps(2);
+    let point = at(&h, 40.0, 300.0);
+    click(&mut h, point);
+    h.event(egui::Event::Text("مرحبا بالعالم".into()));
+    h.run_steps(3);
+    let dir = std::env::temp_dir().join(format!("pdfcraft-rtl-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("draft.pdf");
+    h.state_mut().save_override = Some(path.to_string_lossy().into_owned());
+    assert!(h.state_mut().save_active(pdfcraft_ui_egui::SaveTarget::As));
+    assert!(h.state().views[0].content.draft.is_none());
+    assert_eq!(texts(&h), ["مرحبا بالعالم"]);
+    let mut session = pdfcraft_engine::Session::new();
+    let id = session.open("saved.pdf", None, std::sync::Arc::new(std::fs::read(&path).unwrap()), None).unwrap();
+    let pdfcraft_engine::AddedContent::Text(text) = &session.get(id).unwrap().added[0].content else { panic!() };
+    assert_eq!(text.text, "مرحبا بالعالم");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn text_tool_deleting_a_draft_hides_the_old_added_glyphs_and_cancel_restores_them() {
     let mut h = harness();
     assert!(h.state_mut().apply_edit(pdfcraft_engine::Edit::AddText {

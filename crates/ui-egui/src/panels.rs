@@ -403,6 +403,22 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         ui.separator();
         return;
     }
+    if let Some((i, _)) = app.active_ids()
+        && let Some(draft) = app.views[i].content.draft.as_ref()
+    {
+        let style = draft.style.clone();
+        let (changed, alignment_clicked) = crate::content_ui::format_panel_alignment(ui, t, &style);
+        if let Some(draft) = app.views[i].content.draft.as_mut() {
+            if let Some(style) = changed {
+                draft.style = style;
+            }
+            draft.alignment_explicit |= alignment_clicked;
+            let align = if draft.alignment_explicit { draft.style.align } else { app.text_style.align };
+            app.text_style = pdfcraft_engine::AddedText { text: String::new(), rect: [0.0; 4], align, ..draft.style.clone() };
+        }
+        app.views[i].content.alignment_explicit |= alignment_clicked;
+        return;
+    }
     let image = app.active_ids().and_then(|(i, id)| {
         let (page, index) = app.views[i].content.selected?;
         let doc = app.session.get(id)?;
@@ -441,7 +457,11 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
         }
         None if app.quick_tool == crate::QuickTool::AddText => {
             crate::content_ui::hint(ui, t);
-            if let Some(style) = crate::content_ui::format_panel(ui, t, &app.text_style) {
+            let (changed, alignment_clicked) = crate::content_ui::format_panel_alignment(ui, t, &app.text_style);
+            if let Some((i, _)) = app.active_ids() {
+                app.views[i].content.alignment_explicit |= alignment_clicked;
+            }
+            if let Some(style) = changed {
                 app.text_style = style;
             }
         }
