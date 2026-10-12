@@ -406,7 +406,7 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     let image = app.active_ids().and_then(|(i, id)| {
         let (page, index) = app.views[i].content.selected?;
         let doc = app.session.get(id)?;
-        match &doc.added.iter().filter(|a| a.page == page).nth(index)?.content {
+        match &doc.added().iter().filter(|a| a.page == page).nth(index)?.content {
             pdfcraft_engine::AddedContent::Image(img) => Some((page, index, img.clone())),
             _ => None,
         }
@@ -426,7 +426,7 @@ fn format_section(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     let selected = app.active_ids().and_then(|(i, id)| {
         let (page, index) = app.views[i].content.selected?;
         let doc = app.session.get(id)?;
-        let a = doc.added.iter().filter(|a| a.page == page).nth(index)?;
+        let a = doc.added().iter().filter(|a| a.page == page).nth(index)?;
         match &a.content {
             pdfcraft_engine::AddedContent::Text(text) => Some((page, index, text.clone())),
             _ => None,
@@ -504,7 +504,7 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     RightPanel::Fields => ("Fields", Some(info.fields.len())),
                     RightPanel::Layers => ("Layers", Some(info.layers.len())),
                     RightPanel::Attachments => ("Attachments", Some(info.attachments.len())),
-                    RightPanel::Signatures => ("Signatures", Some(doc.signatures.iter().filter(|s| s.signed).count())),
+                    RightPanel::Signatures => ("Signatures", Some(doc.signatures().iter().filter(|s| s.signed).count())),
                     RightPanel::Accessibility => ("Accessibility Checker", None),
                     RightPanel::Tags => ("Tags", None),
                     RightPanel::Search => ("Search", None),
@@ -664,7 +664,7 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         }
                     }
                     RightPanel::Signatures => {
-                        sig_action = crate::sign_ui::panel(ui, &t, &doc.signatures, sig_expanded);
+                        sig_action = crate::sign_ui::panel(ui, &t, doc.signatures(), sig_expanded);
                     }
                     RightPanel::Accessibility => {
                         a11y_action = crate::a11y_ui::panel(ui, &t, a11y, id);
