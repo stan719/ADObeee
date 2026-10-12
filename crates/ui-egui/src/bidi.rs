@@ -89,6 +89,13 @@ pub fn has_rtl(text: &str) -> bool {
     text.chars().any(is_rtl_script)
 }
 
+/// Whether the first paragraph's base direction is right to left. Editors use
+/// this for their box alignment; mixed text that begins in Latin stays left
+/// aligned even when it contains Arabic runs.
+pub(crate) fn base_is_rtl(text: &str) -> bool {
+    BidiInfo::new(text, None).paragraphs.first().is_some_and(|paragraph| paragraph.level.is_rtl())
+}
+
 /// Multi-line text with right-to-left script (a comment in Persian, Arabic, Hebrew), broken
 /// into lines that `fits` accepts (it measures a line in logical order) and each put in display
 /// order by the Unicode bidirectional algorithm (UAX #9).
@@ -314,7 +321,7 @@ fn is_modifier_key(c: char) -> bool {
 
 /// Characters of the right-to-left scripts' blocks: letters, marks and the scripts' own
 /// punctuation, all drawn by the script's face.
-fn is_rtl_script(c: char) -> bool {
+pub(crate) fn is_rtl_script(c: char) -> bool {
     matches!(u32::from(c), 0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFC | 0x1_0800..=0x1_0FFF | 0x1_E800..=0x1_EFFF)
 }
 
@@ -325,11 +332,11 @@ fn is_joiner(c: char) -> bool {
 }
 
 /// Direction marks, embeddings, overrides and isolates: they steer the reordering and are not drawn.
-fn is_bidi_control(c: char) -> bool {
+pub(crate) fn is_bidi_control(c: char) -> bool {
     matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
 }
 
-fn mirrored(c: char) -> char {
+pub(crate) fn mirrored(c: char) -> char {
     match c {
         '(' => ')',
         ')' => '(',
@@ -362,6 +369,13 @@ mod tests {
         assert_eq!(visual("واحد اثنين.pdf"), "اثنين واحد.pdf");
         assert_eq!(visual("ملف.pdf"), "ملف.pdf");
         assert_eq!(visual("تقرير نهائي جدا.pdf"), "جدا نهائي تقرير.pdf");
+    }
+
+    #[test]
+    fn editor_alignment_follows_the_first_strong_character() {
+        assert!(base_is_rtl("مرحبا PDFCraft"));
+        assert!(!base_is_rtl("PDFCraft مرحبا"));
+        assert!(!base_is_rtl("2026"));
     }
 
     #[test]

@@ -70,6 +70,13 @@ update the numbers.
 
 ### 3. Editing existing text is fragile on real files
 
+- **Local Arabic editor candidate (2026-10-12):** both inline editors now separate logical
+  editing from bidi paint order. Regression tests cover incremental mixed input, pointer
+  insertion/drag, logical clipboard and history, grapheme deletion, IME commit, preserved
+  styles/alignment, rejected-draft retention and two save/reopen cycles with a selected full
+  Arabic face. Native-GPU shell screenshots are checked locally. General mixed contextual
+  resource/style rows and legacy font programs remain restricted; estimates are unchanged.
+
 - **Fork progress (2026-10-11):** compatible words and subset-font spaces form lines;
   source fonts lacking a space glyph remain reusable; inline editing previews remove source
   glyphs on a clone. Aligned visual rows now form mixed-style regions (including matrix-scaled headings),

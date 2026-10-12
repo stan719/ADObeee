@@ -68,6 +68,8 @@ pub struct TextDraft {
     pub text: String,
     pub style: AddedText,
     pub focus: bool,
+    /// Saved items and explicit Format choices outrank inferred direction.
+    pub alignment_explicit: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -86,9 +88,14 @@ pub struct ContentView {
     pub select_added: Option<(usize, usize)>,
     grab: Option<(usize, Grab, Pos2)>,
     undrawable: UndrawableMemo,
+    layout: Option<(AddedText, f32, f64, [f64; 4])>,
+    pub(crate) alignment_explicit: bool,
 }
 
 impl ContentView {
+    pub(crate) fn finish_draft(&mut self, added: &[Added]) -> Option<Edit> {
+        self.draft.take().and_then(|d| finish(self, d, added))
+    }
     /// The draft's first character the standard fonts can't draw. Such a draft is kept open, and
     /// counts as unsaved work, until it is corrected or discarded.
     pub(crate) fn blocked(&self) -> Option<char> {
@@ -124,6 +131,10 @@ fn to_display(xf: &PageXform, info: &DocInfo, page: usize, p: Pos2) -> [f64; 2] 
 
 fn on_page(added: &[Added], page: usize) -> Vec<(usize, &Added)> {
     added.iter().filter(|a| a.page == page).enumerate().collect()
+}
+
+pub(crate) fn hits_added(xf: &PageXform, info: &DocInfo, page: usize, added: &[Added], point: Pos2) -> bool {
+    on_page(added, page).iter().any(|(_, a)| screen_rect(xf, info, page, a.content.rect()).expand(2.0).contains(point))
 }
 
 fn handles(r: Rect) -> [(Pos2, bool, bool); 4] {
@@ -168,6 +179,7 @@ pub(crate) fn page_input(
     info: &DocInfo,
     added: &[Added],
     adding_text: bool,
+    edit_on_click: bool,
     style: &AddedText,
     view: &mut DocView,
 ) -> bool {
@@ -225,14 +237,10 @@ pub(crate) fn page_input(
             let at = to_display(xf, info, page, p);
             let mut style = style.clone();
             style.text.clear();
-            cv.draft = Some(TextDraft {
-                page,
-                index: None,
-                rect: [at[0], at[1] - style.size * 1.2, at[0] + 200.0, at[1]],
-                text: String::new(),
-                style,
-                focus: true,
-            });
+            let rect = [at[0], at[1] - style.size * 1.2, (at[0] + 200.0).min(info.pages[page].width as f64), at[1]];
+            style.rect = rect;
+            let alignment_explicit = cv.alignment_explicit || style.align != TextAlign::Left;
+            cv.draft = Some(TextDraft { page, index: None, rect, text: String::new(), style, focus: true, alignment_explicit });
             consumed = true;
             if typed.is_some() {
                 view.pending_edit = typed;
@@ -257,14 +265,21 @@ pub(crate) fn page_input(
         }
         return consumed;
     }
-    if resp.double_clicked()
+    if (resp.double_clicked() || edit_on_click && resp.clicked() && corner.is_none())
         && let Some((i, a)) = hit
         && let AddedContent::Text(t) = &a.content
     {
         if cv.hold_blocked() {
             return true;
         }
-        cv.draft = Some(TextDraft { page, index: Some(i), rect: t.rect, text: t.text.clone(), style: t.clone(), focus: true });
+        if cv.draft.as_ref().is_some_and(|d| d.page == page && d.index == Some(i)) {
+            return true;
+        }
+        if let Some(edit) = cv.finish_draft(added) {
+            view.pending_edit = Some(edit);
+        }
+        cv.draft =
+            Some(TextDraft { page, index: Some(i), rect: t.rect, text: t.text.clone(), style: t.clone(), focus: true, alignment_explicit: true });
         cv.selected = Some((page, i));
         consumed = true;
         return consumed;
@@ -340,31 +355,96 @@ pub(crate) fn after_refresh(view: &mut DocView, added: &[Added]) {
 /// committed (a click away, or Done), and whether Done finished adding text. Discard or Escape
 /// throws the draft away.
 pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, added: &[Added]) -> (Option<Edit>, bool) {
-    let Some((page, rect)) = view.content.draft.as_ref().map(|d| (d.page, d.rect)) else { return (None, false) };
+    let Some(page) = view.content.draft.as_ref().map(|d| d.page) else { return (None, false) };
     let Some(xf) = view.page_xform(page) else { return (None, false) };
-    let r = screen_rect(&xf, info, page, rect);
     let zoom = xf.rect.width() / xf.pw.max(1.0);
+    let Some(draft) = view.content.draft.as_mut() else { return (None, false) };
+    if !draft.alignment_explicit {
+        draft.style.align = if crate::bidi::base_is_rtl(&draft.text) { TextAlign::Right } else { TextAlign::Left };
+    }
+    let font = crate::edit_text_ui::editor_font(&draft.style, (draft.style.size as f32 * zoom).clamp(1.0, 300.0));
+    let text = AddedText { text: draft.text.clone(), ..draft.style.clone() };
+    let page_width = info.pages[page].width as f64;
+    if let Some((key, z, width, rect)) = &view.content.layout
+        && *key == text
+        && *z == zoom
+        && *width == page_width
+    {
+        draft.rect = *rect;
+    } else {
+        let source = draft.style.rect;
+        if draft.index.is_some() && draft.text == draft.style.text {
+            draft.rect = source;
+        } else {
+            let natural = ctx.fonts_mut(|f| f.layout_no_wrap(draft.text.clone(), font.clone(), Color32::BLACK).size().x) as f64 / zoom as f64;
+            let width = natural.max(pdfcraft_engine::added_text_width(&text)) + 2.0;
+            let available = page_width - source[0];
+            let width = width.max(source[2] - source[0]).min(available.max(1.0));
+            draft.rect = [source[0], source[1], source[0] + width, source[3]];
+            draft.rect = pdfcraft_engine::added_text_rect(&AddedText { rect: draft.rect, ..text.clone() });
+        }
+        view.content.layout = Some((text, zoom, page_width, draft.rect));
+    }
+    let r = screen_rect(&xf, info, page, draft.rect);
+    let source_rect = draft.index.map(|_| screen_rect(&xf, info, page, draft.style.rect));
+    let background_ready = draft.index.is_some_and(|index| view.text_background.ready_added(page, index));
     let tokens = Tokens::get(ctx);
     let (mut commit, mut cancel, mut done) = (false, false, false);
     let mut undrawable = None;
     let memo = &view.content.undrawable;
-    egui::Area::new(egui::Id::new(("added-text", view.id.0))).order(egui::Order::Foreground).fixed_pos(r.min).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new(("added-text", view.id.0))).order(egui::Order::Foreground).fixed_pos(r.min).constrain(false).show(ctx, |ui| {
         let Some(t) = view.content.draft.as_mut() else { return };
+        ui.set_width(r.width() + 64.0);
+        if let Some(source_rect) = source_rect.filter(|_| !background_ready) {
+            ui.painter().rect_filled(source_rect.union(r).expand(1.0), CornerRadius::ZERO, Color32::WHITE);
+        }
         // The box is white in every theme, so the caret must not follow the theme (pale in dark mode) (#655).
         ui.visuals_mut().text_cursor.stroke.color = crate::edit_text_ui::caret_color_on(Color32::WHITE);
         let [cr, cg, cb] = t.style.color.map(|v| (v.clamp(0.0, 1.0) * 255.0) as u8);
         ui.horizontal_top(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
-            let resp = ui.add(
-                egui::TextEdit::multiline(&mut t.text)
-                    .font(egui::FontId::proportional((t.style.size as f32 * zoom).max(8.0)))
-                    .desired_width(r.width().max(60.0))
-                    .desired_rows(1)
-                    .background_color(Color32::from_rgba_unmultiplied(255, 255, 255, 235))
-                    .text_color(Color32::from_rgb(cr, cg, cb))
-                    .hint_text(tl!("Type text"))
-                    .id_salt("added-text-edit"),
-            );
+            let text_id = ui.make_persistent_id("added-text-edit");
+            if t.focus {
+                crate::bidi_edit::reset(ctx, text_id);
+            }
+            let color = Color32::from_rgb(cr, cg, cb);
+            let fill = if background_ready { Color32::TRANSPARENT } else { Color32::WHITE };
+            let resp = if crate::bidi_edit::active(ctx, text_id, &t.text) {
+                crate::bidi_edit::show(
+                    ui,
+                    &mut t.text,
+                    crate::bidi_edit::Options { id: text_id, width: r.width().max(60.0), margin: 4.0, fill, color, hint: tl!("Type text").into() },
+                    |ui, text, width| {
+                        let mut job = egui::text::LayoutJob::default();
+                        job.append(text, 0.0, egui::TextFormat { font_id: font.clone(), color, ..Default::default() });
+                        job.wrap.max_width = width;
+                        job.justify = t.style.align == TextAlign::Justify;
+                        job.halign = match t.style.align {
+                            TextAlign::Center => egui::Align::Center,
+                            TextAlign::Right => egui::Align::RIGHT,
+                            _ => egui::Align::LEFT,
+                        };
+                        crate::bidi_edit::layout(ui, job)
+                    },
+                )
+                .response
+            } else {
+                ui.add(
+                    egui::TextEdit::multiline(&mut t.text)
+                        .font(font)
+                        .desired_width(r.width().max(60.0))
+                        .desired_rows(1)
+                        .background_color(fill)
+                        .text_color(color)
+                        .horizontal_align(match t.style.align {
+                            TextAlign::Center => egui::Align::Center,
+                            TextAlign::Right => egui::Align::RIGHT,
+                            _ => egui::Align::LEFT,
+                        })
+                        .hint_text(tl!("Type text"))
+                        .id(text_id),
+                )
+            };
             if t.focus {
                 resp.request_focus();
                 t.focus = false;
@@ -420,7 +500,8 @@ fn finish(cv: &mut ContentView, d: TextDraft, added: &[Added]) -> Option<Edit> {
         Some(i) => {
             let (_, a) = on_page(added, d.page).into_iter().find(|(k, _)| *k == i)?;
             let AddedContent::Text(old) = &a.content else { return None };
-            (old.text != text).then(|| Edit::UpdateContent { page: d.page, index: i, content: AddedContent::Text(AddedText { text, ..old.clone() }) })
+            let updated = AddedText { text, rect: d.rect, ..d.style };
+            (*old != updated).then_some(Edit::UpdateContent { page: d.page, index: i, content: AddedContent::Text(updated) })
         }
     }
 }
@@ -428,7 +509,12 @@ fn finish(cv: &mut ContentView, d: TextDraft, added: &[Added]) -> Option<Edit> {
 /// Format text (shown in the Edit panel while a text item is selected, or for new text).
 /// Returns the changed style; for a selected item the caller turns it into an update.
 pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> Option<AddedText> {
+    format_panel_alignment(ui, t, style).0
+}
+
+pub(crate) fn format_panel_alignment(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> (Option<AddedText>, bool) {
     let mut s = style.clone();
+    let mut alignment_clicked = false;
     widgets::section_title(ui, tl!("Format text"));
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt("font-family").selected_text(s.family.label()).width(110.0).show_ui(ui, |ui| {
@@ -459,6 +545,7 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
         ] {
             if crate::icons::button(ui, icon, 26.0, s.align == a, tip).clicked() {
                 s.align = a;
+                alignment_clicked = true;
             }
         }
     });
@@ -467,18 +554,12 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
         s.color = picked;
     }
     ui.label(egui::RichText::new(tl!("Thai and Arabic use regular fallback fonts when available.")).small().color(t.text_faint));
-    (s != *style).then_some(s)
+    ((s != *style).then_some(s), alignment_clicked)
 }
 
 /// How to use the tools, under the Add content list.
 pub(crate) fn hint(ui: &mut egui::Ui, t: &Tokens) {
-    ui.label(
-        egui::RichText::new(
-            tl!("Click on the page to add text; each click starts a new box, and ✓ finishes. Drag items to move them, drag a corner to resize, double-click text to edit it."),
-        )
-            .small()
-            .color(t.text_faint),
-    );
+    ui.label(egui::RichText::new(tl!("Click text or an image to edit it")).small().color(t.text_faint));
     ui.add_space(4.0);
 }
 

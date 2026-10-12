@@ -389,6 +389,8 @@ pub struct DocView {
     select_anchor: Option<usize>,
     /// An edit requested by the view (organize toolbar, keys), applied by the app this frame.
     pub pending_edit: Option<Edit>,
+    /// A source-text draft awaiting an engine verdict; restore it on rejection.
+    pub(crate) pending_line_editor: Option<crate::edit_text_ui::LineEditor>,
     /// Edit text: the lines per page (with the document generation they were read at), and the
     /// line being edited.
     pub(crate) edit_lines: HashMap<usize, (u64, Vec<pdfcraft_engine::TextBlock>)>,
@@ -632,6 +634,7 @@ impl DocView {
             select_anchor: None,
             organize_range: Default::default(),
             pending_edit: None,
+            pending_line_editor: None,
             edit_lines: HashMap::new(),
             line_editor: None,
             text_background: Default::default(),
@@ -2339,7 +2342,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         view.prepare.selected = None;
     }
     view.objects.prepare(doc, tool == QuickTool::EditText && can_modify, ui.ctx());
-    view.text_background.prepare(ui.ctx(), doc, view.line_editor.as_ref(), scale);
+    view.text_background.prepare(ui.ctx(), doc, view.line_editor.as_ref(), view.content.draft.as_ref(), scale);
     let added = doc.added.clone();
     let doc_links = if tool == QuickTool::Link { doc.links.clone() } else { Vec::new() };
     if editing_content {
@@ -2545,7 +2548,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                     }
                 }
             }
-            view.text_background.paint(painter, &xf, i, view.line_editor.as_ref());
+            view.text_background.paint(painter, &xf, i, view.line_editor.as_ref(), view.content.draft.as_ref());
             painter.rect_stroke(r, CornerRadius::ZERO, Stroke::new(0.5, t.border.gamma_multiply(0.8)), egui::StrokeKind::Outside);
 
             // Comments: tools, selection, moving and resizing come before text selection.
@@ -2671,21 +2674,50 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             let image_owns_pointer = tool == QuickTool::EditText && crate::edit_text_ui::image_owns_pointer(ui, &xf, i, info, view);
             let on_objects =
                 !image_owns_pointer && tool == QuickTool::EditText && can_modify && crate::object_ui::page_input(ui, &resp, &xf, i, doc, view);
-            let on_content = !on_objects && editing_content && can_modify && {
-                crate::content_ui::page_input(ui, &resp, &xf, i, info, &added, tool == QuickTool::AddText, &text_style, view)
-                    || tool == QuickTool::AddText
-            };
-            // Added content owns its gesture; its source text must not queue a second edit.
-            let on_edit_text = !on_objects && !on_content && tool == QuickTool::EditText && can_modify && {
+            let lines = if matches!(tool, QuickTool::AddText | QuickTool::EditText) && can_modify {
                 let generation = doc.edit_generation();
-                let lines = match view.edit_lines.get(&i) {
+                match view.edit_lines.get(&i) {
                     Some((g, l)) if *g == generation => l.clone(),
                     _ => {
                         let l = doc.text_blocks(i);
                         view.edit_lines.insert(i, (generation, l.clone()));
                         l
                     }
-                };
+                }
+            } else {
+                Vec::new()
+            };
+            let over_source = tool == QuickTool::AddText
+                && pointer.is_some_and(|p| {
+                    !crate::content_ui::hits_added(&xf, info, i, &added, p)
+                        && lines.iter().any(|line| xf.user_rect(info, i, line.rect.map(|v| v as f32)).expand(2.0).contains(p))
+                });
+            let source_blocked = over_source && view.content.hold_blocked();
+            if over_source && resp.clicked() && !source_blocked {
+                if let Some(edit) = view.content.finish_draft(&added) {
+                    view.pending_edit = Some(edit);
+                }
+                view.content.selected = None;
+            }
+            let on_content = !on_objects && editing_content && can_modify && {
+                source_blocked
+                    || crate::content_ui::page_input(
+                        ui,
+                        &resp,
+                        &xf,
+                        i,
+                        info,
+                        &added,
+                        tool == QuickTool::AddText && !over_source,
+                        matches!(tool, QuickTool::AddText | QuickTool::EditText),
+                        &text_style,
+                        view,
+                    )
+                    || tool == QuickTool::AddText && !over_source
+            };
+            // Added content owns its gesture; its source text must not queue a second edit.
+            let on_edit_text = !on_objects && !on_content && (tool == QuickTool::EditText || over_source) && can_modify && {
+                let generation = doc.edit_generation();
                 let images = match view.edit_images.get(&i) {
                     Some((g, l)) if *g == generation => l.clone(),
                     _ => {

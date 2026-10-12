@@ -5,6 +5,12 @@ source rows and mixed styles. Embedded TrueType and OpenType/CFF faces are used 
 source font programs, colour, size and baseline anchors stay intact. A textless preview
 prevents a second copy underneath. The frame shows the live extent as text grows or shrinks.
 
+Add Text also opens existing text when it is clicked; a blank-space click starts a new item.
+Both text tools retype an added text item with one click. Draft boxes grow to the page edge
+before wrapping, and the saved item uses that width. A single visual source row grows across font/style boundaries;
+multi-row paragraphs retain their existing wrap width. Retyping uses a preview with only
+that added item's old drawing removed, so deleted draft characters do not show underneath.
+
 A subset font contains only some of the original face's glyphs. A new character cannot be
 reconstructed from a glyph the PDF does not contain. **Load font…** imports an openly licensed,
 embeddable standalone `.ttf` or `.otf` face. **Installed fonts…** discovers eligible user-installed
@@ -28,6 +34,23 @@ survives. OpenType shaping uses the selected/source face's substitution and posi
 rules, preserves marks and ligatures, and applies Unicode bidi ordering for a single face.
 Logical text remains available after save/reopen through ToUnicode and ActualText.
 Added Arabic text records ActualText per shaped line for copying and searching in typing order.
+The inline Add Text and source-text editors keep their editable value in logical Unicode
+order while a separate view resolves each wrapped line's bidirectional runs. Pointer and
+arrow-key positions map to logical grapheme boundaries. Copy, cut, replacement and draft
+undo/redo use that same logical text; selection can highlight several visual fragments.
+Marks stay attached during deletion, and lam-alef has an interior editing stop (a subdivided
+cluster advance when font caret data is unavailable). IME preedit is a temporary view;
+only its committed result enters the document draft.
+
+Unchosen new-item alignment follows the first paragraph's direction; explicit Format choices
+and saved item alignment are preserved. Source rows retain their baseline anchors and styles.
+Save, Print and Export commit open page-text drafts first and stop when the engine rejects
+one. A failed source-text Apply restores its draft instead of discarding the user's typing.
+For new contextual glyphs, select a complete document face explicitly if keeping source
+resources would mix fallback faces. The existing engine still refuses unsupported mixed
+contextual font/style rows; this editor change does not remove that restriction. Legacy
+programs without usable shaping data use approximate grapheme hit cells.
+
 ActualText already supplies typing order, so the editor preserves it without applying
 a second bidi reversal; adjacent visual glyph runs still recover their own reading order.
 Only right-to-left ActualText is kept apart this way: left-to-right spans, such as the Latin

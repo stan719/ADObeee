@@ -417,6 +417,9 @@ impl PdfCraftApp {
     /// user has been told why, so the typing isn't lost and the caller can stop.
     fn apply_queued_edit(&mut self, i: usize) -> bool {
         let Some(edit) = self.views.get_mut(i).and_then(|v| v.pending_edit.take()) else { return true };
+        let source_draft = self.views.get_mut(i).and_then(|v| v.pending_line_editor.take()).filter(|draft| {
+            matches!(&edit, Edit::EditTextBlock { page, block, text, .. } if *page == draft.page && *block == draft.block && *text == draft.text)
+        });
         let signature_page = self.views.get_mut(i).and_then(|v| v.fill_signature_page.take());
         let committed = self.views.get_mut(i).and_then(|v| v.forms.committed.take());
         let typed = match (&edit, &committed) {
@@ -452,6 +455,13 @@ impl PdfCraftApp {
             }
             return true;
         }
+        if let Some(mut draft) = source_draft {
+            draft.request_focus();
+            if let Some(view) = self.views.get_mut(i) {
+                view.line_editor = Some(draft);
+            }
+            return false;
+        }
         if !typed {
             return true;
         }
@@ -482,17 +492,47 @@ impl PdfCraftApp {
             self.notify(crate::content_ui::undrawable_message(c));
             return false;
         }
-        let typing = self
-            .views
-            .get(i)
-            .is_some_and(|v| v.pending_edit.is_some() || v.forms.focus.is_some() || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty()));
+        let typing = self.views.get(i).is_some_and(|v| {
+            v.pending_edit.is_some()
+                || v.forms.focus.is_some()
+                || v.line_editor.is_some()
+                || v.content.draft.is_some()
+                || v.fill_text.as_ref().is_some_and(|t| !t.text.trim().is_empty())
+        });
         if self.active != Some(i) {
             if !typing {
                 return true;
             }
             self.active = Some(i);
         }
-        self.commit_form_typing() && self.commit_open_fill_text(id)
+        self.commit_form_typing() && self.commit_open_page_text(id) && self.commit_open_fill_text(id)
+    }
+
+    /// Save/Print/Export must see committed page text or stop with its draft intact.
+    fn commit_open_page_text(&mut self, id: pdfcraft_engine::DocId) -> bool {
+        let Some(i) = self.views.iter().position(|v| v.id == id) else { return true };
+        if let Some(draft) = self.views[i].line_editor.clone() {
+            if let Some(edit) = draft.edit()
+                && !self.apply_edit(edit)
+            {
+                if let Some(editor) = self.views[i].line_editor.as_mut() {
+                    editor.request_focus();
+                }
+                return false;
+            }
+            self.views[i].line_editor = None;
+        }
+        let draft = self.views[i].content.draft.clone();
+        if let Some(draft) = draft {
+            let added = self.session.get(id).map_or_else(Vec::new, |d| d.added.clone());
+            if let Some(edit) = self.views[i].content.finish_draft(&added)
+                && !self.apply_edit(edit)
+            {
+                self.views[i].content.draft = Some(draft);
+                return false;
+            }
+        }
+        true
     }
 
     /// The Fill & Sign type box commits on click-away. Save does that first, so the text is in
