@@ -2296,13 +2296,17 @@ action wizard	Start	Iniciar
 	The certificate of {} does not allow this many CA certificates below it (path length), so it is not used to vouch for {}.	El certificado de {} no admite tantos certificados de CA por debajo (longitud de ruta), así que no se usa para avalar a {}.
 	The certificate of {} was not valid at the time of signing, so it is not used to vouch for {}.	El certificado de {} no era válido en el momento de la firma, así que no se usa para avalar a {}.
 	The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.	La identidad del firmante es desconocida porque no está en tu lista de certificados de confianza y ninguno de los certificados superiores es de confianza.
+	The signer's identity is unknown because it has not been included in your list of trusted certificates or the trust sets you switched on, and none of its parent certificates are trusted certificates.	La identidad del firmante es desconocida porque no está en tu lista de certificados de confianza ni en los conjuntos de confianza que activaste, y ninguno de los certificados superiores es de confianza.
 	The signer's identity is valid.	La identidad del firmante es válida.
+	Its certificate chains to a root built into PdfCraft that you switched on ({}).	Su certificado se encadena a una raíz incorporada en PdfCraft que activaste ({}).
+	Its certificate chains to {} in the trust list “{}”.	Su certificado se encadena a {} en la lista de confianza «{}».
 	The signature includes an embedded timestamp.	La firma incluye un sello de tiempo incrustado.
 	Signing time is from the clock on the signer's computer.	La hora de la firma es la del reloj del ordenador del firmante.
 	The signature's timestamp token does not cover the signature value.	El sello de tiempo de la firma no cubre el valor de la firma.
 	The signature's timestamp token could not be verified ({}).	No se ha podido verificar el sello de tiempo de la firma ({}).
 	The embedded timestamp token is valid and its authority is trusted; trusted time is {}.	El sello de tiempo incrustado es válido y su autoridad es de confianza; la hora de confianza es {}.
 	The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.	La firma lleva un sello de tiempo sin verificar ({}): la autoridad de sellado de tiempo no está en tu lista de certificados de confianza, así que se usa la hora de firma que indica el firmante.
+	The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates or the trust sets you switched on, so the signing time claimed by the signer is used instead.	La firma lleva un sello de tiempo sin verificar ({}): la autoridad de sellado de tiempo no está en tu lista de certificados de confianza ni en los conjuntos de confianza que activaste, así que se usa la hora de firma que indica el firmante.
 	The signer's certificate has been revoked ({}).	El certificado del firmante está revocado ({}).
 	The document's embedded revocation information shows that the signer's certificate has not been revoked.	La información de revocación incrustada en el documento indica que el certificado del firmante no está revocado.
 	The timestamp has no valid byte range.	El sello de tiempo no tiene un intervalo de bytes válido.
@@ -2317,6 +2321,8 @@ action wizard	Start	Iniciar
 	The document has been altered since this timestamp was applied in ways it does not permit ({}).	El documento se ha alterado desde que se aplicó este sello de tiempo de maneras que no permite ({}).
 	The timestamp token is valid and its authority is trusted.	El sello de tiempo es válido y su autoridad es de confianza.
 	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.	El sello de tiempo es válido, pero la autoridad de sellado de tiempo no está en tu lista de certificados de confianza.
+	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates or the trust sets you switched on.	El sello de tiempo es válido, pero la autoridad de sellado de tiempo no está en tu lista de certificados de confianza ni en los conjuntos de confianza que activaste.
+	The timestamp authority's certificate chains to a root in a trust set you switched on, but it is not meant for time stamps (RFC 3161 §2.3 asks for the time-stamping purpose), so the set does not vouch for it.	El certificado de la autoridad de sellado de tiempo se encadena a una raíz de un conjunto de confianza que activaste, pero no está pensado para sellos de tiempo (la RFC 3161 §2.3 pide el propósito de sellado de tiempo), así que el conjunto no la avala.
 	Unsigned signature field	Campo de firma sin firmar
 	Signature is valid	La firma es válida
 	Signature validity is unknown	La validez de la firma es desconocida
