@@ -63,79 +63,97 @@ pub fn flip_pages(doc: &mut Document, indices: &[usize], direction: FlipDirectio
     }
     let boxes = page_boxes(doc)?;
     let selected: BTreeSet<_> = indices.iter().copied().collect();
-    // An annotation shared between pages cannot have two different page-space geometries.
-    // Refuse that malformed case instead of moving an unselected page's widgets or links.
-    let mut owners = HashMap::new();
-    for (i, (page, _)) in all.iter().enumerate() {
-        let obj = doc.get(*page);
-        if let Some(annots) = obj.as_dict().and_then(|d| d.get(b"Annots")) {
-            let resolved = doc.resolve(annots);
-            if let Some(list) = resolved.as_array() {
-                for a in list {
-                    let popup = doc.resolve(a).as_dict().and_then(|d| d.reference(b"Popup"));
-                    for r in [a.as_ref(), popup].into_iter().flatten() {
-                        if let Some(previous) = owners.insert(r, i)
-                            && previous != i
-                            && (selected.contains(&i) || selected.contains(&previous))
-                        {
-                            return Err(invalid("an annotation is shared by multiple pages"));
-                        }
-                    }
-                }
-            }
-        }
-    }
+    check_annotation_owners(doc, &all, &selected)?;
     let mut next = doc.clone();
     for i in selected {
         let (page, inherited) = all.get(i).ok_or(OrganizeError::NoSuchPage(i))?;
         let crop = boxes.get(i).ok_or(OrganizeError::NoSuchPage(i))?[1];
-        if !crop.iter().all(|v| v.is_finite()) || crop[2] <= crop[0] || crop[3] <= crop[1] {
-            return Err(invalid("empty or invalid CropBox"));
-        }
-        let rotation = inherited.int(b"Rotate").unwrap_or(0).rem_euclid(360);
-        if rotation % 90 != 0 {
-            return Err(invalid("page rotation is not a multiple of 90 degrees"));
-        }
-        let flip_x = (direction == FlipDirection::Horizontal) != (rotation % 180 != 0);
-        let matrix = reflection(crop, flip_x)?;
-        let obj = next.get(*page);
-        let d = obj.as_dict().ok_or_else(|| invalid("invalid page dictionary"))?;
-        let mut contents = match d.get(b"Contents") {
-            None | Some(Object::Null) => Vec::new(),
-            Some(value) => match &*next.resolve(value) {
-                Object::Stream(_) => vec![value.clone()],
-                Object::Array(items) => {
-                    if items.iter().any(|v| !matches!(&*next.resolve(v), Object::Stream(_))) {
-                        return Err(invalid("invalid page content stream"));
-                    }
-                    items.clone()
-                }
-                _ => return Err(invalid("invalid page content")),
-            },
-        };
-        // Number Display uses decimal notation (not exponent notation, which PDF forbids).
-        let [a, b, c, d0, e, f] = matrix.0;
-        let prefix = next.add(Stream::from_raw(Dict::new(), format!("q\n{a} {b} {c} {d0} {e} {f} cm\n").into_bytes()));
-        let suffix = next.add(Stream::from_raw(Dict::new(), b"\nQ\n".to_vec()));
-        contents.insert(0, Object::Ref(prefix));
-        contents.push(Object::Ref(suffix));
-        if let Some(value) = d.get(b"Annots") {
-            let resolved = next.resolve(value);
-            let list = resolved.as_array().ok_or_else(|| invalid("invalid annotations array"))?;
-            if list.len() > 100_000 {
-                return Err(invalid("too many annotations"));
-            }
-            let mut transformed = Vec::with_capacity(list.len());
-            let mut seen = HashSet::new();
-            for annot in list {
-                transformed.push(annotation(&mut next, annot, matrix, flip_x, &mut seen)?);
-            }
-            next.update_dict(*page, |d| d.set(b"Annots".to_vec(), Object::Array(transformed)))?;
-        }
-        next.update_dict(*page, |d| d.set(b"Contents".to_vec(), Object::Array(contents)))?;
+        flip_page(&mut next, *page, crop, inherited.int(b"Rotate").unwrap_or(0), direction)?;
     }
     *doc = next;
     Ok(())
+}
+
+fn check_annotation_owners(doc: &Document, pages: &[(ObjRef, Dict)], selected: &BTreeSet<usize>) -> Result<(), OrganizeError> {
+    // An annotation shared between pages cannot have two different page-space geometries.
+    // Refuse that malformed case instead of moving an unselected page's widgets or links.
+    let mut owners = HashMap::new();
+    for (i, (page, _)) in pages.iter().enumerate() {
+        let obj = doc.get(*page);
+        let Some(annots) = obj.as_dict().and_then(|d| d.get(b"Annots")) else { continue };
+        let resolved = doc.resolve(annots);
+        let Some(list) = resolved.as_array() else { continue };
+        for a in list {
+            let popup = doc.resolve(a).as_dict().and_then(|d| d.reference(b"Popup"));
+            for r in [a.as_ref(), popup].into_iter().flatten() {
+                if let Some(previous) = owners.insert(r, i)
+                    && previous != i
+                    && (selected.contains(&i) || selected.contains(&previous))
+                {
+                    return Err(invalid("an annotation is shared by multiple pages"));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn flip_page(doc: &mut Document, page: ObjRef, crop: [f64; 4], rotation: i64, direction: FlipDirection) -> Result<(), OrganizeError> {
+    if !crop.iter().all(|v| v.is_finite()) || crop[2] <= crop[0] || crop[3] <= crop[1] {
+        return Err(invalid("empty or invalid CropBox"));
+    }
+    let rotation = rotation.rem_euclid(360);
+    if rotation % 90 != 0 {
+        return Err(invalid("page rotation is not a multiple of 90 degrees"));
+    }
+    let flip_x = (direction == FlipDirection::Horizontal) != (rotation % 180 != 0);
+    let matrix = reflection(crop, flip_x)?;
+    let obj = doc.get(page);
+    let d = obj.as_dict().ok_or_else(|| invalid("invalid page dictionary"))?;
+    let contents = reflected_contents(doc, d.get(b"Contents"), matrix)?;
+    if let Some(value) = d.get(b"Annots") {
+        let annotations = reflected_annotations(doc, value, matrix, flip_x)?;
+        doc.update_dict(page, |d| d.set(b"Annots".to_vec(), annotations))?;
+    }
+    doc.update_dict(page, |d| d.set(b"Contents".to_vec(), contents))?;
+    Ok(())
+}
+
+fn reflected_contents(doc: &mut Document, value: Option<&Object>, matrix: Matrix) -> Result<Object, OrganizeError> {
+    let mut contents = match value {
+        None | Some(Object::Null) => Vec::new(),
+        Some(value) => match &*doc.resolve(value) {
+            Object::Stream(_) => vec![value.clone()],
+            Object::Array(items) => {
+                if items.iter().any(|v| !matches!(&*doc.resolve(v), Object::Stream(_))) {
+                    return Err(invalid("invalid page content stream"));
+                }
+                items.clone()
+            }
+            _ => return Err(invalid("invalid page content")),
+        },
+    };
+    // Number Display uses decimal notation (not exponent notation, which PDF forbids).
+    let [a, b, c, d, e, f] = matrix.0;
+    let prefix = doc.add(Stream::from_raw(Dict::new(), format!("q\n{a} {b} {c} {d} {e} {f} cm\n").into_bytes()));
+    let suffix = doc.add(Stream::from_raw(Dict::new(), b"\nQ\n".to_vec()));
+    contents.insert(0, Object::Ref(prefix));
+    contents.push(Object::Ref(suffix));
+    Ok(Object::Array(contents))
+}
+
+fn reflected_annotations(doc: &mut Document, value: &Object, matrix: Matrix, flip_x: bool) -> Result<Object, OrganizeError> {
+    let resolved = doc.resolve(value);
+    let list = resolved.as_array().ok_or_else(|| invalid("invalid annotations array"))?;
+    if list.len() > 100_000 {
+        return Err(invalid("too many annotations"));
+    }
+    let mut transformed = Vec::with_capacity(list.len());
+    let mut seen = HashSet::new();
+    for annot in list {
+        transformed.push(annotation(doc, annot, matrix, flip_x, &mut seen)?);
+    }
+    Ok(Object::Array(transformed))
 }
 
 fn annotation(doc: &mut Document, value: &Object, matrix: Matrix, x: bool, seen: &mut HashSet<ObjRef>) -> Result<Object, OrganizeError> {
@@ -390,5 +408,94 @@ mod tests {
         assert_eq!(fixed::<4>(&doc, doc.get(popup).as_dict().unwrap().get(b"Rect").unwrap()).unwrap(), [60.0, 220.0, 90.0, 280.0]);
         assert_eq!(doc.get(link).as_dict().unwrap().get(b"A"), Some(&Object::Dict(action)));
         assert_eq!(doc.get(popup).as_dict().unwrap().reference(b"Parent"), Some(link));
+    }
+
+    fn assert_atomic_failure(doc: &mut Document, message: &str) {
+        let before = write_full(doc, &SaveOptions::default()).unwrap();
+        let error = flip_pages(doc, &[0, 1], FlipDirection::Horizontal).unwrap_err();
+        assert!(error.to_string().contains(message), "{error}");
+        assert_eq!(write_full(doc, &SaveOptions::default()).unwrap(), before, "the first page must also be rolled back");
+    }
+
+    #[test]
+    fn flip_rejects_invalid_contents_on_a_later_page_atomically() {
+        for indirect in [false, true] {
+            for invalid in [Object::Int(7), Object::Array(vec![Object::Int(7)])] {
+                let (mut doc, _, second, _) = fixture();
+                let value = if indirect { Object::Ref(doc.add(invalid)) } else { invalid };
+                doc.update_dict(second, |d| d.set(b"Contents".to_vec(), value)).unwrap();
+                assert_atomic_failure(&mut doc, "invalid page content");
+            }
+        }
+    }
+
+    #[test]
+    fn flip_rejects_cyclic_appearances_and_malformed_geometry_atomically() {
+        let (mut doc, _, second, _) = fixture();
+        let cycle = doc.add(Dict::new());
+        doc.update_dict(cycle, |d| d.set(b"On".to_vec(), Object::Ref(cycle))).unwrap();
+        let missing_bounds = doc.add(Stream::from_raw(Dict::new(), Vec::new()));
+        let mut appearance = Dict::new();
+        appearance.set(b"BBox".to_vec(), array([0.0, 0.0, 40.0, 60.0]).unwrap());
+        appearance.set(b"Matrix".to_vec(), array([1.0, 0.0]).unwrap());
+        let truncated_matrix = doc.add(Stream::from_raw(appearance, Vec::new()));
+        let normal = |r| {
+            let mut ap = Dict::new();
+            ap.set(b"N".to_vec(), Object::Ref(r));
+            Object::Dict(ap)
+        };
+        let cases = [
+            (b"AP".as_slice(), normal(cycle), "invalid appearance"),
+            (b"AP", normal(missing_bounds), "no bounding box"),
+            (b"AP", normal(truncated_matrix), "wrong coordinate count"),
+            (b"Vertices", array([10.0, 20.0, 30.0]).unwrap(), "incomplete annotation point"),
+            (b"InkList", Object::Array(vec![Object::Int(7)]), "expected a coordinate array"),
+        ];
+        for (key, value, expected) in cases {
+            let mut annot = Dict::new();
+            annot.set(b"Rect".to_vec(), array([10.0, 20.0, 50.0, 80.0]).unwrap());
+            annot.set(key.to_vec(), value);
+            let annot = doc.add(annot);
+            doc.update_dict(second, |d| d.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(annot)]))).unwrap();
+            assert_atomic_failure(&mut doc, expected);
+        }
+    }
+
+    #[test]
+    fn flip_rejects_shared_linked_popups_even_when_not_listed_on_their_page() {
+        for selected in [vec![0], vec![1], vec![0, 1]] {
+            let (mut doc, first, second, _) = fixture();
+            let mut popup = Dict::new();
+            popup.set(b"Subtype".to_vec(), Object::name("Popup"));
+            popup.set(b"Rect".to_vec(), array([10.0, 20.0, 50.0, 80.0]).unwrap());
+            let popup = doc.add(popup);
+            let mut parent = Dict::new();
+            parent.set(b"Subtype".to_vec(), Object::name("Text"));
+            parent.set(b"Popup".to_vec(), Object::Ref(popup));
+            let parent = doc.add(parent);
+            for (page, annot) in [(first, parent), (second, popup)] {
+                doc.update_dict(page, |d| d.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(annot)]))).unwrap();
+            }
+            let before = write_full(&doc, &SaveOptions::default()).unwrap();
+            assert!(flip_pages(&mut doc, &selected, FlipDirection::Vertical).unwrap_err().to_string().contains("shared"));
+            assert_eq!(write_full(&doc, &SaveOptions::default()).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn flip_rejects_popup_cycles_and_later_page_rotation_atomically() {
+        let (mut doc, _, second, _) = fixture();
+        let mut popup = Dict::new();
+        popup.set(b"Subtype".to_vec(), Object::name("Popup"));
+        let popup = doc.add(popup);
+        doc.update_dict(popup, |d| d.set(b"Popup".to_vec(), Object::Ref(popup))).unwrap();
+        doc.update_dict(second, |d| d.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(popup)]))).unwrap();
+        assert_atomic_failure(&mut doc, "invalid linked popup");
+        doc.update_dict(second, |d| {
+            d.remove(b"Annots");
+            d.set(b"Rotate".to_vec(), Object::Int(45));
+        })
+        .unwrap();
+        assert_atomic_failure(&mut doc, "not a multiple of 90");
     }
 }
