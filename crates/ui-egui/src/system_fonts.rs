@@ -3,8 +3,8 @@
 //! The embedded faces (Inter, egui's defaults, craft-fonts) come first in every family; this one
 //! only draws characters none of them has, such as an Arabic file name in a build without
 //! craft-fonts, or the Simplified Chinese interface in a build without a `Hans` face (#826). A
-//! second installed face, [`devanagari_fallback`], draws Hindi when one is installed. It is
-//! read at runtime and never embedded or shipped (AGENTS.md §1.4), and `PDFCRAFT_SYSTEM_FONTS=0`
+//! second and a third installed face, [`devanagari_fallback`] and [`hebrew_fallback`], draw Hindi
+//! and Hebrew when one is installed. It is read at runtime and never embedded or shipped (AGENTS.md §1.4), and `PDFCRAFT_SYSTEM_FONTS=0`
 //! turns it off (published screenshots do).
 
 use std::path::{Path, PathBuf};
@@ -22,6 +22,8 @@ const MAX_FACES: u32 = 16;
 const PROBE: char = '\u{0627}';
 /// Devanagari letter ka: the face must have it to cover Hindi.
 const DEVANAGARI_PROBE: char = '\u{0915}';
+/// Hebrew letter alef: the face must have it to cover Hebrew.
+const HEBREW_PROBE: char = '\u{05D0}';
 /// 欢 (U+6B22): Simplified only, absent from the Japanese craft-fonts faces.
 const HANS_PROBE: char = '\u{6B22}';
 /// 說 (U+8AAA): Traditional only, absent from the Japanese craft-fonts faces.
@@ -69,14 +71,21 @@ fn load(need: Need) -> Option<Arc<FontData>> {
 /// or no candidate is installed; the interface then draws what the embedded faces can.
 pub fn devanagari_fallback() -> Option<Arc<FontData>> {
     static CACHE: OnceLock<Option<Arc<FontData>>> = OnceLock::new();
-    CACHE
-        .get_or_init(|| {
-            if std::env::var_os("PDFCRAFT_SYSTEM_FONTS").is_some_and(|v| v == "0") {
-                return None;
-            }
-            devanagari_candidates().iter().find_map(|path| read(path, DEVANAGARI_PROBE, MAX_BYTES))
-        })
-        .clone()
+    CACHE.get_or_init(|| script_fallback(&devanagari_candidates(), DEVANAGARI_PROBE)).clone()
+}
+
+/// The installed fallback face for Hebrew, read once. `None` when it is turned off or no
+/// candidate is installed; the interface then draws what the embedded faces can.
+pub fn hebrew_fallback() -> Option<Arc<FontData>> {
+    static CACHE: OnceLock<Option<Arc<FontData>>> = OnceLock::new();
+    CACHE.get_or_init(|| script_fallback(&hebrew_candidates(), HEBREW_PROBE)).clone()
+}
+
+fn script_fallback(candidates: &[PathBuf], probe: char) -> Option<Arc<FontData>> {
+    if std::env::var_os("PDFCRAFT_SYSTEM_FONTS").is_some_and(|v| v == "0") {
+        return None;
+    }
+    candidates.iter().find_map(|path| read(path, probe, MAX_BYTES))
 }
 
 /// Well-known locations of Devanagari (Hindi) faces, best first.
@@ -110,6 +119,30 @@ fn devanagari_candidates() -> Vec<PathBuf> {
             "google-droid-sans-fonts/DroidSansDevanagari-Regular.ttf",
             "samyak-fonts/Samyak-Devanagari.ttf",
             "gargi/Gargi.ttf",
+        ])
+    }
+}
+
+/// Well-known locations of Hebrew faces, best first. The general fallback does not cover it:
+/// SF Arabic, Geeza Pro and Noto Sans Arabic have no Hebrew.
+fn hebrew_candidates() -> Vec<PathBuf> {
+    if cfg!(windows) {
+        ["segoeui.ttf", "arial.ttf", "tahoma.ttf", "david.ttf"].iter().map(|f| windows_fonts().join(f)).collect()
+    } else if cfg!(target_os = "macos") {
+        ["/System/Library/Fonts/SFHebrew.ttf", "/System/Library/Fonts/ArialHB.ttc", "/Library/Fonts/Arial Unicode.ttf"]
+            .iter()
+            .map(PathBuf::from)
+            .collect()
+    } else {
+        unix_fonts(&[
+            "google-noto/NotoSansHebrew-Regular.ttf",
+            "google-noto-vf/NotoSansHebrew[wght].ttf",
+            "truetype/noto/NotoSansHebrew-Regular.ttf",
+            "noto/NotoSansHebrew-Regular.ttf",
+            "truetype/dejavu/DejaVuSans.ttf",
+            "TTF/DejaVuSans.ttf",
+            "dejavu/DejaVuSans.ttf",
+            "dejavu-sans-fonts/DejaVuSans.ttf",
         ])
     }
 }
@@ -241,6 +274,24 @@ mod tests {
             let list = candidates(need);
             assert!(!list.is_empty(), "{need:?}");
             assert!(list.iter().all(|p| p.extension().is_some_and(|e| e == "ttf" || e == "ttc")), "{need:?}");
+        }
+    }
+
+    #[test]
+    fn a_script_fallback_is_the_first_candidate_with_the_probe() {
+        let inter = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/fonts/Inter-Regular.ttf"));
+        let candidates = [PathBuf::from("definitely/not/here.ttf"), inter];
+        assert!(script_fallback(&candidates, 'A').is_some());
+        assert!(script_fallback(&candidates, HEBREW_PROBE).is_none());
+        assert!(script_fallback(&candidates, DEVANAGARI_PROBE).is_none());
+    }
+
+    #[test]
+    fn script_candidates_are_absolute_font_files() {
+        for list in [devanagari_candidates(), hebrew_candidates()] {
+            assert!(!list.is_empty());
+            assert!(list.iter().all(|p| p.is_absolute() || cfg!(windows)), "{list:?}");
+            assert!(list.iter().all(|p| p.extension().is_some_and(|e| e == "ttf" || e == "ttc")), "{list:?}");
         }
     }
 
