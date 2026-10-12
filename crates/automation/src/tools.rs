@@ -407,6 +407,11 @@ pub fn tools() -> Vec<ToolDef> {
             .with(schema(json!({ "doc": doc(), "path": { "type": "string" }, "what": { "type": "string", "enum": ["all", "comments", "fields"] } }), &["doc", "path"])),
         t("doc_import_data", "Import comments or form data", "Import comments and/or field values from an XFDF, FDF, XML, CSV or tab-delimited text file (detected from its content). Comments with the same name are replaced; values go through the form's formats and validation. For an XFA form, an XDP, datasets or data XML file replaces the form's data: a laid-out form is laid out again from it (rows included) and its calculations run. Undoable.")
             .with(schema(json!({ "doc": doc(), "path": { "type": "string" } }), &["doc", "path"])),
+        t("form_copy_field", "Copy and paste a field", "Prepare form ▸ copy and paste: a new field of its own (its own name and value) with the field's type, flags, options, value, appearance and actions, on page, moved by dx and dy (points right and down on the displayed page, default 0). Every widget of the field is copied; a signature's value is not. Returns the new field's name (the next free one: Check Box1 → Check Box2). Undoable.")
+            .with(schema(
+                json!({ "doc": doc(), "field": { "type": "string" }, "page": { "type": "integer", "minimum": 1 }, "dx": { "type": "number" }, "dy": { "type": "number" } }),
+                &["doc", "field", "page"],
+            )),
         t("form_delete_field", "Delete a field", "Delete a form field and all its widgets. Undoable.")
             .destructive()
             .with(schema(json!({ "doc": doc(), "field": { "type": "string" } }), &["doc", "field"])),

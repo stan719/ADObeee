@@ -1920,6 +1920,8 @@ action wizard	Start	Iniciar
 	Change field properties	Cambiar propiedades del campo
 	Delete field	Eliminar campo
 	Duplicate field	Duplicar campo
+	Paste field	Pegar campo
+	Paste fields	Pegar campos
 	Set tab order	Definir orden de tabulación
 	Change initial view	Cambiar vista inicial
 	Set alternate text	Definir texto alternativo

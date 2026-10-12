@@ -1320,6 +1320,14 @@ pub enum Edit {
         name: String,
         pages: Vec<usize>,
     },
+    /// Copy and paste a field: a new, independent field made of copies of its widgets
+    /// `widgets` (all when empty), on `page`, moved by `offset` (user space).
+    CopyField {
+        name: String,
+        widgets: Vec<usize>,
+        page: usize,
+        offset: [f64; 2],
+    },
     DeleteField {
         name: String,
     },
@@ -1689,6 +1697,7 @@ pub const EDIT_LABELS: &[&str] = &[
     "Change field properties",
     "Delete field",
     "Duplicate field",
+    "Paste field",
     "Set tab order",
     "Change initial view",
     "Set alternate text",
@@ -1811,6 +1820,7 @@ impl Edit {
             Edit::SetFieldProps { .. } => Label::of("Change field properties"),
             Edit::DeleteField { .. } => Label::of("Delete field"),
             Edit::DuplicateField { .. } => Label::of("Duplicate field"),
+            Edit::CopyField { .. } => Label::of("Paste field"),
             Edit::SetTabOrder { .. } | Edit::MoveInTabOrder { .. } => Label::of("Set tab order"),
             Edit::SetInitialView(_) => Label::of("Change initial view"),
             Edit::AutoTagText => Label::of("Automatically tag text"),
@@ -1999,6 +2009,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetFieldProps { .. }
         | Edit::DeleteField { .. }
         | Edit::DuplicateField { .. }
+        | Edit::CopyField { .. }
         | Edit::SetTabOrder { .. }
         | Edit::MoveInTabOrder { .. }
         | Edit::SetInitialView(_)
@@ -2272,6 +2283,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             if pdfcraft_forms::duplicate_field(doc, name, pages)? == 0 {
                 return Err(EditError::Form(pdfcraft_forms::FormError::Invalid(format!("{name} is already on those pages"))));
             }
+        }
+        Edit::CopyField { name, widgets, page, offset } => {
+            pdfcraft_forms::copy_field(doc, name, widgets, *page, *offset)?;
         }
         Edit::DeleteField { name } => pdfcraft_forms::delete_field(doc, name)?,
         Edit::SetTabOrder { pages, order } => pdfcraft_forms::set_tab_order(doc, pages, *order)?,

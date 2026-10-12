@@ -892,6 +892,7 @@ fn is_form_edit(edit: &Edit) -> bool {
             | Edit::AddField { .. }
             | Edit::DeleteField { .. }
             | Edit::DuplicateField { .. }
+            | Edit::CopyField { .. }
             | Edit::SetFieldProps { .. }
             | Edit::SetFieldImage { .. }
             | Edit::SetFieldScript { .. }

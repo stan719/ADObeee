@@ -497,3 +497,55 @@ fn actions_tab_adds_and_removes_actions() {
         ]
     );
 }
+
+#[test]
+fn copying_and_pasting_the_selected_fields() {
+    use pdfcraft_engine::{Edit, FieldValue, NewField};
+    let mut h = harness();
+    // An enlarged, checked check box and a drop-down with a choice made: what #1571 duplicates.
+    h.state_mut().apply_edit(Edit::AddField { page: 0, rect: [20.0, 280.0, 50.0, 310.0], kind: NewField::CheckBox, name: Some("agree".into()) });
+    h.state_mut().apply_edit(Edit::SetFieldValue { name: "agree".into(), value: FieldValue::Check(true) });
+    let options = vec!["red".to_string(), "green".to_string()];
+    h.state_mut().apply_edit(Edit::AddField {
+        page: 0,
+        rect: [80.0, 290.0, 200.0, 310.0],
+        kind: NewField::Combo { options, editable: false },
+        name: Some("colour".into()),
+    });
+    h.state_mut().apply_edit(Edit::SetFieldValue { name: "colour".into(), value: FieldValue::Choice(vec!["green".into()]) });
+    assert!(h.state_mut().execute("form.prepare"));
+    h.run_steps(2);
+    let before = names(&h);
+    {
+        let p = &mut h.state_mut().views[0].prepare;
+        p.selected = Some(("agree".into(), 0));
+        p.also = vec![("colour".into(), 0)];
+    }
+    h.event(egui::Event::Copy);
+    h.run_steps(2);
+    h.event(egui::Event::Paste("agree\ncolour".into()));
+    h.run_steps(3);
+    let form = h.state().session.get(h.state().views[0].id).unwrap().form.as_ref().clone();
+    let added: Vec<_> = form.iter().filter(|f| !before.contains(&f.name)).collect();
+    assert_eq!(added.len(), 2, "one copy of each selected field, nothing else: {:?}", names(&h));
+    for (source, copy) in [("agree", added[0]), ("colour", added[1])] {
+        let s = form.iter().find(|f| f.name == source).unwrap();
+        assert_eq!((copy.kind, &copy.value, &copy.options), (s.kind, &s.value, &s.options), "{source} → {}", copy.name);
+        let (a, b) = (s.widgets[0].rect, copy.widgets[0].rect);
+        assert_eq!((copy.widgets.len(), copy.widgets[0].page), (1, Some(0)));
+        assert_eq!([b[0] - a[0], b[1] - a[1], b[2] - a[2], b[3] - a[3]], [18.0, -18.0, 18.0, -18.0], "{source}: same size, moved");
+    }
+    assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().can_undo(), Some("Paste fields"));
+    let pasted: Vec<_> = added.iter().map(|f| (f.name.clone(), 0)).collect();
+    assert_eq!(
+        h.state().views[0].prepare.selected.iter().chain(&h.state().views[0].prepare.also).cloned().collect::<Vec<_>>(),
+        pasted,
+        "the copies are selected"
+    );
+    // The copies are fields of their own: changing one leaves its original alone.
+    h.state_mut().apply_edit(Edit::SetFieldValue { name: added[0].name.clone(), value: FieldValue::Check(false) });
+    let s = h.state();
+    let doc = s.session.get(s.views[0].id).unwrap();
+    assert_eq!(doc.form.iter().find(|f| f.name == "agree").unwrap().value, form.iter().find(|f| f.name == "agree").unwrap().value);
+    assert_ne!(doc.form.iter().find(|f| f.name == added[0].name).unwrap().value, doc.form.iter().find(|f| f.name == "agree").unwrap().value);
+}
