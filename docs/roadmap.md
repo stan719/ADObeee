@@ -1,5 +1,6 @@
 # PdfCraft roadmap: milestones and what's next
 
+> **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M7 #1443: editing a paragraph keeps its line breaks in Chrome-style subset fonts and on turned pages; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M1 #1339: unchanged incremental saves of a classic cross-reference table write a zero-length subsection; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M3: Windows' Animation effects setting is followed, and Preferences has Animation effects; earlier: exclusive image-crop resize follow-up; M2: short same-line redraws split before placement; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M7: preserve Arabic ActualText typing order; earlier: M3: Windows' Animation effects setting is followed, and Preferences has Animation effects; earlier: exclusive image-crop resize follow-up; M2: short same-line redraws split before placement; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -145,6 +146,7 @@ M2 (renderer), M7 (content editing), M10 (OCR and Office), M11 (Preflight and st
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | M7 #1443: adding a word to a multi-line paragraph keeps its line breaks. Composite subset fonts whose `/W` leaves out default-width glyphs (Chrome, Skia) no longer measure those letters as missing, and paragraphs drawn turned on the page group into rows along their own baselines. Estimates unchanged. |
 | 2026-10-12 | minor | M1 #1339: unchanged incremental saves of a classic cross-reference table write a zero-length subsection. Estimates unchanged. |
 | 2026-10-12 | minor | M12: bounded text-only auto-tag preview through the engine and automation; actual PDF structure writing and visual review remain open. Estimates unchanged. |
 | 2026-10-12 | minor | M7: keep added Arabic copy/search in typing order with per-line ActualText; preserve that order in the editor and keep visual runs separate. Font-independent regressions and tool save/reopen coverage; font fallback and bidi typing remain partial. Estimates unchanged. |
