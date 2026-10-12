@@ -6764,6 +6764,18 @@ notes = "Adobe cloud; import images from any source instead"
 # ==================================================================================================
 
 [[feature]]
+id = "create.from-comic-archives"
+title = "Open and convert CBZ/ZIP and CBT/TAR image archives"
+area = "J"
+tier = "P1"
+milestone = "M10"
+status = "shipped"
+commands = ["file.open", "create.file", "create.multiple"]
+tools = ["doc_create_multiple"]
+evidence = ["crates/create/src/archive/tests.rs::comic_archives_preserve_entry_order_dimensions_and_saved_pages", "crates/automation/tests/automation.rs::comic_archive_conversion_and_batch_preserve_pages_and_existing_outputs", "crates/ui-egui/tests/create.rs::comic_archive_opens_as_an_unsaved_pdf_and_bad_archives_leave_tabs_unchanged"]
+notes = "Images become an unsaved PDF in archive entry order. CLI/MCP supports one archive, combined output or one PDF per archive; invalid separate-mode inputs report errors without stopping the batch. ZIP supports stored/deflate entries; TAR is uncompressed. No extraction to disk. Existing image formats apply; unsupported known image types, encryption and linked image entries are refused. Limits: 512 MiB input/total decompressed image bytes, 64 MiB per image file, 10000 entries, 4096 PDF pages. No CBR, CB7, EPUB, XPS or background/cancellable conversion. See docs/comic-archives.md."
+
+[[feature]]
 id = "create.from-images"
 title = "Create PDF from images (JPEG, PNG, TIFF, GIF, BMP, JPEG 2000)"
 area = "J"

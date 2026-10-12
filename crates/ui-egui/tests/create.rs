@@ -14,6 +14,61 @@ fn png() -> Vec<u8> {
     out
 }
 
+fn comic_zip() -> Vec<u8> {
+    use std::io::{Cursor, Write};
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for name in ["02.png", "01.png"] {
+        zip.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(&png()).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
+}
+
+#[test]
+fn comic_archive_opens_as_an_unsaved_pdf_and_bad_archives_leave_tabs_unchanged() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    app.open_bytes("comic.CBZ", Some("/tmp/comic.CBZ".into()), comic_zip()).unwrap();
+    let docs = app.session.docs();
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0].name, "comic.pdf");
+    assert_eq!(docs[0].info.pages.len(), 2);
+    assert!(docs[0].dirty && docs[0].path.is_none(), "Save must not overwrite the source archive");
+    assert!(app.open_bytes("broken.cbz", None, b"broken".to_vec()).is_err());
+    assert_eq!(app.session.docs().len(), 1);
+    assert_eq!(app.views.len(), 1);
+    if let Ok(path) = std::env::var("PDFCRAFT_COMIC_SNAPSHOT") {
+        app.views[0].organize = true;
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(move |_| app);
+        h.run_steps(20);
+        h.render().unwrap().save(path).unwrap();
+    }
+}
+
+#[test]
+fn comic_archive_batch_creates_pdfs_and_reports_invalid_sources() {
+    let dir = std::env::temp_dir().join(format!("pdfcraft-comic-batch-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("comic.pdf"), b"keep").unwrap();
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    app.export_dir_override = Some(dir.to_string_lossy().into_owned());
+    app.use_files(
+        pdfcraft_ui_egui::FilePurpose::CreateMultipleSeparate,
+        vec![("comic.cbz".into(), comic_zip()), ("broken.cbz".into(), b"broken".to_vec()), ("pages.zip".into(), comic_zip())],
+    );
+    assert_eq!(std::fs::read(dir.join("comic.pdf")).unwrap(), b"keep");
+    for name in ["comic (2).pdf", "pages.pdf"] {
+        let bytes = std::fs::read(dir.join(name)).unwrap();
+        let id = app.session.open_new(name, std::sync::Arc::new(bytes)).unwrap();
+        assert_eq!(app.session.get(id).unwrap().info.pages.len(), 2);
+    }
+    assert!(!dir.join("broken.pdf").exists());
+    assert!(app.views.is_empty());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn image_import_dialog_chooses_dpi_and_cancels() {
     use egui_kittest::{Harness, kittest::Queryable};
