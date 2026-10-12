@@ -11,7 +11,7 @@
 //! Helvetica's proportions by character class (no font program or metrics file is bundled).
 
 use pdfcraft_cos::{Dict, Object, PdfString, Stream};
-use pdfcraft_fonts::{first_undrawable, literal, win_ansi};
+use pdfcraft_fonts::{first_undrawable, has_turkish, literal, turkish_encoding_dict, win_ansi};
 pub use pdfcraft_fonts::{helvetica_width as text_width, wrap};
 
 use crate::{NOTE_SIZE, Rgb, n};
@@ -723,7 +723,8 @@ pub fn build(d: &Dict) -> Option<Stream> {
             font.set(b"Type".to_vec(), Object::name("Font"));
             font.set(b"Subtype".to_vec(), Object::name("Type1"));
             font.set(b"BaseFont".to_vec(), Object::name("Helvetica"));
-            font.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+            let enc = if has_turkish(&text) { Object::Dict(turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+            font.set(b"Encoding".to_vec(), enc);
             let mut fonts = Dict::new();
             fonts.set(b"Helv".to_vec(), Object::Dict(font));
             res.set(b"Font".to_vec(), Object::Dict(fonts));
@@ -749,7 +750,8 @@ pub fn build(d: &Dict) -> Option<Stream> {
             font.set(b"Type".to_vec(), Object::name("Font"));
             font.set(b"Subtype".to_vec(), Object::name("Type1"));
             font.set(b"BaseFont".to_vec(), Object::name("Helvetica"));
-            font.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+            let enc = if has_turkish(&value) { Object::Dict(turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+            font.set(b"Encoding".to_vec(), enc);
             let mut fonts = Dict::new();
             fonts.set(b"Helv".to_vec(), Object::Dict(font));
             res.set(b"Font".to_vec(), Object::Dict(fonts));
@@ -867,12 +869,14 @@ fn stamp(kind: crate::StampKind, rect: [f64; 4], col: Rgb, by: Option<&str>, opa
         out.extend_from_slice(b" Tj\n");
     }
     out.extend_from_slice(b"ET\n");
+    let turkish = has_turkish(label) || by.is_some_and(has_turkish);
     let font = |base: &str| {
         let mut f = Dict::new();
         f.set(b"Type".to_vec(), Object::name("Font"));
         f.set(b"Subtype".to_vec(), Object::name("Type1"));
         f.set(b"BaseFont".to_vec(), Object::name(base));
-        f.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+        let enc = if turkish { Object::Dict(turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+        f.set(b"Encoding".to_vec(), enc);
         Object::Dict(f)
     };
     let mut fonts = Dict::new();

@@ -503,11 +503,14 @@ fn persistence_round_trips_and_tolerates_garbage() {
     let mut a = PdfCraftApp::new();
     a.set_option("language", "en").unwrap();
     a.set_option("theme", "dark").unwrap();
+    a.set_option("show-discord", "false").unwrap();
+    assert!(!a.show_discord);
     let json = a.persist();
     let mut b = PdfCraftApp::new();
     b.set_option("language", "en").unwrap();
     b.restore(&json);
     assert_eq!(b.theme, pdfcraft_ui_egui::theme::ThemeKind::Dark);
+    assert!(!b.show_discord);
     b.restore("{not json");
     b.restore("{\"recent\": 5, \"theme\": \"Purple\"}");
     assert_eq!(b.theme, pdfcraft_ui_egui::theme::ThemeKind::Dark);

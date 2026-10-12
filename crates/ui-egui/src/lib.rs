@@ -496,6 +496,8 @@ pub struct PdfCraftApp {
     ui_scale_applied: Option<f32>,
     /// Preferences: bake Fill & Sign marks into the page when saving. Off, so a normal save stays editable.
     pub flatten_fill_sign_on_save: bool,
+    /// Whether to show the Discord button in the title bar.
+    pub show_discord: bool,
     /// Point size for new Fill & Sign text and dates, kept across launches.
     pub fill_text_size: f64,
     pub dialog: Option<Dialog>,
@@ -828,6 +830,7 @@ impl PdfCraftApp {
             system_text_scale: 1.0,
             ui_scale_applied: None,
             flatten_fill_sign_on_save: false,
+            show_discord: true,
             fill_text_size: fill_sign::TEXT_SIZE,
             dialog: None,
             update_source: None,
@@ -1768,6 +1771,7 @@ impl PdfCraftApp {
             // Null follows the system's text scaling.
             "ui_scale": self.ui_scale,
             "flatten_fill_sign": self.flatten_fill_sign_on_save,
+            "show_discord": self.show_discord,
             "fill_text_size": self.fill_text_size,
             "date_format": self.session.date_format(),
             // Null follows the interface language.
@@ -1950,6 +1954,9 @@ impl PdfCraftApp {
             let certs = pems.iter().filter_map(|p| pdfcraft_engine::sign::x509::load_certificates(p.as_bytes()).ok()).flatten().collect();
             self.session.set_trusted_certificates(certs);
         }
+        if let Some(show) = v.get("show_discord").and_then(serde_json::Value::as_bool) {
+            self.show_discord = show;
+        }
     }
 
     /// `true` while any open document still waits for page renders (used by headless capture).
@@ -1969,6 +1976,13 @@ impl PdfCraftApp {
                     format!("language must be one of {}", codes.join(", "))
                 })?;
                 self.language = language.to_string();
+            }
+            ("show-discord" | "show-discord-banner" | "discord", _) => {
+                self.show_discord = match value {
+                    "true" | "on" | "1" => true,
+                    "false" | "off" | "0" => false,
+                    _ => return Err("show-discord must be true or false".into()),
+                };
             }
             ("theme", _) => {
                 let preference = match value {

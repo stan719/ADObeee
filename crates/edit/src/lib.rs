@@ -277,7 +277,9 @@ fn add_resources(doc: &mut Document, page: &pdfcraft_model::Page, opacity: Optio
         font.set(b"Type".to_vec(), Object::name("Font"));
         font.set(b"Subtype".to_vec(), Object::name("Type1"));
         font.set(b"BaseFont".to_vec(), Object::name(base));
-        font.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+        let has_tr = content.is_some_and(|c| c.iter().any(|b| matches!(b, 0xD0 | 0xDD | 0xDE | 0xF0 | 0xFD | 0xFE)));
+        let enc = if has_tr { Object::Dict(pdfcraft_fonts::turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+        font.set(b"Encoding".to_vec(), enc);
         fonts.set(name.to_vec(), Object::Dict(font));
     }
     res.set(b"Font".to_vec(), Object::Dict(fonts));

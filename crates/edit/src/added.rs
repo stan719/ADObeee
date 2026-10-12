@@ -454,7 +454,10 @@ pub fn text_rect(t: &AddedText) -> [f64; 4] {
     [r[0], r[3] - h, r[2], r[3]]
 }
 
-fn font_name(base: &str) -> String {
+fn font_name(base: &str, turkish: bool) -> String {
+    if turkish {
+        return format!("PCFTr{}", base.replace('-', ""));
+    }
     format!("PCF{}", base.replace('-', ""))
 }
 
@@ -489,7 +492,7 @@ fn draw_laid_shaped(
     outline: impl Fn(ShapedScript, u32) -> Result<GlyphOutline, GlyphError>,
 ) -> Result<(), EditError> {
     let r = text_rect(t);
-    let latin = font_name(t.family.base_font(t.bold, t.italic));
+    let latin = font_name(t.family.base_font(t.bold, t.italic), pdfcraft_fonts::has_turkish(&t.text));
     // Every distinct cluster (a letter with its dots and the text it stands for) is one glyph of
     // one of the fonts, so copy and search get each character exactly once.
     let mut keys: Vec<&ShapedCluster> = Vec::new();
@@ -692,12 +695,17 @@ fn draw(doc: &mut Document, c: &Content, view: [f64; 6], taken: &Dict, existing:
     match c {
         Content::Text(t) => {
             let base = t.family.base_font(t.bold, t.italic);
-            let name = font_name(base);
+            let turkish = pdfcraft_fonts::has_turkish(&t.text);
+            let name = font_name(base, turkish);
             let mut font = Dict::new();
             font.set(b"Type".to_vec(), Object::name("Font"));
             font.set(b"Subtype".to_vec(), Object::name("Type1"));
             font.set(b"BaseFont".to_vec(), Object::name(base));
-            if t.family != Family::Courier || !t.text.is_ascii() {
+            if turkish {
+                font.set(b"Encoding".to_vec(), Object::Dict(pdfcraft_fonts::turkish_encoding_dict()));
+                let to_unicode = doc.add(Object::Stream(pdfcraft_cos::Stream::flate(Dict::new(), pdfcraft_fonts::TURKISH_TO_UNICODE)));
+                font.set(b"ToUnicode".to_vec(), Object::Ref(to_unicode));
+            } else if t.family != Family::Courier || !t.text.is_ascii() {
                 font.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
             }
             let mut fonts = Dict::new();
@@ -977,6 +985,13 @@ fn write(doc: &mut Document, page: usize, c: &Content, obj: Option<ObjRef>) -> R
     for (k, v) in res.iter() {
         let mut sub = pres.get(k).map(|s| doc.resolve(s)).and_then(|s| s.as_dict().cloned()).unwrap_or_default();
         for (n2, o) in v.as_dict().into_iter().flat_map(|d| d.iter()) {
+            if k == b"Font"
+                && let Some(existing) = sub.get(n2).map(|e| doc.resolve(e)).and_then(|e| e.as_dict().cloned())
+                && (existing.get(b"ToUnicode").is_some() || existing.get(b"Encoding").is_some_and(|e| matches!(e, Object::Dict(_))))
+                && o.as_dict().is_some_and(|d| d.get(b"ToUnicode").is_none() && !d.get(b"Encoding").is_some_and(|e| matches!(e, Object::Dict(_))))
+            {
+                continue;
+            }
             sub.set(n2.clone(), o.clone());
         }
         pres.set(k.clone(), Object::Dict(sub));

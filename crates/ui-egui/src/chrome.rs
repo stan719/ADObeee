@@ -52,8 +52,13 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.active = None;
                     app.combine_tab.focused = false;
                 }
-                // Keep the two icon buttons, Discord's text/padding and three gaps outside the scrolling tabs.
-                let controls_width = ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x) + 2.0 * button + 50.0;
+                // Keep the two icon buttons, Discord's text/padding (when shown) and gaps outside the scrolling tabs.
+                let discord_width = if app.show_discord {
+                    ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x) + 38.0
+                } else {
+                    0.0
+                };
+                let controls_width = 2.0 * button + discord_width + 12.0;
                 // Open stays in sight after the tabs: its icon, text and padding, and the gaps around it.
                 let open_width = ui.fonts_mut(|f| f.layout_no_wrap(tl!("Open").into(), theme::medium(13.0), t.text).size().x) + 38.0 + 12.0;
                 let mut tabs_width = (ui.available_width() - controls_width - open_width).max(0.0);
@@ -213,9 +218,19 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     if icons::button(ui, "circle-help", button, false, tl!("Keyboard shortcuts")).clicked() {
                         app.dialog = Some(Dialog::Shortcuts);
                     }
-                    // One click to the community, from anywhere in the app.
-                    if widgets::ghost_button_sized(ui, "messages-square", "Discord", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD).clicked() {
-                        app.execute("help.discord");
+                    if app.show_discord {
+                        // One click to the community, from anywhere in the app.
+                        let response =
+                            widgets::ghost_button_sized(ui, "messages-square", "Discord", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD);
+                        if response.clicked() {
+                            app.execute("help.discord");
+                        }
+                        response.context_menu(|ui| {
+                            if ui.button(tl!("Hide Discord")).clicked() {
+                                app.show_discord = false;
+                                ui.close();
+                            }
+                        });
                     }
                 });
             });
@@ -243,6 +258,12 @@ fn theme_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
 
 /// The right-click menu on the title bar's theme button.
 fn appearance_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    let discord_label = if app.show_discord { tl!("Hide Discord") } else { tl!("Show Discord") };
+    if ui.button(discord_label).clicked() {
+        app.show_discord = !app.show_discord;
+        ui.close();
+    }
+    ui.separator();
     if ui.button(tl!("Appearance settings…")).clicked() {
         app.dialog = Some(Dialog::Preferences);
         ui.close();

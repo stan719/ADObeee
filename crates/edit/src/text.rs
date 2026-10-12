@@ -1456,7 +1456,8 @@ pub(crate) fn replace_line_with_limit(doc: &mut Document, page: usize, line: usi
                 let size = font_size_before(&ops, first).unwrap_or(target.size);
                 let family = source_family(&target.base_font);
                 let base = family.base_font(target.bold, target.italic);
-                let substitute_name = format!("PCEd{}", base.replace('-', ""));
+                let is_tr = pdfcraft_fonts::has_turkish(&fallback_shown);
+                let substitute_name = if is_tr { format!("PCEdTr{}", base.replace('-', "")) } else { format!("PCEd{}", base.replace('-', "")) };
                 replacement.push(Op::new("Tf", vec![Object::name(&substitute_name), pdfcraft_content::num(size)]));
                 replacement.push(Op::new("Tj", vec![Object::String(PdfString::literal(win))]));
                 replacement.push(Op::new("Tf", vec![Object::name(&target.font), pdfcraft_content::num(size)]));
@@ -1465,7 +1466,12 @@ pub(crate) fn replace_line_with_limit(doc: &mut Document, page: usize, line: usi
                 f.set(b"Type".to_vec(), Object::name("Font"));
                 f.set(b"Subtype".to_vec(), Object::name("Type1"));
                 f.set(b"BaseFont".to_vec(), Object::name(base));
-                f.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+                let enc = if is_tr { Object::Dict(pdfcraft_fonts::turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+                f.set(b"Encoding".to_vec(), enc);
+                if is_tr {
+                    let to_unicode = doc.add(Object::Stream(pdfcraft_cos::Stream::flate(Dict::new(), pdfcraft_fonts::TURKISH_TO_UNICODE)));
+                    f.set(b"ToUnicode".to_vec(), Object::Ref(to_unicode));
+                }
                 fonts_res.set(substitute_name.into_bytes(), Object::Dict(f));
             }
         }
@@ -1809,8 +1815,20 @@ pub(crate) fn rewrite_block_with_limit(
         f.set(b"Type".to_vec(), Object::name("Font"));
         f.set(b"Subtype".to_vec(), Object::name("Type1"));
         f.set(b"BaseFont".to_vec(), Object::name(base));
-        f.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
-        let name = if style.family.is_none() { String::from_utf8_lossy(SUBSTITUTE).into_owned() } else { format!("PCEd{}", base.replace('-', "")) };
+        let is_tr = pdfcraft_fonts::has_turkish(&text);
+        let enc = if is_tr { Object::Dict(pdfcraft_fonts::turkish_encoding_dict()) } else { Object::name("WinAnsiEncoding") };
+        f.set(b"Encoding".to_vec(), enc);
+        if is_tr {
+            let to_unicode = doc.add(Object::Stream(pdfcraft_cos::Stream::flate(Dict::new(), pdfcraft_fonts::TURKISH_TO_UNICODE)));
+            f.set(b"ToUnicode".to_vec(), Object::Ref(to_unicode));
+        }
+        let name = if style.family.is_none() {
+            if is_tr { format!("{}Tr", String::from_utf8_lossy(SUBSTITUTE)) } else { String::from_utf8_lossy(SUBSTITUTE).into_owned() }
+        } else if is_tr {
+            format!("PCEdTr{}", base.replace('-', ""))
+        } else {
+            format!("PCEd{}", base.replace('-', ""))
+        };
         fonts_res.set(name.clone().into_bytes(), Object::Dict(f));
         if style.family.is_none() {
             substituted = Some(base.to_string());

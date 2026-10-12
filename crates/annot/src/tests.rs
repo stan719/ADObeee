@@ -1268,3 +1268,35 @@ fn cached_appearances_are_reused_while_annotations_are_unchanged() {
     assert!(!a.is_empty());
     assert_eq!(a, b, "the reused appearance is byte-identical");
 }
+
+#[test]
+fn turkish_characters_in_annotated_note_are_supported() {
+    let mut doc = fixture();
+    let text = "T\u{00FC}rk\u{00E7}e \u{00F6}zel karakterler: \u{015F}, \u{0131}, \u{011F}, \u{00F6}, \u{00FC}, \u{0130}, \u{015E}, \u{011E}";
+    let annot = NewAnnotation {
+        page: 0,
+        shape: Shape::TextBox { rect: [100.0, 500.0, 300.0, 600.0], font_size: 12.0 },
+        contents: text.into(),
+        author: "Bar\u{0131}\u{015F}".into(),
+        style: Style::default(),
+    };
+    let idx = add_annotation(&mut doc, &annot, &meta("turkish")).expect("adds turkish note");
+    let all = list(&doc, 0);
+    let d = &all[idx];
+    assert_eq!(d.get(b"Contents").unwrap().as_string().unwrap().to_text(), text);
+    let ap = ap_content(&doc, d);
+    assert!(!ap.is_empty());
+    assert_eq!(pdfcraft_fonts::undrawn_mark(d), None);
+    let n = d.get(b"AP").map(|a| doc.resolve(a)).and_then(|a| a.as_dict().and_then(|a| a.reference(b"N"))).expect("has /AP /N");
+    let Object::Stream(s) = &*doc.get(n) else { panic!("not a stream") };
+    let res = s.dict.get(b"Resources").unwrap().as_dict().unwrap();
+    let fonts = res.get(b"Font").unwrap().as_dict().unwrap();
+    let helv = fonts.get(b"Helv").unwrap().as_dict().unwrap();
+    let enc = helv.get(b"Encoding").unwrap().as_dict().unwrap();
+    assert!(enc.contains(b"Differences"), "font encoding has Differences dictionary for Turkish glyphs");
+    let stream = s.decoded().unwrap();
+    for line in pdfcraft_fonts::wrap(text, 12.0, 200.0 - 8.0) {
+        let line_lit = pdfcraft_fonts::literal(&pdfcraft_fonts::win_ansi(&line));
+        assert!(stream.windows(line_lit.len()).any(|w| w == line_lit.as_slice()), "appearance contains line: {line}");
+    }
+}

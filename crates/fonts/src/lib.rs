@@ -37,6 +37,12 @@ pub fn helvetica_width(s: &str, size: f64) -> f64 {
             '0'..='9' | 'a'..='z' | '$' | '#' | '?' | '_' => 556.0,
             'A'..='Z' => 680.0,
             '@' => 1015.0,
+            'ı' => 260.0,
+            'İ' => 278.0,
+            'ş' => 500.0,
+            'Ş' => 680.0,
+            'ğ' => 556.0,
+            'Ğ' => 680.0,
             _ if c.is_whitespace() => 260.0,
             _ => 584.0,
         })
@@ -111,9 +117,17 @@ pub fn wrap_with(text: &str, size: f64, width: f64, measure: impl Fn(&str, f64) 
 ///
 /// Codes 0x80–0x9F come from the same table the text extractor decodes with, so encoding and
 /// decoding agree (Š š Ž ž Œ œ Ÿ ƒ † ‡ ˆ ˜ ‰ ‹ › as well as quotes, dashes, € and ™).
+/// Turkish specialized characters outside standard WinAnsi (Ğ, İ, Ş, ğ, ı, ş) map to their
+/// Windows-1254 code page slots, backed by `/Differences` when written to PDF fonts.
 pub fn win_ansi_byte(c: char) -> Option<u8> {
     match c {
         '\u{20}'..='\u{7e}' | '\u{a0}'..='\u{ff}' => u8::try_from(u32::from(c)).ok(),
+        'Ğ' => Some(0xd0),
+        'İ' => Some(0xdd),
+        'Ş' => Some(0xde),
+        'ğ' => Some(0xf0),
+        'ı' => Some(0xfd),
+        'ş' => Some(0xfe),
         _ => {
             let high = encodings::WIN_ANSI.get(0x80..0xa0)?;
             let i = high.iter().position(|&u| u != 0 && u == u32::from(c))?;
@@ -121,6 +135,44 @@ pub fn win_ansi_byte(c: char) -> Option<u8> {
         }
     }
 }
+
+/// Whether `c` is one of the Turkish characters outside standard WinAnsi (Ğ, İ, Ş, ğ, ı, ş).
+pub fn is_turkish_special(c: char) -> bool {
+    matches!(c, 'Ğ' | 'ğ' | 'İ' | 'ı' | 'Ş' | 'ş')
+}
+
+/// Whether `s` contains any of the Turkish characters outside standard WinAnsi.
+pub fn has_turkish(s: &str) -> bool {
+    s.chars().any(is_turkish_special)
+}
+
+/// PDF Encoding dictionary with `/Differences` for Turkish characters (ISO 32000-2 §9.6.6).
+pub fn turkish_encoding_dict() -> pdfcraft_cos::Dict {
+    let mut enc = pdfcraft_cos::Dict::new();
+    enc.set(b"Type".to_vec(), pdfcraft_cos::Object::name("Encoding"));
+    enc.set(b"BaseEncoding".to_vec(), pdfcraft_cos::Object::name("WinAnsiEncoding"));
+    enc.set(
+        b"Differences".to_vec(),
+        pdfcraft_cos::Object::Array(vec![
+            pdfcraft_cos::Object::Int(208),
+            pdfcraft_cos::Object::name("Gbreve"),
+            pdfcraft_cos::Object::Int(221),
+            pdfcraft_cos::Object::name("Idotaccent"),
+            pdfcraft_cos::Object::Int(222),
+            pdfcraft_cos::Object::name("Scedilla"),
+            pdfcraft_cos::Object::Int(240),
+            pdfcraft_cos::Object::name("gbreve"),
+            pdfcraft_cos::Object::Int(253),
+            pdfcraft_cos::Object::name("dotlessi"),
+            pdfcraft_cos::Object::Int(254),
+            pdfcraft_cos::Object::name("scedilla"),
+        ]),
+    );
+    enc
+}
+
+/// Predefined ToUnicode CMap bytes for Turkish character codes.
+pub const TURKISH_TO_UNICODE: &[u8] = b"/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CMapName /PCTurkish def\n/CMapType 2 def\n1 begincodespacerange\n<00> <FF>\nendcodespacerange\n6 beginbfchar\n<D0> <011E>\n<DD> <0130>\n<DE> <015E>\n<F0> <011F>\n<FD> <0131>\n<FE> <015F>\nendbfchar\nendcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n";
 
 /// Encode text in WinAnsiEncoding (ISO 32000-2 Annex D); tabs become spaces and unmappable
 /// characters become `?`.
@@ -267,16 +319,22 @@ mod tests {
         for c in ['a', 'é', 'ÿ', '€', '—', '™', '\t', '?'] {
             assert!(win_ansi_encodable(c), "{c:?}");
         }
+        for c in ['ş', 'ı', 'ğ', 'ö', 'ü', 'İ', 'Ş', 'Ğ', 'Ç', 'ç'] {
+            assert!(win_ansi_encodable(c), "{c:?}");
+        }
         for c in ['中', 'あ', 'Ω', 'č', 'ă', '☃', '😀'] {
             assert!(!win_ansi_encodable(c), "{c:?}");
         }
         assert_eq!(first_non_win_ansi("Café — 5€"), None);
+        assert_eq!(first_non_win_ansi("Açıklama: Türkçe şapkalı ğ"), None);
         assert_eq!(first_non_win_ansi("Dvořák"), Some('ř'));
         // Line breaks are laid out, not drawn; other controls would be written as `?`.
         assert_eq!(first_undrawable("Café\r\n— 5€\tok"), None);
+        assert_eq!(first_undrawable("Açıklama: Türkçe şapkalı ğ"), None);
         assert_eq!(first_undrawable("签名 Ada"), Some('签'));
         assert_eq!(first_undrawable("a\u{7}b"), Some('\u{7}'));
         assert_eq!(first_undrawable("𠀋"), Some('𠀋'));
+        assert_eq!(win_ansi("şığöüİ"), b"\xfe\xfd\xf0\xf6\xfc\xdd");
         let m = undrawable_message("the comment", '签');
         assert_eq!(m, "the standard fonts can't draw \"签\" (U+7B7E) in the comment; only Western European characters can be written there for now");
         assert!(undrawable_message("the reason", '\u{7}').contains("\"\\u{7}\" (U+0007)"));

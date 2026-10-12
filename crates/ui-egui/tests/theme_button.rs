@@ -39,3 +39,24 @@ fn a_click_cycles_the_theme_and_a_right_click_opens_the_menu() {
     h.run_steps(10);
     assert!(h.query_by_label("Light theme").is_some(), "Preferences opens on Appearance");
 }
+
+#[test]
+fn discord_banner_can_be_hidden_and_shown() {
+    let mut h = harness();
+    assert!(h.query_by_label("Discord").is_some());
+    // Hide via right click on theme button
+    h.get_by_label("Display theme: Light gray").click_secondary();
+    h.run_steps(4);
+    h.get_by_label("Hide Discord").click();
+    h.run_steps(4);
+    assert!(!h.state().show_discord);
+    assert!(h.query_by_label("Discord").is_none());
+
+    // Show via right click on theme button
+    h.get_by_label("Display theme: Light gray").click_secondary();
+    h.run_steps(4);
+    h.get_by_label("Show Discord").click();
+    h.run_steps(4);
+    assert!(h.state().show_discord);
+    assert!(h.query_by_label("Discord").is_some());
+}

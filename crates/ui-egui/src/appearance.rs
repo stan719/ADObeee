@@ -130,6 +130,8 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
         card(light, t, tl!("Light theme"), light_active, LIGHT_THEMES);
         card(dark, t, tl!("Dark theme"), !light_active, DARK_THEMES);
     });
+    ui.add_space(8.0);
+    ui.add(widgets::checkbox(&mut app.show_discord, tl!("Show Discord in title bar")));
 }
 
 #[cfg(test)]
