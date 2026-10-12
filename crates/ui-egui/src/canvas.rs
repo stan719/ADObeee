@@ -2655,6 +2655,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                 o.consumed || field_tool.is_some()
             } else {
                 tool == QuickTool::Select
+                    && !(editing_content && can_modify && crate::content_ui::select_grabs(ui, &xf, i, info, &added, view))
                     && !comments::select_grabs(ui, &pcx, view)
                     && crate::forms_ui::page_input(ui, &resp, &xf, i, info, &form, can_fill, view)
             };
