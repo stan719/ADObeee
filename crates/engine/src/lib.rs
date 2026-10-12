@@ -147,7 +147,7 @@ pub type SplitPart = (usize, usize, Arc<Vec<u8>>);
 use std::sync::Arc;
 
 use pdfcraft_cos::{SaveOptions, write_full, write_incremental};
-use pdfcraft_render::{DocInfo, Layer, LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect};
+use pdfcraft_render::{DocInfo, Layer, LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect, inspect_with_cos};
 
 /// Stable identifier of an open document within a session.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -2909,9 +2909,13 @@ impl Session {
 
     fn open_unguarded(&mut self, name: String, path: Option<String>, bytes: Arc<Vec<u8>>, password: Option<&str>) -> Result<DocId, OpenError> {
         let cos = std::panic::catch_unwind(|| pdfcraft_cos::Document::open_with_password(bytes.clone(), password));
+        let inspect_open = |password| match &cos {
+            Ok(Ok(source)) => inspect_with_cos(bytes.clone(), password, source),
+            _ => inspect(bytes.clone(), password),
+        };
         // The renderer authenticates on its own. It cannot use the owner password of R2–R4
         // files, so give it the user password that owner authentication recovers.
-        let (info, render_password) = match inspect(bytes.clone(), password) {
+        let (info, render_password) = match inspect_open(password) {
             Ok(info) => (info, password.map(str::to_owned)),
             Err(OpenError::WrongPassword) => {
                 let user = match &cos {
@@ -2919,7 +2923,7 @@ impl Session {
                     _ => None,
                 };
                 let user = renderer_password(&user.ok_or(OpenError::WrongPassword)?);
-                (inspect(bytes.clone(), Some(&user))?, Some(user))
+                (inspect_open(Some(&user))?, Some(user))
             }
             Err(e) => return Err(e),
         };

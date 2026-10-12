@@ -522,6 +522,19 @@ impl Document {
         SourceIdentity(Arc::downgrade(&self.source_identity))
     }
 
+    /// A bounded read-only inspection view over this parsed source.
+    ///
+    /// The original bytes, cross-reference data, revisions, and authentication state are shared.
+    /// Object caches and the copy-on-write overlay are independent so inspection cannot populate
+    /// or mutate the editor's caches.
+    pub fn inspection_view(&self, stream_limit: usize) -> Self {
+        let mut view = self.clone();
+        view.cache = Arc::default();
+        view.objstms = Arc::default();
+        view.stream_limit = stream_limit.min(crate::object::MAX_DECODED);
+        view
+    }
+
     pub fn version(&self) -> &str {
         &self.version
     }
@@ -1546,6 +1559,25 @@ mod tests {
         let bytes = Arc::new(crate::write_full(&doc, &crate::SaveOptions::default()).unwrap());
         assert!(Document::open(bytes.clone()).is_ok());
         assert!(Document::open_with_stream_limit(bytes, None, 512).is_err());
+    }
+
+    #[test]
+    fn inspection_view_reuses_source_identity_with_independent_caches() {
+        let bytes = Arc::new(crate::write_full(&Document::new_empty(), &crate::SaveOptions::default()).unwrap());
+        let source = Document::open(bytes).unwrap();
+        let root = source.root().unwrap();
+        source.try_get(root.num).unwrap();
+
+        let view = source.inspection_view(512);
+
+        assert_eq!(view.source_identity(), source.source_identity());
+        assert_eq!(view.stream_limit, 512);
+        assert!(view.stream_limited());
+        assert!(!Arc::ptr_eq(&view.cache, &source.cache));
+        assert!(!Arc::ptr_eq(&view.objstms, &source.objstms));
+        assert!(source.cache.lock().unwrap().contains_key(&root.num));
+        assert!(view.cache.lock().unwrap().is_empty());
+        assert!(matches!(&*view.try_get(root.num).unwrap(), Object::Dict(_)));
     }
 
     /// A /Prev chain that loops back on itself stops at the loop (and says so).
