@@ -1,0 +1,166 @@
+# Hindi (hi) catalog. Columns, separated by a TAB: context <TAB> source <TAB> translation
+#
+#   context  empty                a plain UI string; `source` is the English text in the code
+#            @id                  a command id, whose translation wins over the English label
+#            @plural              `source` is "one|other"; translated forms are separated by |
+#            anything else        a disambiguating context passed to `tr_ctx`
+#   escapes  \n  \t  \\  inside a column. `{name}` placeholders must appear in both columns.
+#   lines starting with # and blank lines are ignored.
+#
+# Clean-room: every entry was written from the plain meaning of the English label using ordinary
+# Hindi computing vocabulary. No proprietary localisation resource, string table or product UI
+# (Acrobat's included) was consulted or copied; add entries the same way.
+# Product and technology names (PdfCraft, PDF, Acrobat JavaScript ...) stay in Latin letters;
+# the trailing "…" of dialog commands is kept.
+
+	Menu	मेनू
+	File	फ़ाइल
+	Edit	संपादित करें
+	Pages	पृष्ठ
+	View	देखें
+	Help	सहायता
+	Preferences	प्राथमिकताएँ
+	Preferences…	प्राथमिकताएँ…
+	Interface language	इंटरफ़ेस भाषा
+	Interface size	इंटरफ़ेस आकार
+	Auto ({percent}%)	स्वचालित ({percent}%)
+	Identity	पहचान
+	Open…	खोलें…
+	Open Recent	हाल की फ़ाइलें खोलें
+	Clear Recent Files	हाल की फ़ाइलें साफ़ करें
+	Remove from Recent	हाल की सूची से हटाएँ
+	Pin folder to Home…	फ़ोल्डर को होम पर पिन करें…
+	Folders	फ़ोल्डर
+	Unpin	पिन हटाएँ
+	Looking for PDFs…	PDF खोजी जा रही हैं…
+	No recent files	कोई हाल की फ़ाइल नहीं
+	New blank PDF	नई रिक्त PDF
+	Create PDF from file…	फ़ाइल से PDF बनाएँ…
+	Create PDF from images…	छवियों से PDF बनाएँ…
+	Create PDF from multiple files…	एकाधिक फ़ाइलों से PDF बनाएँ…
+	Create PDF from clipboard	क्लिपबोर्ड से PDF बनाएँ
+	Combine files…	फ़ाइलें संयोजित करें…
+	Save	सहेजें
+	Save as…	इस रूप में सहेजें…
+	Close file	फ़ाइल बंद करें
+	Close all	सभी बंद करें
+	Revert	पिछली सहेजी स्थिति पर लौटें
+	Print…	मुद्रित करें…
+	Document properties…	दस्तावेज़ गुण…
+	Undo	पूर्ववत करें
+	Redo	फिर से करें
+	Find…	खोजें…
+	Advanced search…	उन्नत खोज…
+	Copy pages	पृष्ठों की प्रतिलिपि बनाएँ
+	Cut pages	पृष्ठ काटें
+	Paste pages	पृष्ठ चिपकाएँ
+	Zoom	ज़ूम
+	Actual size	वास्तविक आकार
+	Fit to width	चौड़ाई में फ़िट करें
+	Fit visible	दृश्यमान क्षेत्र में फ़िट करें
+	Full screen mode	पूर्ण स्क्रीन मोड
+	Read mode	पठन मोड
+	Display theme	प्रदर्शन थीम
+	Side panels	पार्श्व पैनल
+	OK	ठीक
+	Close	बंद करें
+	Cancel	रद्द करें
+	Apply	लागू करें
+	Delete	हटाएँ
+	Add	जोड़ें
+	Remove	हटाएँ
+	Search	खोजें
+	Select all	सभी चुनें
+	Select none	चयन हटाएँ
+	Next	अगला
+	Previous	पिछला
+	Back	पीछे
+	Continue	जारी रखें
+	Done	पूर्ण
+	Loading…	लोड हो रहा है…
+	Error	त्रुटि
+	Warning	चेतावनी
+	Information	जानकारी
+	Success	सफलता
+	Name	नाम
+	Type	प्रकार
+	Size	आकार
+	Date	तारीख
+	Page	पृष्ठ
+	Page {page}	पृष्ठ {page}
+	Page {page} of {total}	पृष्ठ {page} / {total}
+	All pages	सभी पृष्ठ
+	Current page	वर्तमान पृष्ठ
+	Selected pages	चयनित पृष्ठ
+	Home	होम
+	Tools	उपकरण
+	All tools	सभी उपकरण
+	Comments	टिप्पणियाँ
+	Bookmarks	बुकमार्क
+	Attachments	संलग्नक
+	Properties	गुण
+	General	सामान्य
+	Appearance	दिखावट
+	Security	सुरक्षा
+	Password	पासवर्ड
+	Language	भाषा
+	Theme	थीम
+	Light	हल्का
+	Dark	गहरा
+	System	सिस्टम
+	Yes	हाँ
+	No	नहीं
+	On	चालू
+	Off	बंद
+	Enabled	सक्षम
+	Disabled	अक्षम
+	Open file	फ़ाइल खोलें
+	Save file	फ़ाइल सहेजें
+	Export	निर्यात करें
+	Import	आयात करें
+	Share	साझा करें
+	Rotate	घुमाएँ
+	Rotate left	बाएँ घुमाएँ
+	Rotate right	दाएँ घुमाएँ
+	Move	स्थानांतरित करें
+	Copy	प्रतिलिपि बनाएँ
+	Paste	चिपकाएँ
+	Rename	नाम बदलें
+	Replace	बदलें
+	Refresh	ताज़ा करें
+	Reset	रीसेट करें
+	Details	विवरण
+	Description	विवरण
+	Author	लेखक
+	Title	शीर्षक
+	Subject	विषय
+	Keywords	कीवर्ड
+	Creator	निर्माता
+	Producer	निर्माता
+	Created	निर्मित
+	Modified	संशोधित
+	Path	पथ
+	Location	स्थान
+	None	कोई नहीं
+	Custom	अनुकूलित
+	Default	डिफ़ॉल्ट
+	Automatic	स्वचालित
+	Manual	मैन्युअल
+	Zoom in	ज़ूम बढ़ाएँ
+	Zoom out	ज़ूम घटाएँ
+	First page	पहला पृष्ठ
+	Last page	अंतिम पृष्ठ
+	Go to page	पृष्ठ पर जाएँ
+	Search document	दस्तावेज़ खोजें
+	Match case	बड़े/छोटे अक्षर मिलाएँ
+	Whole words	पूर्ण शब्द
+	Replace all	सभी बदलें
+	No results	कोई परिणाम नहीं
+	Open in new window	नई विंडो में खोलें
+	About PdfCraft	PdfCraft के बारे में
+	Check for updates	अपडेट की जाँच करें
+	Keyboard shortcuts	कीबोर्ड शॉर्टकट
+	Report a problem	समस्या की रिपोर्ट करें
+	Privacy policy	गोपनीयता नीति
+	License	लाइसेंस
+@plural	{n} page|{n} pages	{n} पृष्ठ|{n} पृष्ठ

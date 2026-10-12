@@ -110,7 +110,7 @@ Measured from `crates/ui-egui/src/i18n/*.tsv` (2,143 keys). Detail and script no
 | English | `en` | 100% | full |
 | Simplified Chinese | `zh-hans` | 97.4% | partial (no Hans UI face in releases, #826) |
 | Spanish | `es` | 95.5% | partial |
-| Hindi | `hi` | 0% | none |
+| Hindi | `hi` | 7.0% | partial (151 common labels; no Devanagari face in release builds) |
 | Arabic | `ar` | 100% | partial (layout not mirrored) |
 | French | `fr` | 99.3% | partial |
 | Portuguese (Brazil) | `pt-br` | 99.4% | partial |
@@ -121,7 +121,7 @@ Measured from `crates/ui-egui/src/i18n/*.tsv` (2,143 keys). Detail and script no
 | Vietnamese | `vi` | 0% | none |
 
 Also shipped: Traditional Chinese, Russian, Bulgarian, Telugu, Hungarian, Ukrainian, Italian
-(94–100%) and Czech (menus only): **8 more languages**.
+(94–100%) and Czech (menus only): **9 more languages**.
 
 ## Upcoming
 
@@ -215,6 +215,7 @@ Newest first: the date, what moved, and the new overall estimate.
 
 - **2026-10-11 (M14, #307, Plan 2):** Forms now return terminal fields and the page-widget adoption count from one enumeration, and engine open reuses that result while retaining XFA script-button marking. The 12,000-page/no-form PDF (1,442,052 bytes) and 2,500-orphan-widget PDF (673,432 bytes) produce byte-identical `doc_open`/`doc_info` outputs against upstream `33c14e07cfd742a82bf03baa6b103c01008fa68c`, including the orphan repair note. After one warm-up per binary and three interleaved base/candidate rounds, median open times were 0.16/0.15 s and 0.08/0.07 s, with median peak RSS 62.69/59.98 MiB and 33.28/32.20 MiB. Workspace tests, Clippy, formatting, focused forms/engine/organize tests, and the WASM check pass. A behavior-preserving local binding in `organize` also lets the workspace Clippy gate pass. No estimate change.
 - **2026-10-11 (M14, Traditional Chinese semantics):** Corrected accessibility pass/fail labels, the inverted script-accessibility rule, Taiwan row/column terminology and form choice/read-only labels; added the missing table-row explanation. Catalog regressions cover the rule metadata and preserve field names. Milestone and effort estimates unchanged.
+- **2026-10-11 (M14, Hindi):** Added a clean-room Hindi (`hi`) starter catalog with 151 common labels, correct CLDR 0/1 singular plural selection, Preferences/control/system-locale selection and Devanagari fallback plumbing. `Deva` faces are included in the web build when supplied by craft-fonts; the release input still needs an allowed Devanagari face, and the remaining interface labels fall back to English. Milestone and effort estimates unchanged.
 
 
 - **2026-10-11 (M14, no silent `?`):** Text PdfCraft's fonts can't draw (Chinese, Greek, Czech's ř in Helvetica) is never written into a PDF as `?` without a word. Form values and button captions, text boxes, callouts, Fill & Sign text, measurement labels and dynamic stamps' by-lines are kept as typed, as Acrobat keeps them: the appearance draws `?` there, the annotation is marked (`PCUndrawn`), and the edit says so (the interface shows a translated notice; tools return `warnings`). A form also sets `/NeedAppearances`, so other viewers redraw the field from its value (not in a PDF/A document, which forbids it); a restyle doesn't replace a comment another program drew with those characters. Where `?` would be permanent, the edit is refused with the character and what to do instead: flattening what PdfCraft drew with `?`, redaction overlay text (also checked before anything is redacted), typed signatures through `fill_sign_add`, visible signature details, and new documents from text (with the line). Reports PdfCraft writes from documents (comment summaries, compare reports) write such characters as `[U+XXXX]` and say so; a dynamic XFA form's own text is laid out and reported. One end-to-end test drives every path through the tools. Not yet: drawing those characters (embedding a font that has them). Overall estimate unchanged.

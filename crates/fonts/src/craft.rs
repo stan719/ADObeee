@@ -66,6 +66,11 @@ pub fn ui_telugu_fonts() -> Vec<&'static CraftFont> {
     CRAFT_FONTS.iter().filter(|f| f.covers("Telu")).collect()
 }
 
+/// The `Deva` craft-fonts faces for Hindi interface text, in manifest order. Empty when built
+/// without craft-fonts or when it has no Devanagari face.
+pub fn ui_devanagari_fonts() -> Vec<&'static CraftFont> {
+    CRAFT_FONTS.iter().filter(|f| f.covers("Deva")).collect()
+
 /// Thai faces shared by the interface and PDF text writer.
 pub fn ui_thai_fonts() -> Vec<&'static CraftFont> {
     CRAFT_FONTS.iter().filter(|f| f.covers("Thai")).collect()

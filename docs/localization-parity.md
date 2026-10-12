@@ -30,7 +30,7 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 | English | `en` | built in (100%) | all; README and docs | Latin | yes | **full** | yes | 0 |
 | Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work, but **release builds have no Hans face**: many characters show as boxes (#826, #688, #728, #758; Flatpak #689) | no | partial | yes | 6–12 |
 | Spanish | `es` | 2,046 (95.5%) | dialogs and tooltips; no help | Latin | no | partial | yes | 2–4 |
-| Hindi | `hi` | 0 | none | Devanagari not tested (egui shapes Telugu conjuncts, so shaping is likely workable); no Devanagari face in craft-fonts | no | none | no | 10–18 |
+| Hindi | `hi` | 151 (7.0%) | common menus and controls; no help | Devanagari `Deva` faces are loaded from the optional craft-fonts input and kept in the web build; the release-pinned input has no such face yet | no | partial | no | 8–16 |
 | Arabic | `ar` | 2,143 (100%) | dialogs and tooltips; no help | Letters joined and lines reordered at load, but **layout not mirrored**, wrapped lines break at the wrong end, typed text runs left to right (`localization.md` §Arabic) | no | partial | yes (Middle East edition) | 25–45 |
 | French | `fr` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | no | partial | yes | 1–2 |
 | Portuguese (Brazil) | `pt-br` | 2,130 (99.4%) | dialogs and tooltips; no help | Latin | community (#288) | partial | yes | 1–2 |
@@ -75,5 +75,6 @@ Acrobat languages PdfCraft lacks: Danish, Dutch, Finnish, Norwegian, Swedish, He
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-11 | minor | Hindi (`hi`) added with 151 clean-room common-interface labels, CLDR 0/1 singular plural handling, system-locale selection and optional `Deva` font fallback. It remains partial pending catalog completion and a release-pinned Devanagari face. |
 | 2026-10-12 | minor | Added current counts for Kazakh, Polish, Slovenian, Greek, Turkish and Lithuanian; retained existing language assessments and the original percentage snapshot |
 | 2026-10-10 | major | Created. Catalog counts measured from `crates/ui-egui/src/i18n/*.tsv` against the 2,143-key union; Acrobat's localizations from its bundle's `.lproj` and Sequences folder names |

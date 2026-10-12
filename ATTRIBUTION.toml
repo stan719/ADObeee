@@ -22,6 +22,17 @@ sha256 = "e04ab5246125efae2bad439e62c150fc10649c4b6796b30565615f5bd7509ec6"
 # Adobe-authored non-visual technical data allowed by AGENTS.md §1.1.
 
 [[asset]]
+path = "crates/ui-egui/src/i18n/hi.tsv"
+title = "Hindi interface translation catalog"
+author = "PdfCraft contributors"
+source = "Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources"
+licence = "MIT OR Apache-2.0"
+licence_file = "LICENSE-MIT"
+kind = "translation"
+usage = "Hindi UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs"
+sha256 = "566f52b26565641e83d9da8624ee2473e55ec7c5c82687c727646f2d06103cd8"
+
+[[asset]]
 path = "crates/ui-egui/src/i18n/zh-hans.tsv"
 title = "Simplified Chinese interface translation catalog"
 author = "PdfCraft contributors"

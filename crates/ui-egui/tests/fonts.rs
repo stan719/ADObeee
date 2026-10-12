@@ -7,6 +7,7 @@ use pdfcraft_ui_egui::theme;
 const JAPANESE: &str = "日本語の文字";
 const CHINESE: &str = "简体中文欢迎";
 const ARABIC: &str = "واحد اثنين";
+const HINDI: &str = "हिन्दी फ़ाइल";
 const TELUGU: &str = "తెలుగు ఫైల్";
 
 fn families() -> Vec<FontId> {
@@ -93,6 +94,28 @@ fn arabic_ui_text_uses_craft_fonts() {
     let mut fonts = Fonts::new(TextOptions::default(), defs);
     for id in families() {
         assert!(fonts.has_glyphs(&id, ARABIC), "{id:?} lacks {ARABIC}");
+    }
+}
+
+/// Built with a craft-fonts Devanagari face, Hindi text has real glyphs in every family, from a
+/// face placed after the app's own fonts.
+#[test]
+fn hindi_ui_text_uses_craft_fonts() {
+    let devanagari: Vec<String> = pdfcraft_fonts::ui_devanagari_fonts().iter().map(|f| f.name()).collect();
+    if devanagari.is_empty() {
+        eprintln!("skipping hindi_ui_text_uses_craft_fonts: no Deva face bundled (set CRAFT_FONTS_DIR with a Devanagari face to run it)");
+        return;
+    }
+    let defs = theme::font_definitions();
+    for family in [FontFamily::Proportional, FontFamily::Monospace] {
+        let stack = &defs.families[&family];
+        let first_hi = stack.iter().position(|n| devanagari.contains(n)).expect("a Deva face is a fallback");
+        let own = stack.iter().position(|n| n == "Inter" || n == "JetBrainsMono").expect("the app's own font");
+        assert!(own < first_hi, "{family:?}: {stack:?}");
+    }
+    let mut fonts = Fonts::new(TextOptions::default(), defs);
+    for id in families() {
+        assert!(fonts.has_glyphs(&id, HINDI), "{id:?} lacks {HINDI}");
     }
 }
 

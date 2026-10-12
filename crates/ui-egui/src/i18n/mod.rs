@@ -58,6 +58,10 @@ fn plural_none(_: u64) -> usize {
     0
 }
 
+/// Hindi (CLDR `hi`): 0 and 1 take the singular, everything else the plural.
+fn plural_hi(n: u64) -> usize {
+    usize::from(n > 1)
+
 /// Lithuanian: one (ending in 1 except 11), few (ending in 2–9 except 12–19), other otherwise.
 fn plural_lithuanian(n: u64) -> usize {
     match (n % 10, n % 100) {
@@ -186,6 +190,10 @@ pub static LANGUAGES: [LangInfo; 22] = [
     // Telugu; every `te-*` locale (`te-IN`) resolves here.
     LangInfo {
         code: "te", name: "తెలుగు", source: include_str!("te.tsv"), plural: plural_one_other, rtl: false, catalog: OnceLock::new()
+    },
+    // Hindi; every `hi-*` locale (`hi-IN`) resolves here.
+    LangInfo {
+        code: "hi", name: "हिन्दी", source: include_str!("hi.tsv"), plural: plural_hi, rtl: false, catalog: OnceLock::new()
     },
     // Hungarian; every `hu-*` locale (`hu-HU`) resolves here.
     LangInfo { code: "hu", name: "Magyar", source: include_str!("hu.tsv"), plural: plural_one_other, rtl: false, catalog: OnceLock::new() },
@@ -1240,6 +1248,27 @@ mod tests {
         let mut restored = crate::PdfCraftApp::default();
         restored.restore(&app.persist());
         assert_eq!(restored.language, "te");
+    }
+
+    #[test]
+    fn hindi_is_registered() {
+        let hi = Lang::from_code("hi").expect("hi registered");
+        assert_eq!(hi.name(), "हिन्दी");
+        assert_eq!(normalize_pref("HI"), Some("hi"));
+        assert_eq!(lang_from_tag("hi_IN.UTF-8"), Some(hi));
+        assert_eq!(first_supported("hi-IN\r\nen-US"), Some(hi));
+        assert_eq!(tr(hi, "File"), "फ़ाइल");
+        assert_eq!(tr(hi, "Save as…"), "इस रूप में सहेजें…");
+        assert_eq!(tr(hi, "रिपोर्ट.pdf"), "रिपोर्ट.pdf");
+        assert_eq!(trn(hi, 0, "{n} page", "{n} pages"), "0 पृष्ठ");
+        assert_eq!(trn(hi, 1, "{n} page", "{n} pages"), "1 पृष्ठ");
+        assert_eq!(trn(hi, 3, "{n} page", "{n} pages"), "3 पृष्ठ");
+        let mut app = crate::PdfCraftApp::default();
+        app.set_option("language", "hi").unwrap();
+        assert_eq!(app.language, "hi");
+        let mut restored = crate::PdfCraftApp::default();
+        restored.restore(&app.persist());
+        assert_eq!(restored.language, "hi");
     }
 
     /// Telugu puts the verb last, so it translates "Undo {action}" as a whole phrase; a catalog
