@@ -582,6 +582,11 @@ impl Document {
         self.config.hide_comments
     }
 
+    /// Whether strokes are drawn one device pixel wide (View ▸ Line weights off).
+    pub fn thin_lines(&self) -> bool {
+        self.config.thin_lines
+    }
+
     pub fn can_undo(&self) -> Option<&str> {
         self.undo_label().map(Label::as_str)
     }
@@ -4324,6 +4329,19 @@ impl Session {
             return false;
         }
         doc.config.hide_comments = hide;
+        doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
+        doc.generation += 1;
+        true
+    }
+
+    /// Draw every stroke one device pixel wide, or with its own width (Acrobat's View ▸ Display
+    /// Options ▸ Line Weights, off and on). Returns whether anything changed.
+    pub fn set_thin_lines(&mut self, id: DocId, thin: bool) -> bool {
+        let Some(doc) = self.docs.iter_mut().find(|d| d.id == id) else { return false };
+        if doc.config.thin_lines == thin {
+            return false;
+        }
+        doc.config.thin_lines = thin;
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.generation += 1;
         true

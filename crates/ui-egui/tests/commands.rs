@@ -218,6 +218,23 @@ fn shortcuts_run_registered_commands() {
     assert_eq!(h.state().mode, pdfcraft_ui_egui::Mode::Read);
 }
 
+/// ⌘5 / Ctrl+5 turns the active document's line weights off and on again (#1828).
+#[test]
+fn command_5_toggles_line_weights() {
+    let mut h = harness();
+    let thin = |h: &Harness<'static, PdfCraftApp>| {
+        let (_, id) = h.state().active_ids().unwrap();
+        h.state().session.get(id).unwrap().thin_lines()
+    };
+    assert!(!thin(&h));
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num5);
+    h.run_steps(2);
+    assert!(thin(&h), "line weights off");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Num5);
+    h.run_steps(2);
+    assert!(!thin(&h), "line weights on again");
+}
+
 #[test]
 fn the_palette_lists_commands_with_shortcuts_and_runs_them() {
     let mut h = harness();

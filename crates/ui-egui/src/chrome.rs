@@ -507,6 +507,14 @@ fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.execute(id);
                 }
                 ui.separator();
+                let id = app.views[i].id;
+                let mut weights = !app.session.get(id).is_some_and(|d| d.thin_lines());
+                if ui.add(widgets::checkbox(&mut weights, tl!("Line weights"))).changed() {
+                    ui.close();
+                    app.execute("view.line_weights");
+                    return;
+                }
+                ui.separator();
             }
             crate::commands::registry_menu(app, ui, "View");
             ui.menu_button(tl!("Display theme"), |ui| theme_menu(app, ui));
