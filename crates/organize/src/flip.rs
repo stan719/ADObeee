@@ -223,7 +223,7 @@ fn points(doc: &Document, value: &Object, matrix: Matrix) -> Result<Object, Orga
     if values.len() % 2 != 0 {
         return Err(invalid("incomplete annotation point"));
     }
-    for p in values.chunks_exact_mut(2) {
+    for p in values.as_chunks_mut::<2>().0 {
         let (x, y) = matrix.apply(p[0], p[1]);
         p[0] = x;
         p[1] = y;
