@@ -591,6 +591,15 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
     if residue > 0 {
         return Err(RedactError::Residue(residue));
     }
+    // Bookmark titles can repeat removed text.
+    if let Some(root) = doc.root() {
+        doc.update_dict(root, |d| {
+            d.remove(b"Outlines");
+            if d.name(b"PageMode") == Some(b"UseOutlines") {
+                d.remove(b"PageMode");
+            }
+        })?;
+    }
     // The previous revision still holds the removed content: the next save must rewrite.
     doc.require_full_save();
     Ok(report)

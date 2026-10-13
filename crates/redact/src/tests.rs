@@ -940,3 +940,35 @@ fn redacting_every_inheriting_page_retires_the_parent_resources() {
         assert_eq!(under(&mut saved, page, &[[0.0, 190.0, 300.0, 220.0]]), 0);
     }
 }
+
+#[test]
+fn applying_redaction_drops_bookmark_titles_on_save() {
+    for mode in [b"UseOutlines".as_slice(), b"UseThumbs"] {
+        let mut doc = one_page(
+            b"BT /F1 10 Tf 10 200 Td (SECRET) Tj ET",
+            "",
+            vec![
+                b"<< /Type /Outlines /First 8 0 R /Last 8 0 R /Count 2 >>".to_vec(),
+                b"<< /Title (SECRET-BOOKMARK) /Parent 7 0 R /Dest [3 0 R /Fit] /First 9 0 R /Last 9 0 R /Count 1 >>".to_vec(),
+                b"<< /Title (SECRET-CHILD) /Parent 8 0 R /Dest [3 0 R /Fit] >>".to_vec(),
+            ],
+        );
+        let root = doc.root().unwrap();
+        doc.update_dict(root, |d| {
+            d.set(b"Outlines".to_vec(), Object::Ref(ObjRef::new(7, 0)));
+            d.set(b"PageMode".to_vec(), Object::Name(mode.to_vec()));
+        })
+        .unwrap();
+        assert!(matches!(apply(&mut doc, None), Err(RedactError::NothingToApply)));
+        assert!(doc.get(root).as_dict().unwrap().contains(b"Outlines"));
+        mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+        apply(&mut doc, Some(&[0])).unwrap();
+        let bytes = write_incremental(&doc, &SaveOptions { object_streams: false, ..SaveOptions::default() }).unwrap();
+        assert!(!bytes.windows(6).any(|w| w == b"SECRET"));
+        let saved = Document::open(Arc::new(bytes)).unwrap();
+        let cat = saved.get(saved.root().unwrap());
+        let cat = cat.as_dict().unwrap();
+        assert!(!cat.contains(b"Outlines"));
+        assert_eq!(cat.name(b"PageMode"), (mode != b"UseOutlines").then_some(mode));
+    }
+}
