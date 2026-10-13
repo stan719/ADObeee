@@ -10,7 +10,8 @@ let report = optimize_with_progress(&mut doc, &settings, &mut |stage| keep_going
 ```
 
 - **Images:** the effective resolution of each image is measured where pages draw it (the CTM
-  through form XObjects; the smallest over all uses). Colour and grayscale images above a
+  through form XObjects, up to 12 deep; the smallest over all uses). If a use can't be
+  measured (forms nested deeper, or drawn too many times), no image is resampled. Colour and grayscale images above a
   threshold are resampled with a bicubic (Catmull-Rom) filter to a target resolution and
   stored as JPEG (Acrobat's quality steps) or ZIP; soft masks are resampled with their image.
   An image is replaced only if the result is smaller. Left alone: CMYK and other colour spaces,
