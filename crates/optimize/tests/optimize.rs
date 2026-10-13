@@ -687,3 +687,72 @@ fn a_second_run_leaves_the_stripped_stream_alone() {
     assert_eq!(r.streams_compressed, 0);
     assert_eq!(stream(&doc, c), once);
 }
+
+fn nested_image(doc: &mut Document, image: ObjRef, depth: usize) -> ObjRef {
+    let mut child = image;
+    for _ in 0..depth {
+        child = form(doc, Some(Object::Dict(resources(xobjects(&[("Next", child)])))), "/Next Do");
+    }
+    child
+}
+
+#[test]
+fn shared_nested_images_keep_the_largest_use_on_every_page() {
+    for separate_pages in [false, true] {
+        for largest_first in [false, true] {
+            let mut doc = Document::new_empty();
+            let img = image(&mut doc, 600, 600, 1, false, None);
+            let nested = nested_image(&mut doc, img, 7);
+            let small = "q 72 0 0 72 0 0 cm /Shared Do Q";
+            let large = "q 288 0 0 144 0 0 cm /Shared Do Q";
+            let (first, second) = if largest_first { (large, small) } else { (small, large) };
+            if separate_pages {
+                page(&mut doc, &[("Shared", nested)], first);
+                page(&mut doc, &[("Shared", nested)], second);
+            } else {
+                page(&mut doc, &[("Shared", nested)], &format!("{first} {second}"));
+            }
+            let pages = pdfcraft_annot::page_refs(&doc).unwrap();
+            assert_eq!(effective_resolutions(&doc, &pages)[&img], 150.0, "separate={separate_pages}, largest_first={largest_first}");
+            let settings = Settings { gray: ImageSettings { compression: Compression::Retain, ..ImageSettings::REDUCE }, ..Settings::default() };
+            let report = optimize(&mut doc, &settings).unwrap();
+            assert_eq!(report.images_resampled, 0);
+            let bytes = write_full(&doc, &SaveOptions::default()).unwrap();
+            let reopened = Document::open(Arc::new(bytes)).unwrap();
+            let images: Vec<_> = reopened
+                .object_numbers()
+                .into_iter()
+                .filter_map(|n| {
+                    let obj = reopened.get(ObjRef::new(n, reopened.generation(n)));
+                    match &*obj {
+                        Object::Stream(s) if s.dict.name(b"Subtype") == Some(b"Image") => Some((s.dict.int(b"Width"), s.dict.int(b"Height"))),
+                        _ => None,
+                    }
+                })
+                .collect();
+            assert_eq!(images, vec![(Some(600), Some(600))]);
+        }
+    }
+}
+
+#[test]
+fn incomplete_form_analysis_does_not_downsample_an_earlier_image_use() {
+    for cyclic in [false, true] {
+        let mut doc = Document::new_empty();
+        let img = image(&mut doc, 600, 600, 1, false, None);
+        let nested = nested_image(&mut doc, img, if cyclic { 1 } else { 14 });
+        if cyclic {
+            doc.update_dict(nested, |d| {
+                d.set(b"Resources".to_vec(), Object::Dict(resources(xobjects(&[("Next", nested)]))));
+            })
+            .unwrap();
+        }
+        page(&mut doc, &[("Direct", img), ("Nested", nested)], "q 72 0 0 72 0 0 cm /Direct Do Q q 288 0 0 288 0 0 cm /Nested Do Q");
+        let pages = pdfcraft_annot::page_refs(&doc).unwrap();
+        assert!(effective_resolutions(&doc, &pages).is_empty(), "incomplete measurements must not be published, cyclic={cyclic}");
+        let before = stream(&doc, img);
+        let report = optimize(&mut doc, &Settings::default()).unwrap();
+        assert_eq!(report.images_resampled, 0);
+        assert_eq!(stream(&doc, img), before);
+    }
+}

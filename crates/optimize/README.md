@@ -15,6 +15,10 @@ let report = optimize_with_progress(&mut doc, &settings, &mut |stage| keep_going
   stored as JPEG (Acrobat's quality steps) or ZIP; soft masks are resampled with their image.
   An image is replaced only if the result is smaller. Left alone: CMYK and other colour spaces,
   image masks, decode arrays, more than 8 bits, JPEG 2000, JBIG2 and CCITT.
+  Shared Forms are measured at each invocation's transform, including uses on other pages.
+  If a cycle, the 12-level nesting limit, the document-wide 1,000,000-operator budget or
+  unreadable content prevents complete measurement, image processing is skipped for that
+  run. Other cleanup still runs; partial measurements are never used to downsample images.
 - **Discard objects:** thumbnails, alternate images, document tags, print settings.
 - **Clean up:** Flate for streams with no filter; for streams with an outer ASCII85 or ASCIIHex
   layer, that layer is removed when the result is smaller (the inner filters keep their encoded
