@@ -275,7 +275,7 @@ fn button_action(doc: &Document, d: &Dict, widgets: &[ObjRef]) -> Option<af::But
                 .unwrap_or_default()
                 .iter()
                 .filter_map(|o| match o {
-                    Object::Ref(r) => doc.get(*r).as_dict().and_then(|fd| fd.get(b"T").and_then(|t| text_of(&doc.resolve(t)))),
+                    Object::Ref(r) => qualified_name(doc, *r).or_else(|| text_of(&doc.resolve(o))),
                     other => text_of(&doc.resolve(other)),
                 })
                 .collect();
@@ -357,7 +357,9 @@ fn qualified_name(doc: &Document, r: ObjRef) -> Option<String> {
         cur = d.get(b"Parent").and_then(|p| p.as_ref());
     }
     parts.reverse();
-    (!parts.is_empty()).then(|| parts.join("."))
+    // Match walk: leading empty partial names leave the accumulated name empty.
+    let first = parts.iter().position(|part| !part.is_empty()).unwrap_or(parts.len());
+    (!parts.is_empty()).then(|| parts.get(first..).unwrap_or_default().join("."))
 }
 
 /// The JavaScript of an action dictionary (`/JS` string or stream).

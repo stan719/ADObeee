@@ -1188,6 +1188,98 @@ fn field_actions_round_trip_on_every_trigger() {
 }
 
 #[test]
+fn push_buttons_reset_references_keep_qualified_names() {
+    let mut doc = fixture();
+    let go = field(&fields(&doc), "go").obj;
+    let indirect_name = doc.add(Object::String(PdfString::text("address.city")));
+    let targets = [
+        (Object::Ref(ObjRef::new(16, 0)), "address.city"),
+        (Object::Ref(ObjRef::new(15, 0)), "address"),
+        (Object::String(PdfString::text("address.city")), "address.city"),
+        (Object::Ref(indirect_name), "address.city"),
+    ];
+    for (target, name) in targets {
+        for exclude in [false, true] {
+            let mut action = Dict::new();
+            action.set(b"S".to_vec(), Object::name("ResetForm"));
+            // Both field references and text strings may occur in the same /Fields array.
+            action.set(b"Fields".to_vec(), Object::Array(vec![target.clone(), Object::String(PdfString::text("name"))]));
+            action.set(b"Flags".to_vec(), Object::Int(i64::from(exclude)));
+            doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(action))).unwrap();
+            let expected = Some(af::ButtonAction::Reset { fields: vec![name.into(), "name".into()], exclude });
+            let before = write_incremental(&doc, &SaveOptions::default()).unwrap();
+            assert_eq!(field(&fields(&doc), "go").button, expected);
+            assert_eq!(write_incremental(&doc, &SaveOptions::default()).unwrap(), before, "reading an action changes nothing");
+            assert_eq!(field(&fields(&reopen(&doc)), "go").button, expected, "qualified targets survive saving");
+        }
+    }
+}
+
+#[test]
+fn reset_references_match_imported_empty_ancestor_names() {
+    // Empty text strings are accepted by the importer; preserve its naming behavior.
+    for (root_name, parent_name, leaf_name, expected_name) in [
+        (Some(""), "", "city", "city"),
+        (None, "", "city", "city"),
+        (Some(""), "address", "city", "address.city"),
+        (Some("address"), "", "city", "address..city"),
+        (Some("address"), "city", "", "address.city."),
+        (Some(""), "", "", ""),
+    ] {
+        let mut doc = fixture();
+        let parent = ObjRef::new(15, 0);
+        let leaf = ObjRef::new(16, 0);
+        let go = field(&fields(&doc), "go").obj;
+        let mut root = Dict::new();
+        root.set(b"Kids".to_vec(), Object::Array(vec![Object::Ref(parent)]));
+        if let Some(name) = root_name {
+            root.set(b"T".to_vec(), Object::String(PdfString::text(name)));
+        }
+        let root = doc.add(Object::Dict(root));
+        doc.update_dict(parent, |d| {
+            d.set(b"Parent".to_vec(), Object::Ref(root));
+            d.set(b"T".to_vec(), Object::String(PdfString::text(parent_name)));
+        })
+        .unwrap();
+        doc.update_dict(leaf, |d| d.set(b"T".to_vec(), Object::String(PdfString::text(leaf_name)))).unwrap();
+        doc.update_dict(ObjRef::new(4, 0), |d| {
+            let mut roots = d.get(b"Fields").unwrap().as_array().unwrap().clone();
+            for entry in &mut roots {
+                if entry.as_ref() == Some(parent) {
+                    *entry = Object::Ref(root);
+                }
+            }
+            d.set(b"Fields".to_vec(), Object::Array(roots));
+        })
+        .unwrap();
+        for exclude in [false, true] {
+            let mut action = Dict::new();
+            action.set(b"S".to_vec(), Object::name("ResetForm"));
+            action.set(b"Fields".to_vec(), Object::Array(vec![Object::Ref(leaf)]));
+            action.set(b"Flags".to_vec(), Object::Int(i64::from(exclude)));
+            doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(action))).unwrap();
+            let expected = Some(af::ButtonAction::Reset { fields: vec![expected_name.into()], exclude });
+            assert_eq!(field(&fields(&doc), "go").button, expected);
+            assert_eq!(fields(&doc).iter().find(|f| f.obj == leaf).unwrap().name, expected_name);
+            let saved = reopen(&doc);
+            assert_eq!(field(&fields(&saved), "go").button, expected);
+            assert_eq!(fields(&saved).iter().find(|f| f.obj == leaf).unwrap().name, expected_name);
+        }
+        // Hide uses the same qualified-name helper and must retain the imported spelling.
+        let mut hide = Dict::new();
+        hide.set(b"S".to_vec(), Object::name("Hide"));
+        hide.set(b"T".to_vec(), Object::Ref(leaf));
+        doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(hide))).unwrap();
+        let expected = Some(af::ButtonAction::ShowHide { fields: vec![expected_name.into()], hide: true });
+        assert_eq!(field(&fields(&doc), "go").button, expected);
+        assert_eq!(field(&fields(&reopen(&doc)), "go").button, expected);
+    }
+    let mut doc = fixture();
+    let unnamed = doc.add(Object::Dict(Dict::new()));
+    assert_eq!(qualified_name(&doc, unnamed), None, "absence of every partial name stays distinct from explicit empty names");
+}
+
+#[test]
 fn push_buttons_read_hide_actions() {
     let mut doc = fixture();
     let go = field(&fields(&doc), "go").obj;
