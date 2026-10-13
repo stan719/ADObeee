@@ -496,6 +496,7 @@ Every other Linux build needs glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, Fe
 | Build | File | Notes |
 |---|---|---|
 | Static site | `pdfcraft-web-<ver>.zip` | Runs in a modern browser; host it on any static server |
+| Edge extension | `pdfcraft-edge-extension-<ver>.zip` | Load unpacked in Edge; click its toolbar button and choose a PDF in PdfCraft |
 
 ---
 

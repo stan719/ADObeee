@@ -55,6 +55,19 @@ location /pdfcraft/ {
 
 Local test: `python3 -m http.server 8765` inside the folder, then open http://localhost:8765/.
 
+## Edge extension
+
+`packaging/web/package.sh` also writes `pdfcraft-edge-extension-<version>.zip`. This is the same
+web app packaged as a local Microsoft Edge Manifest V3 extension. It needs no local server.
+Extract the zip, open `edge://extensions`, enable **Developer mode**, choose **Load unpacked**,
+and select the extracted `pdfcraft-edge-extension-<version>` directory. Pin the PdfCraft toolbar
+button. Click it, then click **Open PdfCraft** in the small launcher to open the full app in a tab.
+Use the app's Open control to choose a PDF.
+
+The extension can't replace Edge's built-in PDF viewer. It asks for no extension permissions and
+doesn't send PDFs to a server. The generated bootstrap is extracted from Trunk's web build; no
+handwritten JavaScript is added to the repository. See [`../edge-extension/README.md`](../edge-extension/README.md).
+
 ## Embedding in a page (iframe)
 
 ```html

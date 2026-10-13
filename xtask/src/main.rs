@@ -5,6 +5,7 @@ use std::process::ExitCode;
 mod assets;
 mod corpus;
 mod demo_pdf;
+mod edge_extension;
 mod fuzz;
 mod gates;
 mod layers;
@@ -35,6 +36,7 @@ const COMMANDS: &[(&str, &str, Command)] = &[
     ("text-oracle", "Compare text extraction with pdftotext over corpus/ (word F1; target median ≥ 0.97)", gates::text_oracle),
     ("screenshots", "Regenerate the README screenshots in docs/images/ and their ATTRIBUTION entries", screenshots::run),
     ("models", "Fetch the OCR models (ATTRIBUTION.toml kind = \"model\") into assets/models/, verified by SHA-256", assets::models),
+    ("edge-extension", "Package the web build as an unpacked Edge extension", edge_extension::run),
     ("demo-pdf", "Build dist/demo/pdfcraft-showcase.pdf (needs Google Chrome or Chromium)", demo_pdf::run),
 ];
 
