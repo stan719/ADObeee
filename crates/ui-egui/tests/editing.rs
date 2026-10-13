@@ -3490,6 +3490,103 @@ fn one_editor_contains_mixed_styles_and_visual_rows() {
     assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().text_blocks(0)[0].rows.len(), 3);
 }
 
+#[test]
+fn italic_for_a_mixed_region_keeps_each_run_size_colour_weight_and_row() {
+    // A large heading over smaller rows: Italic (no selection) set the whole region in the
+    // heading's size, weight and family, on rewrapped rows.
+    let bytes = source_font_fixture_with_text(
+        "BT 0 0.2 0.5 rg /F1 1 Tf 18 0 0 18 20 240 Tm (Heading) Tj ET \
+         BT 0 g /F2 12 Tf 20 215 Td (Plain ) Tj /F1 12 Tf 0 0.2 0.5 rg (bold) Tj /F2 12 Tf 0 g ( words) Tj ET \
+         BT /F2 10 Tf 20 195 Td (Last row) Tj ET",
+    );
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("mixed.pdf", None, bytes).unwrap();
+        app
+    });
+    h.run_steps(4);
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let page = h.state().views[0].page_screen_rect(0).unwrap();
+    let point = egui::pos2(page.left() + 30.0 / 300.0 * page.width(), page.top() + 55.0 / 300.0 * page.height());
+    h.hover_at(point);
+    h.run_steps(1);
+    h.drag_at(point);
+    h.run_steps(1);
+    h.drop_at(point);
+    h.run_steps(6);
+    let ed = h.state().views[0].line_editor.clone().expect("the region opens");
+    assert!(ed.look.italic && ed.selection.is_none(), "{:?}", ed.look);
+    h.get_by_label("I").click();
+    h.run_steps(5);
+    let doc = h.state().session.get(h.state().views[0].id).unwrap();
+    assert_eq!(doc.can_undo(), Some("Edit text"));
+    assert_eq!(doc.text_blocks(0)[0].editor_text, "Heading\nPlain bold words\nLast row");
+    let lines = doc.text_lines(0);
+    let run = |text: &str| {
+        let l = lines.iter().find(|l| l.text.trim() == text).unwrap_or_else(|| panic!("{text:?} in {lines:?}"));
+        (l.base_font.as_str(), l.size, l.color)
+    };
+    let blue = [0.0, 0.2, 0.5];
+    assert_eq!(run("Heading"), ("Times-Bold", 18.0, blue));
+    assert_eq!(run("Plain"), ("Courier", 12.0, [0.0; 3]));
+    assert_eq!(run("bold"), ("Times-Bold", 12.0, blue));
+    assert_eq!(run("Last row"), ("Courier", 10.0, [0.0; 3]));
+}
+
+#[test]
+fn the_caret_on_a_small_row_is_as_tall_as_that_row() {
+    // It was one row of the region's first (18 pt) size tall, reaching into the row below.
+    let bytes = source_font_fixture_with_text(
+        "BT 0 0.2 0.5 rg /F1 1 Tf 18 0 0 18 20 240 Tm (Heading) Tj ET \
+         BT 0 g /F2 12 Tf 20 215 Td (Plain ) Tj /F1 12 Tf 0 0.2 0.5 rg (bold) Tj /F2 12 Tf 0 g ( words) Tj ET \
+         BT /F2 10 Tf 20 195 Td (Last row) Tj ET",
+    );
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("mixed.pdf", None, bytes).unwrap();
+        app
+    });
+    h.run_steps(4);
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let page = h.state().views[0].page_screen_rect(0).unwrap();
+    let k = page.width() / 300.0;
+    let screen = |x: f32, y: f32| egui::pos2(page.left() + x * k, page.top() + (300.0 - y) * k);
+    let click = |h: &mut Harness<'static, PdfCraftApp>, at: egui::Pos2| {
+        h.hover_at(at);
+        h.run_steps(1);
+        h.drag_at(at);
+        h.run_steps(1);
+        h.drop_at(at);
+        h.run_steps(4);
+    };
+    click(&mut h, screen(30.0, 245.0));
+    assert!(h.state().views[0].line_editor.is_some(), "the region opens");
+    let row = h.state().session.get(h.state().views[0].id).unwrap().text_lines(0).into_iter().find(|l| l.text == "Last row").unwrap().rect;
+    click(&mut h, screen(40.0, ((row[1] + row[3]) / 2.0) as f32));
+    let row_height = (row[3] - row[1]) as f32 * k;
+    let (left, right) = (screen(row[0] as f32, 0.0).x - 2.0, screen(row[2] as f32, 0.0).x + 2.0);
+    let middle = screen(0.0, ((row[1] + row[3]) / 2.0) as f32).y;
+    // The caret: a vertical segment within the row's span, through its middle.
+    let caret = h
+        .output()
+        .shapes
+        .iter()
+        .find_map(|s| match &s.shape {
+            egui::Shape::LineSegment { points: [a, b], .. }
+                if (a.x - b.x).abs() < 0.01 && (left..right).contains(&a.x) && a.y.min(b.y) < middle && a.y.max(b.y) > middle =>
+            {
+                Some((b.y - a.y).abs())
+            }
+            _ => None,
+        })
+        .expect("a caret on the last row");
+    assert!(caret > row_height * 0.8 && caret < row_height + 4.0, "caret {caret} px on a {row_height} px row");
+}
+
 /// Opt-in private-document regression. This never captures images or saves the source file.
 /// Run with PDFCRAFT_TEXT_REGRESSION_PDF=/path/to/document.pdf and --ignored.
 #[test]

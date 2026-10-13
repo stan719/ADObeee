@@ -246,7 +246,7 @@ pub(super) fn rewrite_styled_block(
             let (Some(start), Some(end)) = (bounds.first().copied(), bounds.get(1).copied()) else { continue };
             let mut index = source;
             let selected = ranges.iter().find(|r| r.range.contains(&start)).copied();
-            if selected.is_some() || style.family.is_some() || style.bold.is_some() {
+            if selected.is_some() || style.family.is_some() || style.bold.is_some() || style.italic.is_some() {
                 let default_range = RangeStyle {
                     range: start..end,
                     family: None,
@@ -259,9 +259,11 @@ pub(super) fn rewrite_styled_block(
                 };
                 let r = selected.unwrap_or(&default_range);
                 let mut line = lines.get(source).unwrap_or(first).clone();
-                if let Some((family, bold, italic)) =
-                    r.family.or(style.family).or_else(|| style.bold.map(|b| (source_family(&line.base_font), b, line.italic)))
-                {
+                // Bold or Italic alone changes only that in each run, which keeps its family.
+                if let Some((family, bold, italic)) = r.family.or(style.family).or_else(|| {
+                    (style.bold.is_some() || style.italic.is_some())
+                        .then(|| (source_family(&line.base_font), style.bold.unwrap_or(line.bold), style.italic.unwrap_or(line.italic)))
+                }) {
                     let base = family.base_font(bold, italic);
                     line.font = format!("PCRange{}", base.replace('-', ""));
                     line.base_font = base.to_owned();
@@ -338,18 +340,75 @@ pub(super) fn rewrite_styled_block(
         block.rect[2] - block.rect[0]
     };
     let width = style.width.unwrap_or(natural).clamp(1.0, 14_400.0);
-    // Each tuple is a character, its source style and an encodable resource name.
+    // Restyling the region's own text in another face, its size and spacing kept: rows a
+    // paragraph wrapped onto (soft breaks) flow again within the region, so a wider face neither
+    // runs past its edge nor leaves a row's last word on a row of its own. Other rows keep theirs.
+    let restyled_rows = draft == block.editor_text
+        && style.width.is_none()
+        && style.size.is_none()
+        && style.line_spacing.is_none()
+        && (style.family.is_some() || style.bold.is_some() || style.italic.is_some());
+    // A soft break: the row under it starts at the region's left edge in the same size, and the
+    // row above (not ending in a hyphen) had no room for its first word, estimated from its width.
+    let soft: Vec<bool> = if restyled_rows {
+        block
+            .rows
+            .windows(2)
+            .map(|pair| {
+                let (Some(above), Some(below)) = (pair.first(), pair.get(1)) else { return false };
+                let (Some(top), Some(bottom)) = (row_rect(above, lines), row_rect(below, lines)) else { return false };
+                let (Some(last), Some(next)) = (above.last().and_then(|i| lines.get(*i)), below.first().and_then(|i| lines.get(*i))) else {
+                    return false;
+                };
+                let word = next.text.split_whitespace().next().unwrap_or_default().chars().count() as f64;
+                let word_width = (next.rect[2] - next.rect[0]) * word / next.text.chars().count().max(1) as f64;
+                (bottom[0] - block.rect[0]).abs() < 0.5
+                    && (last.size - next.size).abs() < 0.01
+                    && !last.text.trim_end().ends_with('-')
+                    && top[2] + last.size * 0.25 + word_width > block.rect[2]
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let soft_at = |boundary: usize| soft.get(boundary).copied().unwrap_or(false);
+    // Each source row's paragraph (the first row of its chain of soft breaks), and whether it flows.
+    let mut paragraph: Vec<usize> = Vec::with_capacity(block.rows.len());
+    for row in 0..block.rows.len() {
+        let start = match row.checked_sub(1) {
+            Some(above) if soft_at(above) => paragraph.get(above).copied().unwrap_or(row),
+            _ => row,
+        };
+        paragraph.push(start);
+    }
+    let flows = |row: usize| soft_at(row) || row.checked_sub(1).is_some_and(soft_at);
+    // Each tuple is a character, its source style and an encodable resource name; `row_of` holds
+    // the source row each one comes from.
     let mut chars = Vec::new();
+    let mut row_of: Vec<usize> = Vec::new();
+    let mut source_row = 0_usize;
     let mut substituted = None;
     let mut fallback_names: std::collections::BTreeMap<(String, char), String> = std::collections::BTreeMap::new();
     let mut full_faces: HashMap<String, String> = HashMap::new();
     for (range, index) in styled_spans {
         let source = lines.get(index).unwrap_or(first);
         for ch in draft.get(range).unwrap_or_default().chars() {
-            if ch == '\n' {
-                chars.push((ch, index, source.font.clone()));
-                continue;
-            }
+            row_of.resize(chars.len(), source_row);
+            let ch = if ch == '\n' {
+                let boundary = source_row;
+                source_row = source_row.saturating_add(1);
+                if !soft_at(boundary) {
+                    chars.push((ch, index, source.font.clone()));
+                    continue;
+                }
+                // A soft break flows again, as the space between its words.
+                if chars.last().is_none_or(|c: &(char, usize, String)| c.0.is_whitespace()) {
+                    continue;
+                }
+                ' '
+            } else {
+                ch
+            };
             let s = ch.to_string();
             let name = if let Some(resource) = overrides.get(&index).and_then(|r| r.resource.as_ref()).or(style.resource.as_ref()) {
                 if !metrics.get(resource).is_some_and(|m| source_encodes(m, &s)) {
@@ -416,6 +475,7 @@ pub(super) fn rewrite_styled_block(
             chars.push((ch, index, name));
         }
     }
+    row_of.resize(chars.len(), source_row);
     let size_of = |source: &TextLine, index: usize| {
         overrides.get(&index).and_then(|r| r.size).or(style.size).unwrap_or(source.size).max(0.1) / source.origin.k.max(1e-6)
     };
@@ -433,7 +493,12 @@ pub(super) fn rewrite_styled_block(
                 source.origin.state.word_spacing,
             ) * source.origin.state.scale
                 * across(source);
-            let changed_face = style.resource.is_some() || overrides.get(&index).is_some_and(|r| r.family.is_some() || r.resource.is_some());
+            // Another face has its own advances: stretching it to the source run's width distorts it.
+            let changed_face = style.resource.is_some()
+                || style.family.is_some()
+                || style.bold.is_some()
+                || style.italic.is_some()
+                || overrides.get(&index).is_some_and(|r| r.family.is_some() || r.resource.is_some());
             let factor = if nominal > 0.0 && !changed_face { ((source.rect[2] - source.rect[0]) / nominal).clamp(0.5, 2.0) } else { 1.0 };
             calibration.insert(index, factor);
         }
@@ -488,6 +553,9 @@ pub(super) fn rewrite_styled_block(
         Ok(width)
     };
     let mut rows: Vec<Vec<(char, usize, String)>> = Vec::new();
+    // The source row each row stands in for (a restyle places a row by it).
+    let mut sources: Vec<usize> = Vec::new();
+    let mut source_row = row_of.first().copied().unwrap_or(0);
     let mut row = Vec::new();
     let mut row_width = 0.0;
     // Wrap at word boundaries, retaining explicit source row breaks and whitespace.
@@ -496,6 +564,8 @@ pub(super) fn rewrite_styled_block(
         let Some(item) = chars.get(at) else { break };
         if item.0 == '\n' {
             rows.push(std::mem::take(&mut row));
+            sources.push(source_row);
+            source_row = row_of.get(at).copied().unwrap_or(source_row);
             row_width = 0.0;
             at += 1;
             continue;
@@ -508,11 +578,28 @@ pub(super) fn rewrite_styled_block(
         }
         let word = chars.get(at..end).unwrap_or_default();
         let w = measure(word)?;
-        if !row.is_empty() && !item.0.is_whitespace() && row_width + w > width + 0.5 {
+        // A restyled row wraps only within its paragraph, in the room its source row had.
+        let room = if restyled_rows {
+            flows(row_of.get(at).copied().unwrap_or(source_row))
+                .then(|| block.rect[2] - block.rows.get(source_row).and_then(|r| row_rect(r, lines)).map_or(block.rect[0], |r| r[0]))
+        } else {
+            Some(width)
+        };
+        if let Some(room) = room
+            && !row.is_empty()
+            && !item.0.is_whitespace()
+            && row_width + w > room + 0.5
+        {
             while row.last().is_some_and(|c: &(char, usize, String)| c.0.is_whitespace()) {
                 row.pop();
             }
             rows.push(std::mem::take(&mut row));
+            sources.push(source_row);
+            // The paragraph's next row, or one more under its last.
+            let next = source_row.saturating_add(1);
+            if paragraph.get(next).is_some_and(|p| Some(p) == paragraph.get(source_row)) {
+                source_row = next;
+            }
             row_width = 0.0;
         }
         row.extend_from_slice(word);
@@ -521,6 +608,7 @@ pub(super) fn rewrite_styled_block(
     }
     if !row.is_empty() {
         rows.push(row);
+        sources.push(source_row);
     }
     for row in &rows {
         let text: String = row.iter().map(|v| v.0).collect();
@@ -579,19 +667,70 @@ pub(super) fn rewrite_styled_block(
         })
         .rfind(|v| *v > 0.0)
         .unwrap_or(first.size * 1.5);
+    // A restyled row sits on the baseline of the source row it stands in for. A paragraph that
+    // needs a row more puts it one of its leadings lower and moves the rows under it down as
+    // much; one that needs a row less leaves the rows under it where they are.
+    let baseline_of = |row: usize| block.rows.get(row).and_then(|r| r.first()).and_then(|i| lines.get(*i)).map(|l| l.origin.baseline);
+    let mut restyled_baselines: Vec<f64> = Vec::new();
+    if restyled_rows {
+        let mut shift = 0.0;
+        for (index, source) in sources.iter().enumerate() {
+            let above = index.checked_sub(1).and_then(|i| sources.get(i).zip(restyled_baselines.get(i)));
+            let baseline = match above {
+                Some((previous, previous_baseline)) if previous == source => {
+                    let start = paragraph.get(*source).copied().unwrap_or(*source);
+                    let leading = baseline_of(start)
+                        .zip(baseline_of(start.saturating_add(1)))
+                        .map(|(a, b)| a - b)
+                        .filter(|l| *l > 0.0)
+                        .unwrap_or(source_leading);
+                    shift += leading;
+                    previous_baseline - leading
+                }
+                _ => baseline_of(*source).unwrap_or(first.origin.baseline) - shift,
+            };
+            restyled_baselines.push(baseline);
+        }
+    }
     let mut baseline = first.origin.baseline;
     for (row_index, row) in rows.iter().enumerate() {
-        let anchor = block.rows.get(row_index).and_then(|r| r.first()).and_then(|i| lines.get(*i));
+        // The source row this row stands in for: the same one, or the one a restyle flowed it into.
+        let source_index = if restyled_rows { sources.get(row_index).copied().unwrap_or(row_index) } else { row_index };
+        let anchor = block.rows.get(source_index).and_then(|r| r.first()).and_then(|i| lines.get(*i));
         if style.line_spacing.is_none()
             && style.size.is_none()
             && let Some(anchor) = anchor
         {
             baseline = anchor.origin.baseline;
         }
+        if let Some(restyled) = restyled_baselines.get(row_index) {
+            baseline = *restyled;
+        }
         let anchor = anchor.unwrap_or(first);
         let w = measured.get(row_index).copied().unwrap_or(0.0);
-        let align = style.align.unwrap_or(if centered { crate::added::Align::Center } else { crate::added::Align::Left });
-        let original_rect = block.rows.get(row_index).and_then(|row| row_rect(row, lines)).unwrap_or(block.rect);
+        let original_rect = block.rows.get(source_index).and_then(|row| row_rect(row, lines)).unwrap_or(block.rect);
+        let align = match style.align {
+            Some(align) => align,
+            None if centered => crate::added::Align::Center,
+            // A restyled row keeps the edge it is set against: the region's left edge (also for
+            // an indented first row, when the row under it in the same size starts there), its
+            // right edge, or else its own centre (a centred title over a left-aligned paragraph).
+            None if restyled_rows => {
+                let at_left = |rect: [f64; 4]| (rect[0] - block.rect[0]).abs() < 0.5;
+                let indented = block.rows.get(source_index.saturating_add(1)).is_some_and(|next| {
+                    row_rect(next, lines).is_some_and(at_left)
+                        && next.first().and_then(|i| lines.get(*i)).is_some_and(|line| (line.size - anchor.size).abs() < 0.01)
+                });
+                if at_left(original_rect) || indented {
+                    crate::added::Align::Left
+                } else if (original_rect[2] - block.rect[2]).abs() < 0.5 {
+                    crate::added::Align::Right
+                } else {
+                    crate::added::Align::Center
+                }
+            }
+            None => crate::added::Align::Left,
+        };
         let left = if style.width.is_none() && style.align.is_none() { original_rect[0] } else { block.rect[0] };
         let available = if style.width.is_none() && style.align.is_none() { original_rect[2] - original_rect[0] } else { width };
         let mut x = left

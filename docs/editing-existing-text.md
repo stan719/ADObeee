@@ -24,8 +24,17 @@ add a font binary or change the release font pin. Fonts shared by releases belon
 Select text within the editor before changing size, colour, font, underline or spacing to
 format that selection. Automation supports up to 1024 disjoint UTF-8 byte ranges with the
 same properties; invalid or overlapping ranges fail atomically. Untouched source formatting
-survives. OpenType shaping uses the selected/source face's substitution and positioning
-rules, preserves marks and ligatures, and applies Unicode bidi ordering for a single face.
+survives, also between several separate edits made before applying: each inserted character takes
+the run of the character before it. With no selection, Bold and Italic change only the weight or
+slant of every run in the region, so a bold heading stays bold when the region turns italic
+(`text_edit` takes `bold` and `italic` without `font` the same way). A new family, weight or slant
+for a whole region keeps each run's size and colour, and the new face uses its own advances rather
+than being stretched to the source run's width. A row of its own (a title, a date) keeps its break
+and the edge it was set against: the region's left or right edge, or its centre. Rows a paragraph
+wrapped onto flow again within the region, keeping the paragraph's indent and left edge; a paragraph
+that needs a row more moves the rows under it down. OpenType shaping uses the selected/source face's
+substitution and positioning rules, preserves marks and ligatures, and applies Unicode bidi ordering
+for a single face.
 Logical text remains available after save/reopen through ToUnicode and ActualText.
 Added Arabic text records ActualText per shaped line for copying and searching in typing order.
 ActualText already supplies typing order, so the editor preserves it without applying

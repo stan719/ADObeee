@@ -3047,6 +3047,65 @@ fn explicit_editor_rows_survive_single_run_edit_and_reopen() {
 }
 
 #[test]
+fn separate_edits_in_one_draft_keep_the_text_between_them_in_its_own_run() {
+    // A letter added to a heading and another to the line under it, in one editing session: the
+    // text between the two took the heading's run, so the body line turned into the heading's
+    // colour and weight.
+    let original = mixed_region_page();
+    let block = text::text_blocks(&original, 0).unwrap()[1].clone();
+    let lines = text::text_lines(&original, 0).unwrap();
+    let run = |text: &str| lines.iter().position(|l| l.text == text).unwrap();
+    let draft = "Aboutx\nPlain boldy text.\nItalic footer";
+    let spans = block.edited_spans(draft);
+    let at = |needle: &str| {
+        let byte = draft.find(needle).unwrap();
+        spans.iter().find(|(range, _)| range.contains(&byte)).map(|(_, source)| *source).unwrap()
+    };
+    assert_eq!(at("x\n"), run("About"), "an insertion takes the run before it");
+    assert_eq!(at("Plain"), run("Plain "), "unchanged text between two edits keeps its own run");
+    assert_eq!(at("y "), run("bold"));
+    assert_eq!(at(" text."), run(" text."));
+
+    let mut doc = original.clone();
+    text::rewrite_block(&mut doc, 0, 1, Some(draft), &BlockStyle::default()).unwrap();
+    let after = text::text_lines(&reopen(&doc), 0).unwrap();
+    let style = |text: &str| {
+        let l = after.iter().find(|l| l.text.trim() == text).unwrap_or_else(|| panic!("{text:?} in {after:?}"));
+        (l.base_font.clone(), l.color)
+    };
+    let blue = [0.0, 0.2, 0.5];
+    assert_eq!(style("Aboutx"), ("Courier-Bold".to_owned(), blue));
+    assert_eq!(style("Plain"), ("Courier".to_owned(), [0.0; 3]));
+    assert_eq!(style("boldy"), ("Courier-Bold".to_owned(), blue));
+}
+
+#[test]
+fn edited_spans_cover_any_draft_at_char_boundaries() {
+    // Including drafts past the diff's bounds, which fall back to the run before the change.
+    let block = text::text_blocks(&mixed_region_page(), 0).unwrap()[1].clone();
+    let long = "é".repeat(3000);
+    let drafts = [
+        String::new(),
+        block.editor_text.chars().rev().collect(),
+        "completely different".to_owned(),
+        block.editor_text.chars().flat_map(|c| [c, 'ß']).collect(),
+        format!("{long}{}{long}", block.editor_text),
+        format!("About{long}\nPlain bold{long} text.\nItalic footer"),
+    ];
+    for draft in &drafts {
+        let spans = block.edited_spans(draft);
+        let mut end = 0;
+        for (range, source) in &spans {
+            assert_eq!(range.start, end, "contiguous");
+            assert!(draft.is_char_boundary(range.start) && draft.is_char_boundary(range.end) && range.start < range.end);
+            assert!(block.lines.contains(source), "a source run of the block");
+            end = range.end;
+        }
+        assert_eq!(end, draft.len(), "the whole draft");
+    }
+}
+
+#[test]
 fn rich_region_edits_preserve_styles_positions_and_delete_all_runs_after_reopen() {
     let original = mixed_region_page();
     let before = text::text_lines(&original, 0).unwrap();
@@ -3160,6 +3219,108 @@ fn centered_mixed_size_title_keeps_three_rows_when_changed() {
         let line = &lines[row[0]];
         assert!(((line.rect[0] + line.rect[2]) / 2.0 - 150.0).abs() < 0.01);
     }
+}
+
+#[test]
+fn restyling_a_mixed_size_region_keeps_each_run_size_colour_and_row() {
+    // A meeting report's centred 24 pt title over a 12 pt date: Bold, Italic or another font for
+    // the whole region set everything in the title's size, on rewrapped rows.
+    let original = mixed_region_page();
+    let before = text::text_lines(&original, 0).unwrap();
+    let blocks = text::text_blocks(&original, 0).unwrap();
+    // Bold or Italic alone changes only that in each run (from its source weight and slant).
+    type Base = fn(bool, bool) -> &'static str;
+    let cases: [(BlockStyle, Base); 3] = [
+        (BlockStyle { bold: Some(false), ..Default::default() }, |_, italic| if italic { "Courier-Oblique" } else { "Courier" }),
+        (BlockStyle { italic: Some(true), ..Default::default() }, |bold, _| if bold { "Courier-BoldOblique" } else { "Courier-Oblique" }),
+        (BlockStyle { family: Some((Family::Times, false, true)), ..Default::default() }, |_, _| "Times-Italic"),
+    ];
+    for (style, base) in cases {
+        for (block, words) in [(0, &["TITLE", "two lines", "last"][..]), (1, &["About", "Plain", "bold", "text.", "Italic footer"][..])] {
+            let source = &blocks[block];
+            let mut doc = original.clone();
+            text::rewrite_block(&mut doc, 0, block, Some(&source.editor_text), &style).unwrap();
+            let doc = reopen(&doc);
+            let after = text::text_blocks(&doc, 0).unwrap();
+            assert_eq!(after[block].editor_text, source.editor_text, "{style:?} keeps the rows");
+            // The new face takes its own advances, not the source run's width (no stretching).
+            let content = String::from_utf8_lossy(&page_content_bytes(&doc, 0)).into_owned();
+            let tokens: Vec<&str> = content.split_whitespace().collect();
+            assert!(tokens.windows(2).all(|w| w[1] != "Tz" || w[0] == "100"), "{style:?}: {content}");
+            let lines = text::text_lines(&doc, 0).unwrap();
+            for word in words {
+                let was = before.iter().find(|l| l.text.trim() == *word).unwrap();
+                let now = lines.iter().find(|l| l.text.trim() == *word).unwrap_or_else(|| panic!("{word:?} after {style:?}"));
+                let base = base(was.base_font.contains("Bold"), was.base_font.contains("Oblique"));
+                assert_eq!((now.size, now.color, now.base_font.as_str()), (was.size, was.color, base), "{word:?} after {style:?}");
+                assert!((now.origin_baseline() - was.origin_baseline()).abs() < 0.001, "{word:?} stays on its row");
+                if block == 0 {
+                    assert!(((now.rect[0] + now.rect[2]) / 2.0 - 150.0).abs() < 0.5, "{word:?} stays centred");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_wider_face_for_a_mixed_region_keeps_its_rows_and_reflows_its_paragraphs() {
+    // A row of its own (a size change separates it from the title) keeps its break even when the
+    // wider face makes it the widest: wrapping it would leave its last words on a row of their own.
+    let mut doc = text_page("BT /F1 18 Tf 100 700 Td (Big title) Tj ET BT /F1 10 Tf 100 680 Td (small words in a row) Tj ET");
+    let source = text::text_blocks(&doc, 0).unwrap()[0].clone();
+    assert_eq!(source.editor_text, "Big title\nsmall words in a row");
+    let style = BlockStyle { family: Some((Family::Courier, false, false)), ..Default::default() };
+    text::rewrite_block(&mut doc, 0, 0, Some(&source.editor_text), &style).unwrap();
+    let doc = reopen(&doc);
+    assert_eq!(text::text_blocks(&doc, 0).unwrap()[0].editor_text, source.editor_text);
+    let row = text::text_lines(&doc, 0).unwrap().into_iter().find(|l| l.text == "small words in a row").unwrap();
+    assert_eq!((row.base_font.as_str(), row.size, row.rect[0]), ("Courier", 10.0, 100.0));
+
+    // A centred title over a left-aligned paragraph (an indented first row, soft breaks) and a
+    // smaller footer row. The widest paragraph row sets the region's right edge, so in Courier the
+    // paragraph ran past it; or, wrapped row by row, left words on rows of their own and covered
+    // the footer. Now the title keeps its centre, the paragraph flows again within the region
+    // (indent and left edge kept, one row longer) and the footer moves down under it.
+    let mut doc = text_page(
+        "BT /F1 18 Tf 129 700 Td (Title) Tj ET BT /F1 10 Tf 110 680 Td (left aligned body row) Tj ET \
+         BT /F1 10 Tf 100 668 Td (second body row here) Tj ET BT /F1 10 Tf 100 656 Td (end.) Tj ET \
+         BT /F1 8 Tf 100 642 Td (Footer note) Tj ET",
+    );
+    let source = text::text_blocks(&doc, 0).unwrap()[0].clone();
+    assert_eq!(source.editor_text, "Title\nleft aligned body row\nsecond body row here\nend.\nFooter note");
+    let before = text::text_lines(&doc, 0).unwrap();
+    text::rewrite_block(&mut doc, 0, 0, Some(&source.editor_text), &style).unwrap();
+    let after = text::text_lines(&reopen(&doc), 0).unwrap();
+    let find = |lines: &[text::TextLine], text: &str| lines.iter().find(|l| l.text == text).unwrap().clone();
+    let (was, now) = (find(&before, "Title").rect, find(&after, "Title").rect);
+    assert!(now[2] - now[0] > was[2] - was[0] + 10.0, "Courier is wider");
+    assert!(((now[0] + now[2]) - (was[0] + was[2])).abs() < 1.0, "the title keeps its centre: {was:?} → {now:?}");
+    let mut body: Vec<_> = after.iter().filter(|l| !["Title", "Footer note"].contains(&l.text.as_str())).collect();
+    body.sort_by(|a, b| b.origin_baseline().total_cmp(&a.origin_baseline()));
+    let words: Vec<&str> = body.iter().flat_map(|l| l.text.split_whitespace()).collect();
+    assert_eq!(words.join(" "), "left aligned body row second body row here end.", "the paragraph's words, in order");
+    assert_eq!(body.len(), 4, "one row longer: {body:?}");
+    for (i, row) in body.iter().enumerate() {
+        assert!(row.rect[2] <= source.rect[2] + 0.5, "{:?} stays within the region ({})", row.text, source.rect[2]);
+        assert!((row.rect[0] - if i == 0 { 110.0 } else { 100.0 }).abs() < 0.01, "{:?} keeps the paragraph's edge", row.text);
+    }
+    let (footer, last) = (find(&after, "Footer note"), body.last().unwrap());
+    assert_eq!((footer.size, footer.rect[0]), (8.0, 100.0));
+    assert!(footer.rect[3] <= last.rect[1] + 0.01, "the footer moved down under the paragraph: {:?} / {:?}", footer.rect, last.rect);
+    assert!((footer.origin_baseline() - (find(&before, "Footer note").origin_baseline() - 12.0)).abs() < 0.01, "by one paragraph leading");
+}
+
+#[test]
+fn a_chosen_weight_or_slant_does_not_repoint_another_paragraphs_font() {
+    // The substitute resource is shared by every paragraph whose source font can't show its text.
+    let mut doc = text_page("BT /F1 10 Tf 100 700 Td (First paragraph) Tj ET BT /F1 10 Tf 100 600 Td (Second one) Tj ET");
+    for (block, style) in [(0, BlockStyle { bold: Some(true), ..Default::default() }), (1, BlockStyle { italic: Some(true), ..Default::default() })] {
+        assert_eq!(text::rewrite_block(&mut doc, 0, block, None, &style).unwrap().substituted, None, "a choice, not a substitution");
+    }
+    let lines = text::text_lines(&reopen(&doc), 0).unwrap();
+    let base = |text: &str| lines.iter().find(|l| l.text == text).map(|l| l.base_font.clone());
+    assert_eq!(base("First paragraph").as_deref(), Some("Helvetica-Bold"));
+    assert_eq!(base("Second one").as_deref(), Some("Helvetica-Oblique"));
 }
 
 #[test]

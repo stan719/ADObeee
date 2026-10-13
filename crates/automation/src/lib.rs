@@ -592,6 +592,7 @@ impl Automation {
                     ranges: parse_style_ranges(a.get("ranges"))?,
                     resource: a.opt_str("font_resource")?.map(str::to_owned),
                     bold: a.opt_bool("bold")?,
+                    italic: a.opt_bool("italic")?,
                     size: a.opt_num("size")?,
                     underline: a.opt_bool("underline")?,
                     line_spacing: a.opt_num("line_spacing")?,
