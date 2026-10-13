@@ -41,7 +41,7 @@ impl Default for OcrDraft {
 impl OcrDraft {
     /// The recognition settings these choices make.
     pub fn settings(&self) -> OcrSettings {
-        OcrSettings { dpi: self.dpi as f32, language: self.language.clone(), skip_text_pages: !self.text_pages }
+        OcrSettings { dpi: self.dpi as f32, language: self.language.clone(), skip_text_pages: !self.text_pages, ..Default::default() }
     }
 }
 
@@ -165,7 +165,56 @@ impl PdfCraftApp {
             OcrPages::Range => (d.from.saturating_sub(1)..d.to).collect(),
         };
         let settings = d.settings();
-        let Some(job) = self.session.ocr_job(id, &pages, settings) else { return };
+        self.start_ocr_pages(id, &pages, settings);
+    }
+
+    /// Edit on a scanned page: like Acrobat's "Converting scanned page to Editable Text and
+    /// Images", the page's words are recognized first, so that they open for editing (Edit text &
+    /// images groups the recognised words into phrases). Runs once per page, for the page in view
+    /// while Edit is on (its tab, or the Edit text & images or Add text tool). The page must be a
+    /// picture (an image covering at least half of it) with no text of its own: comments and text
+    /// boxes over it do not count as text, but real page text does, and such a page (a flyer with a
+    /// background picture) is left alone. It is one undoable step, "Recognize text", and is not
+    /// run again for that page after Undo.
+    pub(crate) fn auto_ocr_scanned_page(&mut self) {
+        // Edit is on when its panel is open (the Edit tab) or Edit text & images or Add text is picked,
+        // the same test the page view uses for editing content.
+        let editing = (self.left_open && self.left == crate::LeftPanel::Tool("edit"))
+            || matches!(self.quick_tool, crate::QuickTool::EditText | crate::QuickTool::AddText);
+        if !editing || self.ocr_run.is_some() || self.ocr_batch.is_some() {
+            return;
+        }
+        let Some((vi, id)) = self.active_ids() else { return };
+        let page = self.views[vi].current;
+        if self.views[vi].auto_ocr_tried.contains(&page) {
+            return;
+        }
+        let Some(doc) = self.session.get(id) else { return };
+        if doc.read_only_reason.is_some() || !doc.allows_modification() {
+            return;
+        }
+        let Some(info) = doc.info.pages.get(page) else { return };
+        let page_area = f64::from(info.width) * f64::from(info.height);
+        let covered = doc.page_images(page).iter().any(|i| {
+            let [x0, y0, x1, y1] = i.visible_rect.unwrap_or(i.rect);
+            page_area > 0.0 && ((x1 - x0) * (y1 - y0)).abs() >= 0.5 * page_area
+        });
+        self.views[vi].auto_ocr_tried.insert(page);
+        if !covered || !pdfcraft_engine::ocr::available() {
+            return;
+        }
+        // Only a page with no text of its own is read. Comments and text boxes over the picture do
+        // not count as its text (a scan with a few comments is still a scan, as in Acrobat), but
+        // a page with real text and a background picture is left alone.
+        let mut settings = self.ocr_draft.settings();
+        settings.skip_text_pages = true;
+        settings.native_text_only = true;
+        self.start_ocr_pages(id, &[page], settings);
+    }
+
+    /// Recognize `pages` (0-based; empty = all) of document `id` in the background.
+    fn start_ocr_pages(&mut self, id: DocId, pages: &[usize], settings: OcrSettings) {
+        let Some(job) = self.session.ocr_job(id, pages, settings) else { return };
         let progress = Arc::new(Mutex::new(OcrProgress { total: job.pages.len(), ..Default::default() }));
         let p = progress.clone();
         let work = move || {

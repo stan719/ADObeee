@@ -162,3 +162,134 @@ fn an_ocr_word_opens_for_editing_and_stays_open() {
     h.run_steps(4);
     assert_eq!(opened(&h).as_deref(), Some("Recognize"), "moving the pointer away keeps the word open");
 }
+
+/// A page of real text, not a picture.
+fn text_page() -> Vec<u8> {
+    let s = Session::new();
+    s.create_from_text("t", "This page already has its own text").unwrap().to_vec()
+}
+
+fn edit_harness(pdf: Vec<u8>) -> Harness<'static, PdfCraftApp> {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("doc.pdf", None, pdf).unwrap();
+        app.run_inline = true;
+        app
+    });
+    h.run_steps(4);
+    h
+}
+
+/// Like Acrobat's "Converting scanned page to Editable Text and Images": turning Edit on for a
+/// scanned page recognizes its words first (one undoable "Recognize text" step), once. Undoing it
+/// is not undone again by the next frame.
+#[test]
+fn editing_a_scanned_page_recognizes_its_text_first_and_only_once() {
+    if !pdfcraft_engine::ocr::available() {
+        eprintln!("skipped: OCR models not installed");
+        return;
+    }
+    let mut h = edit_harness(scan());
+    let id = h.state().active_ids().unwrap().1;
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None, "nothing is recognized before Edit");
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(4);
+    assert!(h.state().ocr_run.is_none(), "finished");
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), Some("Recognize text"));
+    // Undo takes the text layer away and Edit does not put it back.
+    h.state_mut().undo();
+    h.run_steps(4);
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None);
+    h.run_steps(4);
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None, "recognized only once per page");
+}
+
+/// The Edit tab (its tool panel) turns Edit on without picking Edit text & images, and Acrobat's
+/// conversion happens there too.
+#[test]
+fn the_edit_panel_recognizes_a_scanned_page_too() {
+    if !pdfcraft_engine::ocr::available() {
+        eprintln!("skipped: OCR models not installed");
+        return;
+    }
+    let mut h = edit_harness(scan());
+    let id = h.state().active_ids().unwrap().1;
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None);
+    h.state_mut().set_option("tool", "edit").unwrap();
+    h.run_steps(4);
+    assert!(h.state().ocr_run.is_none(), "finished");
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), Some("Recognize text"));
+}
+
+/// A scan with only a comment (a text box) over it is still a scan: Edit reads the picture. The
+/// comment's own words are not read into the layer, and it counts as no page text.
+#[test]
+fn editing_a_scan_with_a_comment_over_it_recognizes_the_picture() {
+    if !pdfcraft_engine::ocr::available() {
+        eprintln!("skipped: OCR models not installed");
+        return;
+    }
+    let with_comment = {
+        let mut s = Session::new();
+        let id = s.open("scan.pdf", None, std::sync::Arc::new(scan()), None).unwrap();
+        let (w, h) = {
+            let p = &s.get(id).unwrap().info.pages[0];
+            (p.width as f64, p.height as f64)
+        };
+        let shape = pdfcraft_engine::Shape::TextBox { rect: [w * 0.1, h * 0.75, w * 0.9, h * 0.85], font_size: 18.0 };
+        let style = pdfcraft_engine::Style::default_for(&shape);
+        let note = pdfcraft_engine::NewAnnotation { page: 0, shape, style, contents: "Invoice reference 4711".into(), author: "Test".into() };
+        s.apply(id, Edit::AddAnnotation(note)).unwrap();
+        s.save_bytes(id).unwrap().to_vec()
+    };
+    let mut h = edit_harness(with_comment);
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(4);
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), Some("Recognize text"));
+}
+
+/// A born-digital page with a full-page background picture and real text (a flyer, a slide
+/// export) must not change just because Edit is turned on (maintainer review of #1609).
+#[test]
+fn editing_a_page_with_text_over_a_background_picture_changes_nothing() {
+    let hybrid = {
+        let mut s = Session::new();
+        let id = s.open("scan.pdf", None, std::sync::Arc::new(scan()), None).unwrap();
+        let (w, h) = {
+            let p = &s.get(id).unwrap().info.pages[0];
+            (p.width as f64, p.height as f64)
+        };
+        let note =
+            AddedText { rect: [w * 0.1, h * 0.75, w * 0.9, h * 0.85], text: "Invoice reference 4711".into(), size: 18.0, ..Default::default() };
+        s.apply(id, Edit::AddText { page: 0, text: note }).unwrap();
+        s.save_bytes(id).unwrap().to_vec()
+    };
+    let mut h = edit_harness(hybrid);
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(6);
+    assert!(h.state().ocr_run.is_none());
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None, "nothing was recognized or marked modified");
+    assert!(!h.state().session.get(id).unwrap().dirty, "the file is not marked modified");
+}
+
+#[test]
+fn editing_a_page_that_has_text_does_not_recognize_anything() {
+    let mut h = edit_harness(text_page());
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(6);
+    assert!(h.state().ocr_run.is_none());
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None);
+}
+
+/// Only the Edit tool recognizes: viewing a scan, or any other tool, leaves the file as it is.
+#[test]
+fn only_the_edit_tool_recognizes_a_scanned_page() {
+    let mut h = edit_harness(scan());
+    let id = h.state().active_ids().unwrap().1;
+    h.run_steps(6);
+    assert_eq!(h.state().session.get(id).unwrap().can_undo(), None);
+}
