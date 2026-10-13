@@ -2789,8 +2789,14 @@ impl eframe::App for PdfCraftApp {
             }
         }
         // Don't replace a pending prompt or import. A startup file may need its own password
-        // prompt, so its bytes stay queued until the current interaction finishes.
-        if self.password_prompt.is_none()
+        // prompt, so its bytes stay queued until the current interaction finishes, including
+        // preparation after submit_password has taken the local prompt off screen.
+        #[cfg(not(target_arch = "wasm32"))]
+        let preparing_open = !self.pending_opens.is_empty();
+        #[cfg(target_arch = "wasm32")]
+        let preparing_open = false;
+        if !preparing_open
+            && self.password_prompt.is_none()
             && self.image_import.is_none()
             && self.dialog.is_none()
             && self.close_request.is_none()
