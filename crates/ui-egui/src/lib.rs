@@ -1282,13 +1282,10 @@ impl PdfCraftApp {
         // the user closed stays closed (#1590).
         let opening_mode = self.mode_override.unwrap_or(self.default_mode);
         if activate && self.right.is_none() && !self.right_panel_closed && opening_mode != Mode::Read {
-            self.right = if !doc.info.annotations.is_empty() {
-                Some(RightPanel::Comments)
-            } else if !doc.info.outline.is_empty() {
-                Some(RightPanel::Bookmarks)
-            } else {
-                None
-            };
+            // Only a document with comments opens a panel by itself. Documents whose sole
+            // navigation is their bookmarks leave the choice to the user (and to their
+            // Initial View, /PageMode /UseOutlines, which is applied below).
+            self.right = (!doc.info.annotations.is_empty()).then_some(RightPanel::Comments);
         }
         let initial = doc.initial_view();
         self.views.push(DocView::new(id, &doc.info, self.view_defaults));

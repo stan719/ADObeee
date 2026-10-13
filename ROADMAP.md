@@ -149,6 +149,7 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 
 ## Progress log
 
+- **2026-10-13 (M3):** Opening a document no longer pops the Bookmarks panel open just because the document has bookmarks: only a document with comments opens a panel by itself. The panel now opens itself only when the document's Initial View asks for the outline (/PageMode /UseOutlines), which is the standard's behaviour; the rail opens it otherwise. Estimates unchanged.
 - **2026-10-13 (M3, native-opening candidate):** Chosen tools survive preparation, conversion and password retries; startup intake waits for pending preparation. Regression tests cover completion, cancellation and document identity. Estimates unchanged.
 - **2026-10-12 (M13, CLI robustness scans):** `pdfcraft-cli check` visits a directory once even when input roots overlap or directory symlinks lead back into the tree. PDFs reached through file symlinks remain accepted. Three real CLI regressions cover overlapping roots, a directory cycle and directory/file aliases. Estimates unchanged.
 - **2026-10-12 (M4, Type 3 extraction fidelity):** Extract and Split preserve shared image/resource dictionaries reached through Type 3 glyphs, including nested forms, patterns and soft masks. A bounded object-graph walk protects unknown glyph content; unreadable pages/forms retain their glyph resources, and shared explicit fonts are visited once. Separate page dictionaries still prune unused images. Synthetic save/reopen regressions and an opt-in Poppler pixel oracle cover resource ownership, nested forms, cycles, limits and repeated fonts. Estimates unchanged.
@@ -427,6 +428,7 @@ Newest first: the date, what moved, and the new overall estimate.
 | Date | Change | Summary |
 |---|---|---|
 | 2026-10-12 | minor | M3/#1364 candidate: absolute local GoToR links require desktop consent or headless allow_absolute; existing relative navigation and validation retained. Estimates unchanged. |
+| 2026-10-13 | minor | Opening no longer pops the Bookmarks panel for a document that merely has bookmarks; only a comments document opens one by itself; estimates unchanged |
 | 2026-10-12 | minor | M8: redaction retires inherited `/Resources` so a parent `/Pages` can't keep a removed XObject reachable; only redacted pages that inherit are pinned (one shared reference), unredacted pages are untouched; estimates unchanged |
 | 2026-10-12 | minor | M7/#1200 candidate: bounded local GoToR opening, root-confined automation, and action-preserving appearance edits; named destinations and window behavior remain partial; estimates unchanged. |
 | 2026-10-12 | minor | Exclusive image crops resize with their pixels across nested states, intervening operators and content streams; shared clips remain fixed. Synthetic engine/tool regressions and private image save/reopen checks; estimates unchanged. |

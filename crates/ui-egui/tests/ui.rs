@@ -136,6 +136,20 @@ fn opening_a_pdf_shows_comments_and_bookmarks() {
     h.get_by_label("Beta section");
 }
 
+/// A document whose only navigation is its bookmarks opens with no panel: the panel comes
+/// from the rail (or from the document's Initial View, /PageMode /UseOutlines), not from
+/// merely having an outline. Only a document with comments opens one by itself.
+#[test]
+fn a_document_with_bookmarks_alone_opens_no_panel() {
+    let pdf = String::from_utf8(FIXTURE.to_vec()).unwrap().replace(" /Annots [9 0 R]", "");
+    let mut h = harness(|app| app.open_bytes("bookmarks.pdf", None, pdf.into_bytes()).expect("fixture opens"));
+    assert_eq!(h.state().right, None, "the Bookmarks panel does not pop open by itself");
+    // The rail still opens it, with the bookmarks in it.
+    h.get_by_label("Bookmarks").click();
+    h.run_steps(3);
+    h.get_by_label("Alpha section");
+}
+
 /// #1590: side panes the user closed stay closed when PdfCraft restarts and opens another PDF,
 /// even one with comments and bookmarks, which would otherwise open on the Comments panel.
 #[test]
