@@ -4160,3 +4160,23 @@ fn private_new_chinese_keyboard_input_preserves_font_layout_and_saved_pixels() {
     assert_eq!(std::fs::read(path).unwrap(), original);
     println!("verified Chinese keyboard insertion/deletion and save/reopen rendering on {pages} pages");
 }
+
+/// The Format text panel offers the paragraph spacing beside the line spacing.
+#[test]
+fn the_format_panel_has_a_paragraph_spacing_field() {
+    let mut h = harness(1, |_| {});
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let r = h.state().views[0].page_screen_rect(0).expect("on screen");
+    let at = egui::pos2(r.left() + 40.0 / 200.0 * r.width(), r.top() + (300.0 - 158.0) / 300.0 * r.height());
+    h.hover_at(at);
+    h.run_steps(1);
+    h.drag_at(at);
+    h.run_steps(1);
+    h.drop_at(at);
+    h.run_steps(3);
+    assert!(h.state().views[0].line_editor.is_some());
+    h.get_by_label("FORMAT TEXT");
+    h.get_by_label("Paragraph spacing");
+    assert_eq!(h.state().views[0].line_editor.as_ref().map(|e| e.extras.paragraph_spacing), Some(0.0));
+}

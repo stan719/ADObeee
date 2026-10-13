@@ -1657,6 +1657,9 @@ pub struct BlockStyle {
     pub underline: Option<bool>,
     /// Line spacing as a multiple of the font size (1.2 is ordinary).
     pub line_spacing: Option<f64>,
+    /// Space between paragraphs (a line break in the text starts one), in points, beyond the
+    /// line spacing; `None` is half the font size when the text has several paragraphs.
+    pub paragraph_spacing: Option<f64>,
     /// Character spacing (points) and horizontal scaling (percent).
     pub char_spacing: Option<f64>,
     pub scale: Option<f64>,
@@ -1732,7 +1735,14 @@ pub(crate) fn rewrite_block_with_limit(
     let streams = content_streams(doc, &p.dict);
     let pieces = Pieces::join(&streams.iter().map(|(_, d)| d.as_slice()).collect::<Vec<_>>());
     let ops = pieces.parse().ops;
-    let text = text.unwrap_or(&b.text).split(paragraph_separator).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ");
+    // Paragraphs: a line break in the text starts one; words within are joined by one space.
+    let paragraphs: Vec<String> = text
+        .unwrap_or(&b.text)
+        .split(['\n', '\r'])
+        .map(|p| p.split(paragraph_separator).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" "))
+        .filter(|p| !p.is_empty())
+        .collect();
+    let text = paragraphs.join(" ");
     let o = &first.origin;
     let (font_name, old_size) = o.state.font.clone().ok_or_else(|| EditError::Invalid("the paragraph has no font".into()))?;
     let k = o.k.max(1e-6);
@@ -1815,7 +1825,18 @@ pub(crate) fn rewrite_block_with_limit(
         };
         t * o_state.scale * k
     };
-    let wrapped = wrap(&text, width + 0.5, advance);
+    // Every paragraph wrapped on its own; `starts` marks a paragraph's first line.
+    let (mut wrapped, mut starts): (Vec<String>, Vec<bool>) = (Vec::new(), Vec::new());
+    for (pi, p) in paragraphs.iter().enumerate() {
+        for (li, line) in wrap(p, width + 0.5, advance).into_iter().enumerate() {
+            wrapped.push(line);
+            starts.push(pi > 0 && li == 0);
+        }
+    }
+    if wrapped.is_empty() {
+        wrapped.push(String::new());
+        starts.push(false);
+    }
     let mut substituted = None;
     let new_font = !reuse;
     let (show_font, encode): (String, Encoder) = if let Some(m) = metrics.clone().filter(|_| reuse) {
@@ -1851,6 +1872,13 @@ pub(crate) fn rewrite_block_with_limit(
         None if members.len() > 1 => (members[0].origin.baseline - members[1].origin.baseline) / k * size / old_size,
         None if o_state.leading > 0.0 => o_state.leading,
         None => size * 1.2,
+    };
+    // The gap before a paragraph, in text space, beyond the line step.
+    let gap = match style.paragraph_spacing {
+        Some(p) if p.is_finite() => (p / k).clamp(0.0, 14_400.0),
+        Some(_) => return Err(EditError::Invalid("the paragraph spacing must be a number".into())),
+        None if paragraphs.len() > 1 => size * 0.5,
+        None => 0.0,
     };
     let n = pdfcraft_content::num;
     // In its own graphics state, so a new colour (or anything else) stops at the paragraph.
@@ -1888,18 +1916,23 @@ pub(crate) fn rewrite_block_with_limit(
     let single_byte = !reuse || metrics.as_ref().is_some_and(|m| !m.composite);
     let justify = align == Some(crate::added::Align::Justify) && single_byte;
     let mut x = 0.0;
+    let mut y = 0.0;
     let mut tw_set = 0.0;
     let mut underlines: Vec<(f64, f64, f64)> = Vec::new(); // (x0, x1, y) in text space
     for (i, line) in wrapped.iter().enumerate() {
         let spaces = line.matches(' ').count();
-        let tw =
-            if justify && i + 1 < wrapped.len() && spaces > 0 { (width - advance(line)).max(0.0) / k / o_state.scale / spaces as f64 } else { 0.0 };
+        // Justify every line but a paragraph's last.
+        let last_of_paragraph = i + 1 >= wrapped.len() || starts.get(i + 1).copied().unwrap_or(true);
+        let tw = if justify && !last_of_paragraph && spaces > 0 { (width - advance(line)).max(0.0) / k / o_state.scale / spaces as f64 } else { 0.0 };
         // A stretched line fills the width from the left edge.
         let dx = if tw > 0.0 { 0.0 } else { offset(line) };
+        // The line step, plus the gap before a paragraph's first line.
+        let step = if i > 0 { lead + if starts.get(i).copied().unwrap_or(false) { gap } else { 0.0 } } else { 0.0 };
         if i > 0 || dx != 0.0 {
-            block_ops.push(Op::new("Td", vec![n(dx - x), n(if i > 0 { -lead } else { 0.0 })]));
+            block_ops.push(Op::new("Td", vec![n(dx - x), n(-step)]));
         }
         x = dx;
+        y -= step;
         if tw != tw_set {
             block_ops.push(Op::new("Tw", vec![n(tw)]));
             tw_set = tw;
@@ -1919,7 +1952,7 @@ pub(crate) fn rewrite_block_with_limit(
             }
         }
         let w = (advance(line) + tw * spaces as f64 * o_state.scale * k) / k;
-        underlines.push((dx, dx + w, -(i as f64) * lead - size * 0.12));
+        underlines.push((dx, dx + w, y - size * 0.12));
     }
     block_ops.push(Op::new("ET", vec![]));
     if style.underline == Some(true) {

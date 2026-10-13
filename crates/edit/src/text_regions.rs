@@ -322,7 +322,10 @@ pub(super) fn rewrite_styled_block(
             metrics.insert(line.font.clone(), Metrics::from_dict(doc, &font));
         }
     }
-    if [style.size, style.line_spacing, style.char_spacing, style.scale, style.width].iter().flatten().any(|v| !v.is_finite())
+    if [style.size, style.line_spacing, style.paragraph_spacing, style.char_spacing, style.scale, style.width]
+        .iter()
+        .flatten()
+        .any(|v| !v.is_finite())
         || style.color.is_some_and(|c| c.iter().any(|v| !v.is_finite()))
     {
         return Err(EditError::Invalid("the paragraph's formatting must use finite numbers".into()));
@@ -488,6 +491,9 @@ pub(super) fn rewrite_styled_block(
         Ok(width)
     };
     let mut rows: Vec<Vec<(char, usize, String)>> = Vec::new();
+    // Which rows a line break in the draft started, as against wrapping: the paragraph spacing,
+    // when one is set, goes before those.
+    let mut explicit: Vec<bool> = vec![false];
     let mut row = Vec::new();
     let mut row_width = 0.0;
     // Wrap at word boundaries, retaining explicit source row breaks and whitespace.
@@ -496,6 +502,7 @@ pub(super) fn rewrite_styled_block(
         let Some(item) = chars.get(at) else { break };
         if item.0 == '\n' {
             rows.push(std::mem::take(&mut row));
+            explicit.push(true);
             row_width = 0.0;
             at += 1;
             continue;
@@ -513,6 +520,7 @@ pub(super) fn rewrite_styled_block(
                 row.pop();
             }
             rows.push(std::mem::take(&mut row));
+            explicit.push(false);
             row_width = 0.0;
         }
         row.extend_from_slice(word);
@@ -579,14 +587,27 @@ pub(super) fn rewrite_styled_block(
         })
         .rfind(|v| *v > 0.0)
         .unwrap_or(first.size * 1.5);
+    // The space before a paragraph: a line break in the draft starts one when a paragraph
+    // spacing is set; rows the draft keeps from the page sit where they were, shifted by the
+    // spacing added above them.
+    let gap = match style.paragraph_spacing {
+        Some(p) if p.is_finite() => p.clamp(0.0, 14_400.0),
+        Some(_) => return Err(EditError::Invalid("the paragraph spacing must be a number".into())),
+        None => 0.0,
+    };
+    let mut shift = 0.0;
     let mut baseline = first.origin.baseline;
     for (row_index, row) in rows.iter().enumerate() {
         let anchor = block.rows.get(row_index).and_then(|r| r.first()).and_then(|i| lines.get(*i));
+        if row_index > 0 && explicit.get(row_index).copied().unwrap_or(false) {
+            shift += gap;
+            baseline -= gap;
+        }
         if style.line_spacing.is_none()
             && style.size.is_none()
             && let Some(anchor) = anchor
         {
-            baseline = anchor.origin.baseline;
+            baseline = anchor.origin.baseline - shift;
         }
         let anchor = anchor.unwrap_or(first);
         let w = measured.get(row_index).copied().unwrap_or(0.0);
