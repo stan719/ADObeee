@@ -7,7 +7,10 @@
 //!   server ([`mcp`]), `pdfcraft-cli run` and (later) the UI control channel.
 //! - Pages are **1-based** in every tool, as people number them. Rectangles are in PDF points
 //!   with the origin at the top-left of the displayed page.
-//! - An optional root directory confines every path a tool reads or writes.
+//! - An optional root directory confines every path a tool reads or writes. Separately,
+//!   [`file_access::AutomationRoots`] (`pdfcraft-cli mcp --automation-read-root` and
+//!   `--automation-write-root`) holds a read folder and a write folder, each left out meaning no
+//!   access of its kind.
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -15,6 +18,7 @@ mod a11y;
 mod comments;
 mod content;
 mod conventions;
+pub mod file_access;
 mod forms;
 mod links;
 #[cfg(feature = "mcp")]
@@ -102,6 +106,8 @@ type TextCache = (Arc<Vec<u8>>, Vec<Option<Arc<PageText>>>);
 pub struct Automation {
     session: Session,
     root: Option<PathBuf>,
+    /// The read and write folders of `--automation-read-root` / `--automation-write-root`.
+    roots: Option<Arc<file_access::AutomationRoots>>,
     /// Synchronous renderers, rebuilt when a document's working bytes change.
     renderers: HashMap<DocId, (Arc<Vec<u8>>, PageRenderer)>,
     /// Extracted page text per document version (the working bytes it was taken from).
@@ -116,7 +122,7 @@ impl Default for Automation {
 
 impl Automation {
     pub fn new() -> Self {
-        Self { session: Session::new(), root: None, renderers: HashMap::new(), texts: HashMap::new() }
+        Self { session: Session::new(), root: None, roots: None, renderers: HashMap::new(), texts: HashMap::new() }
     }
 
     /// Confine every path the tools read or write to `root` (relative paths resolve inside it).
@@ -127,6 +133,14 @@ impl Automation {
         }
         self.root = Some(root);
         Ok(self)
+    }
+
+    /// Confine the files the tools read to the read root and the files they write to the write
+    /// root (`None`: no confinement). Applies on top of [`with_root`](Self::with_root) when both
+    /// are set.
+    pub fn with_automation_roots(mut self, roots: Option<Arc<file_access::AutomationRoots>>) -> Self {
+        self.roots = roots;
+        self
     }
 
     /// Use a fixed clock for saves (deterministic output in tests).
@@ -145,7 +159,7 @@ impl Automation {
     /// given, so `/dev/stdout` and the like still work. Returns where the file went.
     pub fn write_output(&self, path: &str, bytes: &[u8]) -> Result<PathBuf> {
         let target = self.resolve(path, true)?;
-        if self.root.is_some() {
+        if self.root.is_some() || self.roots.is_some() {
             write_atomic(&target, bytes)?;
         } else {
             std::fs::write(&target, bytes).map_err(|e| failed(format!("{path}: {e}")))?;
@@ -511,6 +525,12 @@ impl Automation {
                         .iter()
                         .map(|p| self.resolve(p.as_str().ok_or_else(|| ToolError::InvalidArgs("directory must be a path".into()))?, false))
                         .collect::<Result<Vec<_>>>()?
+                } else if let Some(roots) = &self.roots {
+                    // The installed fonts are outside the roots: look in the read root instead.
+                    let read = roots
+                        .read_root()
+                        .ok_or_else(|| failed("automation filesystem access is not granted: read authority is absent: installed fonts"))?;
+                    vec![self.resolve(&read.to_string_lossy(), false)?]
                 } else if let Some(root) = &self.root {
                     vec![root.clone()]
                 } else {
@@ -855,7 +875,14 @@ impl Automation {
         let id = doc.id;
         let target = match a.opt_str("path")? {
             Some(p) => self.resolve(p, true)?,
-            None => PathBuf::from(doc.path.clone().ok_or_else(|| failed("the document has never been saved: pass a path"))?),
+            None => {
+                // Saving in place writes where the file was opened from, which the read root
+                // allows and the write root may not.
+                let own = doc.path.clone().ok_or_else(|| failed("the document has never been saved: pass a path"))?;
+                let own_path = PathBuf::from(&own);
+                self.check_roots(&own, &own_path, file_access::Access::Write)?;
+                own_path
+            }
         };
         let same_file = doc.path.as_deref().is_some_and(|p| Path::new(p) == target);
         // Saving to a new file is a full rewrite unless asked otherwise, like Save As.
@@ -1826,6 +1853,29 @@ impl Automation {
     /// namespace is refused without touching it, and the deepest existing ancestor (links
     /// followed) must be inside the root before anything about the rest is reported.
     fn resolve(&self, path: &str, for_write: bool) -> Result<PathBuf> {
+        let access = if for_write { file_access::Access::Write } else { file_access::Access::Read };
+        self.resolve_for(path, access, for_write)
+    }
+
+    /// [`resolve`](Self::resolve) with the kind of access named, for the places where a file that
+    /// is only read may still be missing (a path checked up front, whose absence is reported per
+    /// file later). The automation roots, if any, get the last word.
+    fn resolve_for(&self, path: &str, access: file_access::Access, may_be_missing: bool) -> Result<PathBuf> {
+        let target = self.resolve_in_root(path, may_be_missing)?;
+        self.check_roots(path, &target, access)?;
+        Ok(target)
+    }
+
+    /// Hold `target`, which `path` named, to the automation read or write root. Always passes
+    /// without roots.
+    fn check_roots(&self, path: &str, target: &Path, access: file_access::Access) -> Result<()> {
+        match &self.roots {
+            Some(roots) => roots.check_path(path, target, access).map_err(failed),
+            None => Ok(()),
+        }
+    }
+
+    fn resolve_in_root(&self, path: &str, for_write: bool) -> Result<PathBuf> {
         let p = Path::new(path);
         let Some(root) = &self.root else { return Ok(p.to_path_buf()) };
         let outside = || failed(format!("{path} is outside the allowed directory {}", root.display()));
