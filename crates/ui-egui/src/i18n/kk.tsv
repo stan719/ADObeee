@@ -2350,3 +2350,9 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	Redaction mark appearance	Жасыру белгісінің көрінісі
+	Outline colour:	Контур түсі:
+	Fill colour:	Толтыру түсі:
+	Shown while the pointer is over a mark.	Меңзер белгінің үстінде тұрғанда көрсетіледі.
+	Opacity:	Мөлдірсіздік:
+	Make properties default	Қасиеттерді әдепкі ету

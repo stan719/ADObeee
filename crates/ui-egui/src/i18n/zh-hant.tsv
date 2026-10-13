@@ -2226,3 +2226,9 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	Redaction mark appearance	塗黑標記外觀
+	Outline colour:	輪廓色彩:
+	Fill colour:	填滿色彩:
+	Shown while the pointer is over a mark.	指標位於標記上方時顯示。
+	Opacity:	不透明度:
+	Make properties default	將內容設為預設

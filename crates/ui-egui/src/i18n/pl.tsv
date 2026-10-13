@@ -2332,3 +2332,9 @@ animation effects	Off	Wyłączone
 	This document is trying to open a local file:	Ten dokument próbuje otworzyć plik lokalny:
 	Move tag earlier	Przenieś znacznik wcześniej
 	Move tag later	Przenieś znacznik później
+	Redaction mark appearance	Wygląd znacznika redakcji
+	Outline colour:	Kolor obrysu:
+	Fill colour:	Kolor wypełnienia:
+	Shown while the pointer is over a mark.	Widoczny, gdy wskaźnik jest nad znacznikiem.
+	Opacity:	Krycie:
+	Make properties default	Ustaw właściwości jako domyślne

@@ -2426,3 +2426,9 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	Redaction mark appearance	Vzhled značky začernění
+	Outline colour:	Barva obrysu:
+	Fill colour:	Barva výplně:
+	Shown while the pointer is over a mark.	Zobrazí se, když je ukazatel nad značkou.
+	Opacity:	Neprůhlednost:
+	Make properties default	Nastavit vlastnosti jako výchozí

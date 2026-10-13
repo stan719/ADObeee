@@ -2374,3 +2374,9 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+	Redaction mark appearance	Вигляд позначки приховування
+	Outline colour:	Колір контуру:
+	Fill colour:	Колір заливки:
+	Shown while the pointer is over a mark.	Показується, поки вказівник над позначкою.
+	Opacity:	Непрозорість:
+	Make properties default	Зробити властивості типовими

@@ -2351,3 +2351,9 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	Redaction mark appearance	Kitakarási jelölés megjelenése
+	Outline colour:	Körvonal színe:
+	Fill colour:	Kitöltés színe:
+	Shown while the pointer is over a mark.	Akkor látszik, amikor a mutató egy jelölés fölött van.
+	Opacity:	Átlátszatlanság:
+	Make properties default	Tulajdonságok beállítása alapértelmezettként

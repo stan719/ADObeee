@@ -2316,3 +2316,9 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+	Redaction mark appearance	涂黑标记外观
+	Outline colour:	轮廓颜色:
+	Fill colour:	填充颜色:
+	Shown while the pointer is over a mark.	指针位于标记上方时显示。
+	Opacity:	不透明度:
+	Make properties default	将属性设为默认

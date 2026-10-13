@@ -2315,3 +2315,9 @@ animation effects	Off	Изключени
 	This document is trying to open a local file:	Този документ се опитва да отвори локален файл:
 	Move tag earlier	Преместване на етикета по-рано
 	Move tag later	Преместване на етикета по-късно
+	Redaction mark appearance	Вид на маркировката за заличаване
+	Outline colour:	Цвят на контура:
+	Fill colour:	Цвят на запълването:
+	Shown while the pointer is over a mark.	Показва се, докато показалецът е над маркировка.
+	Opacity:	Непрозрачност:
+	Make properties default	Задаване като свойства по подразбиране

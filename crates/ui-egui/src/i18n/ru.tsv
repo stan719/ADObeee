@@ -2265,3 +2265,9 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Redaction mark appearance	Вид метки скрытия
+	Outline colour:	Цвет контура:
+	Fill colour:	Цвет заливки:
+	Shown while the pointer is over a mark.	Показывается, пока указатель над меткой.
+	Opacity:	Непрозрачность:
+	Make properties default	Сделать свойства стандартными
