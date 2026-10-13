@@ -37,6 +37,20 @@ fn session_with(n: usize) -> (Session, DocId) {
 }
 
 #[test]
+fn prepared_open_does_not_mutate_the_session_until_commit() {
+    fn assert_send<T: Send>() {}
+    assert_send::<crate::PreparedDocument>();
+
+    let mut session = Session::new();
+    let prepared = session.prepare_open("prepared.pdf", None, Arc::new(fixture(3)), None).expect("prepares");
+    assert!(session.get(DocId(1)).is_none());
+
+    let id = session.commit_open(prepared);
+    assert_eq!(id, DocId(1));
+    assert_eq!(session.get(id).expect("committed document").info.pages.len(), 3);
+}
+
+#[test]
 fn custom_image_stamp_keeps_displayed_orientation_on_rotated_pages() {
     let colours = [[240, 20, 20, 255], [20, 180, 20, 255], [20, 20, 240, 255], [230, 180, 20, 255]];
     let image = image::RgbaImage::from_fn(80, 40, |x, y| image::Rgba(colours[usize::from(y >= 20) * 2 + usize::from(x >= 40)]));
@@ -1506,6 +1520,72 @@ fn preparing_a_form_adds_renames_and_deletes_fields() {
     s.undo(id).unwrap();
     s.undo(id).unwrap();
     assert_eq!(names(&s), ["Text1", "Check Box1", "email"]);
+}
+
+/// One 612×300 page with the content stream `body`. Object 4 is Helvetica; `resources` is what
+/// the page's /Resources holds.
+fn one_line_page(resources: &str, body: &str) -> Vec<u8> {
+    let objs = [
+        "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 612 300] >>".to_string(),
+        format!("<< /Type /Page /Parent 2 0 R /Resources << {resources} >> /Contents 5 0 R >>"),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>".to_string(),
+        format!("<< /Length {} >>\nstream\n{body}\nendstream", body.len()),
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+/// Put a redaction mark over `needle` where page 1 shows it, as Find text and redact does.
+fn mark_shown_text(s: &mut Session, id: DocId, needle: &str) {
+    let doc = s.get(id).unwrap();
+    let mut r = pdfcraft_render::PageRenderer::new(doc.bytes.clone(), pdfcraft_render::RenderConfig::default());
+    let text = r.render(RenderRequestFor::text(0)).text.expect("the page has text");
+    let range = text.find(needle).pop().expect("the page shows the text");
+    let info = &doc.info.pages[0];
+    let quads = text.line_rects(range).into_iter().map(|v| pdfcraft_annot::rect_quad(info.view_rect_to_user(v).map(f64::from))).collect();
+    let shape = Shape::Redact { quads, overlay: String::new(), look: Default::default() };
+    let mark =
+        Edit::AddAnnotation(NewAnnotation { page: 0, style: Style::default_for(&shape), shape, contents: String::new(), author: "Ada".into() });
+    s.apply(id, mark).unwrap();
+}
+
+/// Redaction removes text by the positions its own interpreter works out. Here the font and size
+/// come from an ExtGState /Font entry (`gs`), which the renderer honours and the interpreter does
+/// not model, so it places no glyph under the mark the user drew over the word as displayed: it
+/// used to report success and leave the word in the file. The renderer is asked now, and the edit
+/// is refused.
+#[test]
+fn redaction_is_refused_when_the_page_still_shows_text_under_a_mark() {
+    let line = "Public words then SECRET42 and more";
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let by_gs = one_line_page("/ExtGState << /GS1 << /Type /ExtGState /Font [4 0 R 16] >> >>", &format!("BT /GS1 gs 20 150 Td ({line}) Tj ET"));
+    let id = s.open("gs.pdf", None, Arc::new(by_gs), None).unwrap();
+    mark_shown_text(&mut s, id, "SECRET42");
+    let refused = s.apply(id, Edit::ApplyRedactions { pages: None });
+    assert!(matches!(refused, Err(EditError::Redact(pdfcraft_redact::RedactError::Residue(n))) if n > 0), "{refused:?}");
+    // Nothing was changed: the mark is still pending and the page still shows the line.
+    assert_eq!(s.get(id).unwrap().redaction_marks(), 1);
+    assert_eq!(page_texts(&s, id), [line]);
+
+    // The same line with its font set by `Tf`: the mark is applied and the word is gone.
+    let by_tf = one_line_page("/Font << /F1 4 0 R >>", &format!("BT /F1 16 Tf 20 150 Td ({line}) Tj ET"));
+    let id = s.open("tf.pdf", None, Arc::new(by_tf), None).unwrap();
+    mark_shown_text(&mut s, id, "SECRET42");
+    s.apply(id, Edit::ApplyRedactions { pages: None }).unwrap();
+    let shown = page_texts(&s, id).swap_remove(0);
+    assert!(shown.starts_with("Public words then") && shown.ends_with("and more") && !shown.contains("SECRET42"), "{shown}");
 }
 
 #[test]
@@ -3244,6 +3324,68 @@ fn xfa_rows_in_areas_are_laid_out_read_calculated_and_written_where_adobe_binds_
     let id2 = s2.open("again.pdf", None, s.get(id).unwrap().bytes.clone(), None).expect("reopens");
     let v2 = |n: &str| s2.get(id2).unwrap().form.iter().find(|f| f.name == n).unwrap().value.first().cloned().unwrap_or_default();
     assert_eq!((v2("days_2"), v2("rest")), ("2".into(), "29".into()));
+}
+
+#[test]
+fn a_value_a_script_sets_reaches_every_field_bound_to_the_same_data_node() {
+    // `carried` inside the area and a second `carried` outside it bind to one data node (areas
+    // are not data scopes). In document order: `setter` writes the inner one, `echo` reads the
+    // outer one in the same event, and the saved data holds the one value.
+    let tpl = pdfcraft_xfa::fixtures::leave_template("<form><page><carried>5</carried></page></form>")
+        .replace(
+            r#"    <field name="rest" y="2.5in" w="2in" h="0.3in" access="readOnly">"#,
+            r#"    <field name="setter" y="3in" w="2in" h="0.3in"><ui><numericEdit/></ui><calculate><script>carried = 9
+9</script></calculate></field>
+    <field name="rest" y="2.5in" w="2in" h="0.3in" access="readOnly">"#,
+        )
+        .replace(
+            "  </subform>\n </subform>\n</subform>",
+            r#"  </subform>
+  <field name="carried" y="8.2in" w="2in" h="0.3in"><ui><numericEdit/></ui></field>
+  <field name="echo" y="8.5in" w="2in" h="0.3in"><ui><numericEdit/></ui><calculate><script>carried + 0</script></calculate></field>
+ </subform>
+</subform>"#,
+        );
+    assert!(tpl.contains("name=\"echo\"") && tpl.contains("name=\"setter\""), "the fixture was reshaped");
+    let bytes = Arc::new(pdfcraft_xfa::fixtures::shell(&tpl));
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("shared.pdf", None, bytes, None).expect("opens");
+    let out = s.take_js_output(id);
+    assert!(out.errors.is_empty(), "{out:?}");
+    let values = |s: &Session, id: DocId, n: &str| {
+        s.get(id).unwrap().form.iter().filter(|f| f.name.starts_with(n)).map(|f| f.value.join("")).collect::<Vec<_>>()
+    };
+    assert_eq!(values(&s, id, "carried"), vec!["9".to_string(), "9".to_string()], "both fields show the node's value");
+    assert_eq!(values(&s, id, "echo"), vec!["9".to_string()], "read in the same event the setter ran in");
+    let cos = pdfcraft_cos::Document::open(s.get(id).unwrap().bytes.clone()).unwrap();
+    let d = pdfcraft_xfa::data_of(&cos).unwrap();
+    assert_eq!(d.text_at(&pdfcraft_xfa::som_to_path("form[0].page[0].carried[0]")), Some("9"));
+    assert_eq!(d.count(&pdfcraft_xfa::som_to_path("form[0].page[0]"), "carried"), 1, "one data node");
+    // The inner field hidden (no widget): the outer widget still takes the node's value, and
+    // an unrelated edit does not write the old value back over it.
+    let hidden = Arc::new(pdfcraft_xfa::fixtures::shell(
+        &tpl.replace(r#"<field name="carried" y="1.5in""#, r#"<field name="carried" presence="hidden" y="1.5in""#),
+    ));
+    let id = s.open("hidden.pdf", None, hidden, None).expect("opens");
+    assert_eq!(values(&s, id, "carried"), vec!["9".to_string()]);
+    assert_eq!(values(&s, id, "echo"), vec!["9".to_string()]);
+    s.apply(id, Edit::SetFieldValue { name: "allowance".into(), value: FieldValue::Text("31".into()) }).unwrap();
+    assert_eq!(values(&s, id, "carried"), vec!["9".to_string()]);
+    let cos = pdfcraft_cos::Document::open(s.get(id).unwrap().bytes.clone()).unwrap();
+    assert_eq!(pdfcraft_xfa::data_of(&cos).unwrap().text_at(&pdfcraft_xfa::som_to_path("form[0].page[0].carried[0]")), Some("9"));
+    // A check box bound to the node a text field sets: checked by its own on state.
+    let checkbox = Arc::new(pdfcraft_xfa::fixtures::shell(&tpl.replace(
+        r#"<field name="carried" y="1.5in" w="2in" h="0.3in"><ui><numericEdit/></ui></field>"#,
+        r#"<field name="carried" y="1.5in" w="2in" h="0.3in"><ui><checkButton/></ui><items><integer>9</integer><integer>0</integer></items></field>"#,
+    )));
+    let id = s.open("check.pdf", None, checkbox, None).expect("opens");
+    let carried: Vec<(pdfcraft_forms::FieldKind, Vec<String>)> =
+        s.get(id).unwrap().form.iter().filter(|f| f.name.starts_with("carried")).map(|f| (f.kind, f.value.clone())).collect();
+    assert_eq!(
+        carried,
+        vec![(pdfcraft_forms::FieldKind::CheckBox, vec!["9".to_string()]), (pdfcraft_forms::FieldKind::Text, vec!["9".to_string()])],
+        "{carried:?}"
+    );
 }
 
 #[test]
