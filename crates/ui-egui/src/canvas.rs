@@ -793,6 +793,8 @@ impl DocView {
     /// was toggled). Out-of-date rasters stay on screen until their replacements arrive, so the
     /// view never flashes blank.
     pub fn invalidate_content(&mut self) {
+        // Undo, redo and other document-wide changes: a released drawing's preview would be a ghost.
+        self.comments.settling.clear();
         for p in self.pages.values_mut() {
             p.tag = STALE_TAG;
         }
@@ -1606,6 +1608,7 @@ impl DocView {
             self.stale_tiles.remove(&key);
             if !self.stale_tiles.iter().any(|k| k.0 == page) {
                 self.forms.unbaked.retain(|(_, p)| *p != page);
+                self.comments.page_rendered(page);
             }
         } else if r.request.tag & PRINT_TAG != 0 {
             let tex = ctx.load_texture(format!("print-{:?}-{page}", self.id), img, TextureOptions::LINEAR);
@@ -1622,6 +1625,7 @@ impl DocView {
             self.pages.insert(page, PageTex { tag: r.request.tag, tex });
             self.signature_drag.page_received(page);
             self.move_background.page_received(page);
+            self.comments.page_rendered(page);
             self.waiting_since.remove(&page);
             if !self.stale_tiles.iter().any(|k| k.0 == page) {
                 self.forms.unbaked.retain(|(_, p)| *p != page);
