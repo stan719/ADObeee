@@ -1055,9 +1055,9 @@
 	Set to zero	Sett til null
 	Shared Field Properties	Delte feltegenskaper
 	Sheet {s} of {n}	Ark {s} av {n}
-	Shift constrains to 45 degrees. Backspace removes a vertex. Escape cancels.	Skift låser til 45 grader. Rettetast fjerner et punkt. Esc avbryter.
-	Shift- or Ctrl/Command-click to select several fields.	Skift- eller Ctrl/Kommando-klikk for å velge flere felt.
-	Shift-click to select several objects. Drag empty space to select an area.	Skift-klikk for å velge flere objekter. Dra i tomt område for å velge et område.
+	Shift constrains to 45 degrees. Backspace removes a vertex. Escape cancels.	Shift låser til 45 grader. Rettetast fjerner et punkt. Esc avbryter.
+	Shift- or Ctrl/Command-click to select several fields.	Shift- eller Ctrl/Kommando-klikk for å velge flere felt.
+	Shift-click to select several objects. Drag empty space to select an area.	Shift-klikk for å velge flere objekter. Dra i tomt område for å velge et område.
 	Show Report	Vis rapport
 	Show all	Vis alle
 	Show all comments	Vis alle kommentarer
@@ -2598,7 +2598,7 @@ certificate	SHA-256 digest	SHA-256-sammendrag
 
 # Keyboard key names, distinct from command labels.
 key	Ctrl	Ctrl
-key	Shift	Skift
+key	Shift	Shift
 key	Delete	Delete
 key	Esc	Esc
 key	Home	Home
