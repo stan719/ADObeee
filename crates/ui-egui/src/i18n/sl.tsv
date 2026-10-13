@@ -2357,3 +2357,18 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+	By the standard device formulas; profiles are not applied.	Po standardnih formulah naprav; profili se ne uporabijo.
+	CMYK	CMYK
+	Comments and form fields	Komentarji in polja obrazca
+	Convert colours	Pretvori barve
+	Convert colours…	Pretvori barve…
+	Convert to	Pretvori v
+	Converted {c} colours and {i} pictures on {p} pages	Pretvorjenih {c} barv in {i} slik na {p} straneh
+	Grayscale	Sivine
+	Nothing on those pages needed converting	Na teh straneh ni bilo treba ničesar pretvoriti
+	Pictures too	Tudi slike
+	Preserve black	Ohrani črno
+	RGB	RGB
+	pure black stays 100% K or gray 0 instead of a mix	čista črna ostane 100 % K ali siva 0 namesto mešanice
+	re-encoded in the target space; JPEGs stay JPEG	znova kodirane v ciljnem prostoru; JPEG ostanejo JPEG
+	their appearances as well as the page	njihov videz in stran

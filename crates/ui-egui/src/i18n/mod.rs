@@ -2694,6 +2694,9 @@ mod tests {
             "ΔLOC",
             "+Bin",
             "−Bin",
+            // Colour-model names, written in Latin letters.
+            "RGB",
+            "CMYK",
         ];
         let unchanged: Vec<_> = entries
             .iter()
@@ -2772,6 +2775,9 @@ mod tests {
             "ΔLOC",
             "+Bin",
             "−Bin",
+            // Colour-model names, written in Latin letters.
+            "RGB",
+            "CMYK",
         ];
         let unchanged: Vec<_> = entries
             .iter()

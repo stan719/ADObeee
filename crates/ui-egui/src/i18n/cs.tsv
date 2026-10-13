@@ -2426,3 +2426,18 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	By the standard device formulas; profiles are not applied.	Podle standardních vzorců zařízení; profily se nepoužijí.
+	CMYK	CMYK
+	Comments and form fields	Komentáře a pole formuláře
+	Convert colours	Převést barvy
+	Convert colours…	Převést barvy…
+	Convert to	Převést na
+	Converted {c} colours and {i} pictures on {p} pages	Převedeno {c} barev a {i} obrázků na {p} stránkách
+	Grayscale	Odstíny šedi
+	Nothing on those pages needed converting	Na těchto stránkách nebylo co převádět
+	Pictures too	I obrázky
+	Preserve black	Zachovat černou
+	RGB	RGB
+	pure black stays 100% K or gray 0 instead of a mix	čistá černá zůstane 100 % K nebo šedá 0 místo směsi
+	re-encoded in the target space; JPEGs stay JPEG	překódované do cílového prostoru; JPEG zůstanou JPEG
+	their appearances as well as the page	jejich vzhled i stránka

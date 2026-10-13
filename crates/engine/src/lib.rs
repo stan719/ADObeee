@@ -50,7 +50,8 @@ pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnific
 pub use pdfcraft_cos::Algorithm;
 pub use pdfcraft_create::{CONVERTIBLE, CreateError, ImageResolution, SourceKind, decode_text, source_kind};
 pub use pdfcraft_edit::{
-    Added, AddedImage, AddedText, Align as TextAlign, Background, Content as AddedContent, Family as FontFamily, HeaderFooter, MarkKind, Watermark,
+    Added, AddedImage, AddedText, Align as TextAlign, Background, ColourTarget, ColoursConverted, Content as AddedContent, ConvertColours,
+    Family as FontFamily, HeaderFooter, MarkKind, Watermark,
 };
 pub use pdfcraft_forms::{
     BorderStyle, CheckStyle, Field as FormField, FieldAction, FieldChange, FieldFont, FieldKind as FormFieldKind, FieldProps, FieldValue,
@@ -230,7 +231,8 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::AddHeaderFooter { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
-        | Edit::RemoveMarks { .. } => Scope::Content,
+        | Edit::RemoveMarks { .. }
+        | Edit::ConvertColours { .. } => Scope::Content,
         Edit::Batch { edits, .. } => {
             let mut scopes = edits.iter().map(scope_of);
             let first = scopes.next().unwrap_or(Scope::Full);
@@ -1330,6 +1332,11 @@ pub enum Edit {
     },
     /// Document Properties ▸ Initial View (and the language and binding).
     SetInitialView(Box<InitialView>),
+    /// Print production ▸ Convert colours: every colour on the pages in grayscale, RGB or CMYK.
+    ConvertColours {
+        pages: Vec<usize>,
+        settings: pdfcraft_edit::ConvertColours,
+    },
     /// Build a tagged structure tree for an untagged, text-only document.
     AutoTagText,
     /// Add alternate text: set (or clear, with `None`) a figure's alternate text. `figure` is
@@ -1813,6 +1820,7 @@ impl Edit {
             Edit::DuplicateField { .. } => Label::of("Duplicate field"),
             Edit::SetTabOrder { .. } | Edit::MoveInTabOrder { .. } => Label::of("Set tab order"),
             Edit::SetInitialView(_) => Label::of("Change initial view"),
+            Edit::ConvertColours { .. } => Label::of("Convert colours"),
             Edit::AutoTagText => Label::of("Automatically tag text"),
             Edit::SetAltText { .. } => Label::of("Set alternate text"),
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
@@ -2002,6 +2010,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetTabOrder { .. }
         | Edit::MoveInTabOrder { .. }
         | Edit::SetInitialView(_)
+        | Edit::ConvertColours { .. }
         | Edit::AutoTagText
         | Edit::SetAltText { .. }
         | Edit::SetTagProperty { .. }
@@ -2191,6 +2200,20 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::EraseInk { page, index, path, radius } => {
             pdfcraft_annot::erase_ink(doc, *page, *index, path, *radius, &cx.meta())?;
+        }
+        Edit::ConvertColours { pages, settings } => {
+            let mut recolour = |doc: &pdfcraft_cos::Document, s: &pdfcraft_cos::Stream, t: pdfcraft_edit::ColourTarget| {
+                let target = match t {
+                    pdfcraft_edit::ColourTarget::Gray => pdfcraft_optimize::ImageTarget::Gray,
+                    pdfcraft_edit::ColourTarget::Rgb => pdfcraft_optimize::ImageTarget::Rgb,
+                    pdfcraft_edit::ColourTarget::Cmyk => pdfcraft_optimize::ImageTarget::Cmyk,
+                };
+                pdfcraft_optimize::recolour_image(doc, s, target)
+            };
+            let done = pdfcraft_edit::convert_colours(doc, pages, settings, &mut recolour)?;
+            if done.colours == 0 && done.images == 0 {
+                return Err(EditError::Edit(pdfcraft_edit::EditError::Invalid("nothing on those pages needed converting".into())));
+            }
         }
         Edit::ReplaceText { page, quads, text, author, strike, caret } => {
             pdfcraft_annot::add_text_replacement(doc, *page, quads, text, author, strike, caret, &cx.meta())?;
@@ -3949,6 +3972,22 @@ impl Session {
     }
 
     /// The print-ready PDF for `settings` (sheets laid out for the paper; see `pdfcraft-print`).
+    /// What Convert colours would change on `pages` of `id`, without changing the document.
+    pub fn count_colours(&self, id: DocId, pages: &[usize], settings: &pdfcraft_edit::ConvertColours) -> pdfcraft_edit::ColoursConverted {
+        let Some(doc) = self.get(id) else { return Default::default() };
+        let Some(editor) = doc.editor.as_ref() else { return Default::default() };
+        let mut cos = editor.cos.clone();
+        let mut recolour = |doc: &pdfcraft_cos::Document, s: &pdfcraft_cos::Stream, t: pdfcraft_edit::ColourTarget| {
+            let target = match t {
+                pdfcraft_edit::ColourTarget::Gray => pdfcraft_optimize::ImageTarget::Gray,
+                pdfcraft_edit::ColourTarget::Rgb => pdfcraft_optimize::ImageTarget::Rgb,
+                pdfcraft_edit::ColourTarget::Cmyk => pdfcraft_optimize::ImageTarget::Cmyk,
+            };
+            pdfcraft_optimize::recolour_image(doc, s, target)
+        };
+        pdfcraft_edit::convert_colours(&mut cos, pages, settings, &mut recolour).unwrap_or_default()
+    }
+
     pub fn print_pdf(&self, id: DocId, settings: &print::Settings) -> Result<Vec<u8>, EditError> {
         let doc = self.get(id).ok_or(EditError::NoDocument)?;
         if !doc.allows_printing() {

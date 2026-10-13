@@ -2348,3 +2348,18 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+	By the standard device formulas; profiles are not applied.	Standart cihaz formülleriyle; profiller uygulanmaz.
+	CMYK	CMYK
+	Comments and form fields	Yorumlar ve form alanları
+	Convert colours	Renkleri dönüştür
+	Convert colours…	Renkleri dönüştür…
+	Convert to	Şuna dönüştür
+	Converted {c} colours and {i} pictures on {p} pages	{p} sayfada {c} renk ve {i} resim dönüştürüldü
+	Grayscale	Gri tonlama
+	Nothing on those pages needed converting	Bu sayfalarda dönüştürülecek bir şey yoktu
+	Pictures too	Resimler de
+	Preserve black	Siyahı koru
+	RGB	RGB
+	pure black stays 100% K or gray 0 instead of a mix	saf siyah karışım yerine %100 K veya gri 0 kalır
+	re-encoded in the target space; JPEGs stay JPEG	hedef alanda yeniden kodlanır; JPEG'ler JPEG kalır
+	their appearances as well as the page	görünümleri ve sayfa

@@ -4523,3 +4523,38 @@ fn copy_image_finds_a_picture_inside_form_artwork_under_text() {
     assert_eq!(d.page_image_copy_file(0, 0).unwrap(), ("jpg", jpeg));
     assert!(d.page_image_copy_file(0, 1).is_err());
 }
+
+/// Convert colours re-encodes pictures too (RGB → gray, the JPEG staying JPEG) and is one undo
+/// step; a document with nothing to convert refuses rather than leaving an empty step.
+#[test]
+fn converting_colours_recolours_pictures() {
+    let mut s = Session::new();
+    let mut px = image::RgbImage::new(8, 8);
+    for p in px.pixels_mut() {
+        *p = image::Rgb([200, 40, 40]);
+    }
+    let mut jpg = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(px).write_to(&mut jpg, image::ImageFormat::Jpeg).unwrap();
+    let pic = s.create_from_images(&[("p.jpg".into(), jpg.into_inner())]).unwrap();
+    let id = s.open("p.pdf", None, pic, None).unwrap();
+    // The picture's colour space and filter, read from the document's current bytes.
+    let picture = |s: &Session| -> (String, String) {
+        let doc = pdfcraft_cos::Document::open(s.get(id).unwrap().bytes.clone()).unwrap();
+        doc.scan_objects()
+            .find_map(|(_, o)| match &*o {
+                pdfcraft_cos::Object::Stream(st) if st.dict.name(b"Subtype") == Some(b"Image") => Some((
+                    String::from_utf8_lossy(st.dict.name(b"ColorSpace").unwrap_or_default()).into_owned(),
+                    String::from_utf8_lossy(st.dict.name(b"Filter").unwrap_or_default()).into_owned(),
+                )),
+                _ => None,
+            })
+            .expect("the picture")
+    };
+    assert_eq!(picture(&s).0, "DeviceRGB");
+    s.apply(id, Edit::ConvertColours { pages: vec![0], settings: ConvertColours::default() }).unwrap();
+    assert_eq!(s.get(id).unwrap().can_undo(), Some("Convert colours"));
+    assert_eq!(picture(&s), ("DeviceGray".to_string(), "DCTDecode".to_string()));
+    assert!(matches!(s.apply(id, Edit::ConvertColours { pages: vec![0], settings: ConvertColours::default() }), Err(EditError::Edit(_))));
+    s.undo(id).unwrap();
+    assert_eq!(picture(&s).0, "DeviceRGB");
+}

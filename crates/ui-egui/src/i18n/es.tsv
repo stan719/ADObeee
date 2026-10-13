@@ -2482,3 +2482,18 @@ animation effects	Off	Desactivados
 	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después
+	By the standard device formulas; profiles are not applied.	Con las fórmulas estándar de dispositivo; no se aplican perfiles.
+	CMYK	CMYK
+	Comments and form fields	Comentarios y campos de formulario
+	Convert colours	Convertir colores
+	Convert colours…	Convertir colores…
+	Convert to	Convertir a
+	Converted {c} colours and {i} pictures on {p} pages	Se convirtieron {c} colores y {i} imágenes en {p} páginas
+	Grayscale	Escala de grises
+	Nothing on those pages needed converting	Nada en esas páginas necesitaba conversión
+	Pictures too	Las imágenes también
+	Preserve black	Conservar el negro
+	RGB	RGB
+	pure black stays 100% K or gray 0 instead of a mix	el negro puro se queda en K 100 % o gris 0 en vez de una mezcla
+	re-encoded in the target space; JPEGs stay JPEG	recodificadas en el espacio de destino; los JPEG siguen siendo JPEG
+	their appearances as well as the page	sus apariencias además de la página
