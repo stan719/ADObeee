@@ -3589,6 +3589,7 @@ dependencies = [
  "egui",
  "fmv-macos-events",
  "log",
+ "pdfcraft-engine",
  "pdfcraft-ui-egui",
  "pollster 1.0.1",
  "rustls-native-certs",
@@ -3608,6 +3609,7 @@ version = "0.7.1"
 dependencies = [
  "pdfcraft-content",
  "pdfcraft-cos",
+ "pdfcraft-filters",
  "pdfcraft-fonts",
  "pdfcraft-model",
  "thiserror 2.0.21",
@@ -3653,6 +3655,7 @@ dependencies = [
  "png 0.18.1",
  "serde_json",
  "sha2",
+ "tempfile",
  "zip",
 ]
 
@@ -3710,6 +3713,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tiff",
  "zip",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -4002,6 +4006,7 @@ dependencies = [
  "png 0.18.1",
  "pollster 1.0.1",
  "rfd",
+ "rustix 1.1.5",
  "serde",
  "serde_json",
  "skrifa 0.44.0",
