@@ -115,6 +115,7 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
             ToolSection {
                 title: "Modify page",
                 items: &[
+                    item("Edit text & images", "text-cursor-input", "edit.edit_text", Ready),
                     item("Rotate pages", "rotate-cw", "page.rotate", Ready),
                     item("Insert pages", "file-plus-2", "page.insert", Ready),
                     item("Delete pages", "trash-2", "page.delete", Ready),
@@ -125,7 +126,6 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
             ToolSection {
                 title: "Add content",
                 items: &[
-                    item("Edit text & images", "text-cursor-input", "edit.edit_text", Ready),
                     item("Text", "type", "edit.text", Ready),
                     item("Image", "image-plus", "edit.image", Ready),
                     item("Header and footer", "heading", "edit.header_footer", Ready),
