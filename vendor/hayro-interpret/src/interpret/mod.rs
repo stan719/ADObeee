@@ -177,6 +177,8 @@ pub fn interpret_page<'a>(
     {
         for annot in annot_arr.iter::<Dict<'_>>() {
             let flags = annot.get::<u32>(F).unwrap_or(0);
+            let is_highlight =
+                annot.get::<hayro_syntax::object::Name<'_>>(SUBTYPE).as_deref() == Some(b"Highlight");
 
             // Annotation should be hidden (Hidden = bit 2, NoView = bit 6).
             // PdfCraft patch: NoView was not honoured upstream.
@@ -267,10 +269,27 @@ pub fn interpret_page<'a>(
                 context.pre_concat_affine(affine);
                 context.push_root_transform();
 
+                // PdfCraft patch: use annotation opacity as the appearance's default paint alpha.
+                // An explicit appearance ExtGState overrides it, rather than being multiplied by
+                // it again (PdfCraft and external producers also encode /CA inside the appearance).
+                // The outer unit-opacity Multiply group keeps opaque Normal artwork from covering
+                // the marked text without applying opacity twice.
+                if is_highlight {
+                    let state = &mut context.get_mut().graphics_state;
+                    let opacity = annot.get::<f32>(CA).unwrap_or(1.0).clamp(0.0, 1.0);
+                    state.non_stroke_alpha = opacity;
+                    state.stroke_alpha = opacity;
+                    state.soft_mask = None;
+                    state.blend_mode = BlendMode::Multiply;
+                    device.push_transparency_group(1.0, None, BlendMode::Multiply);
+                }
                 draw_form_xobject(resources, &apx, context, device);
+                if is_highlight {
+                    device.pop_transparency_group();
+                }
                 context.pop_root_transform();
                 context.restore_state(device);
-            } else if annot.get::<hayro_syntax::object::Name<'_>>(SUBTYPE).as_deref() == Some(b"Highlight") {
+            } else if is_highlight {
                 // PdfCraft patch: a Highlight without a usable normal appearance was not drawn.
                 draw_highlight_without_appearance(&annot, context, device);
             }

@@ -642,4 +642,7 @@ fn paper_matching_accepts_rounded_metric_sizes_but_not_custom_or_invalid_sizes()
     for size in [(0.0, 0.0), (-1728.0, 2592.0), (f64::INFINITY, 2592.0), (1728.0, f64::NAN), (1000.0, 1000.0)] {
         assert_eq!(matching_paper(size), None);
     }
+    let label = (62.0 * 72.0 / 25.4, 100.0 * 72.0 / 25.4);
+    assert_eq!(page_paper((label.1, label.0)), Some(label));
+    assert_eq!(page_paper((71.99, 300.0)), None);
 }

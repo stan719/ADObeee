@@ -41,6 +41,7 @@ impl Automation {
         let doc = self.doc(a)?;
         let (id, count) = (doc.id, doc.info.pages.len());
         let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
+        let sizes: Vec<(f64, f64)> = doc.info.pages.iter().map(|p| (p.width as f64, p.height as f64)).collect();
         let subset = match a.opt_str("subset")?.unwrap_or("all") {
             "all" => Subset::All,
             "odd" => Subset::Odd,
@@ -113,6 +114,12 @@ impl Automation {
         };
         let paper = match a.opt_str("paper")? {
             None => PAPERS[0].1,
+            Some(p) if p.eq_ignore_ascii_case("page") => pages
+                .first()
+                .and_then(|page| sizes.get(*page))
+                .copied()
+                .and_then(print::page_paper)
+                .ok_or_else(|| bad("the first selected page has no valid paper size"))?,
             Some(p) => PAPERS
                 .iter()
                 .find(|(n, _)| {
@@ -122,11 +129,10 @@ impl Automation {
                 })
                 .map(|x| x.1)
                 .ok_or_else(|| {
-                    bad(format!("unknown paper {p:?}; choose one of {}", PAPERS.iter().map(|(name, _)| *name).collect::<Vec<_>>().join(", ")))
+                    bad(format!("unknown paper {p:?}; choose page or one of {}", PAPERS.iter().map(|(name, _)| *name).collect::<Vec<_>>().join(", ")))
                 })?,
         };
         let settings = print::Settings { pages, paper, orientation, layout, content };
-        let sizes: Vec<(f64, f64)> = self.doc(a)?.info.pages.iter().map(|p| (p.width as f64, p.height as f64)).collect();
         let sheets = print::layout(&sizes, &settings).map_err(|e| bad(e.to_string()))?.len();
         let bytes = self.session.print_pdf(id, &settings).map_err(failed)?;
         let mut out = json!({ "sheets": sheets, "pages": settings.pages.len(), "bytes": bytes.len() });

@@ -258,13 +258,18 @@ pub const PAPERS: [(&str, (f64, f64)); 18] = [
     ("A0", (2383.94, 3370.39)),
 ];
 
+/// A displayed PDF page as a valid portrait paper size, independent of orientation.
+pub fn page_paper(size: (f64, f64)) -> Option<(f64, f64)> {
+    if !(size.0 >= 72.0 && size.1 >= 72.0 && size.0.is_finite() && size.1.is_finite()) {
+        return None;
+    }
+    Some((size.0.min(size.1), size.0.max(size.1)))
+}
+
 /// Match a displayed PDF page to a standard sheet, independent of orientation.
 /// Half a point allows rounded metric PDF dimensions without confusing distinct sizes.
 pub fn matching_paper(size: (f64, f64)) -> Option<usize> {
-    if !size.0.is_finite() || !size.1.is_finite() {
-        return None;
-    }
-    let size = (size.0.min(size.1), size.0.max(size.1));
+    let size = page_paper(size)?;
     PAPERS.iter().position(|(_, p)| (p.0 - size.0).abs() <= 0.5 && (p.1 - size.1).abs() <= 0.5)
 }
 

@@ -68,6 +68,8 @@ pub struct PrintDraft {
     pub orientation: Orientation,
     pub content: Content,
     pub paper: usize,
+    /// A page-sized sheet not present in [`PAPERS`], stored in portrait orientation.
+    pub custom_paper: Option<(f64, f64)>,
     /// The sheet shown in the preview (0-based).
     pub sheet: usize,
     pub current_page: usize,
@@ -112,6 +114,7 @@ impl Default for PrintDraft {
             orientation: Orientation::Auto,
             content: Content::DocumentAndMarkups,
             paper: 0,
+            custom_paper: None,
             sheet: 0,
             current_page: 0,
             driver_options: None,
@@ -156,7 +159,8 @@ impl PrintDraft {
             Handling::Booklet => Layout::Booklet { subset: self.booklet_subset, binding: self.binding },
             Handling::Poster => Layout::Poster { scale: self.poster_scale, overlap: self.overlap, cut_marks: self.cut_marks },
         };
-        Ok(print::Settings { pages, paper: PAPERS[self.paper.min(PAPERS.len() - 1)].1, orientation: self.orientation, layout, content: self.content })
+        let paper = self.custom_paper.unwrap_or(PAPERS[self.paper.min(PAPERS.len() - 1)].1);
+        Ok(print::Settings { pages, paper, orientation: self.orientation, layout, content: self.content })
     }
 
     pub fn job(&self, title: &str) -> spool::Job {
@@ -731,10 +735,25 @@ pub(crate) fn body(
                 });
                 ui.end_row();
                 ui.label(tl!("Paper:"));
-                let paper_name = PAPERS.get(d.paper).map_or("US Letter", |p| p.0);
+                let page_paper = sizes.get(d.current_page).copied().and_then(print::page_paper);
+                let page_label = page_paper.map(|paper| {
+                    crate::i18n::fmt(tl!("PDF page: {size}"), &[("size", &d.units.size(paper.0, paper.1))])
+                });
+                let custom_label = d.custom_paper.map(|paper| {
+                    crate::i18n::fmt(tl!("PDF page: {size}"), &[("size", &d.units.size(paper.0, paper.1))])
+                });
+                let paper_name = custom_label.as_deref().unwrap_or_else(|| PAPERS.get(d.paper).map_or("US Letter", |p| p.0));
                 egui::ComboBox::from_id_salt("paper").selected_text(paper_name).width(260.0).show_ui(ui, |ui| {
+                    if let (Some(paper), Some(label)) = (page_paper, page_label.as_deref())
+                        && ui.selectable_label(d.custom_paper == Some(paper), label).clicked()
+                    {
+                        d.custom_paper = Some(paper);
+                    }
                     for (i, (name, _)) in PAPERS.iter().enumerate() {
-                        ui.selectable_value(&mut d.paper, i, *name);
+                        if ui.selectable_label(d.custom_paper.is_none() && d.paper == i, *name).clicked() {
+                            d.paper = i;
+                            d.custom_paper = None;
+                        }
                     }
                 });
                 ui.end_row();
@@ -759,10 +778,16 @@ pub(crate) fn body(
                 ui.horizontal_wrapped(|ui| {
                     ui.label(crate::i18n::fmt(tl!("PDF page: {size}"), &[("size", &d.units.size(source.0, source.1))]));
                     let matched = print::matching_paper(source);
-                    if ui.add_enabled(matched.is_some(), egui::Button::new(tl!("Match page at 100%"))).clicked()
-                        && let Some(paper) = matched
+                    let page_paper = print::page_paper(source);
+                    if ui.add_enabled(page_paper.is_some(), egui::Button::new(tl!("Match page at 100%"))).clicked()
+                        && let Some(paper) = page_paper
                     {
-                        d.paper = paper;
+                        if let Some(index) = matched {
+                            d.paper = index;
+                            d.custom_paper = None;
+                        } else {
+                            d.custom_paper = Some(paper);
+                        }
                         d.handling = Handling::Size;
                         d.size = SizeMode::Actual;
                         d.orientation = Orientation::Auto;
