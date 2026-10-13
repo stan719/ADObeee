@@ -770,7 +770,7 @@ fn overlay_extreme_counts_and_invalid_geometry_are_refused_without_large_allocat
 fn repeated_overlay_keeps_its_exact_appearance_and_counts_escaped_bytes() {
     let doc = repeated_overlay_document(20.0, 10.0, true);
     let mut mark = marks(&doc).remove(0);
-    let expected = b"q 0 0 0 rg\n0 0 20 10 re f\nQ\nq 0 0 20 10 re W n BT 1 0 0 rg /PCHelv 2 Tf 1 0 0 1 1.8 7.9 Tm (X X X X X X X X X) Tj 1 0 0 1 1.8 5.5 Tm (X X X X X X X X X) Tj 1 0 0 1 1.8 3.1 Tm (X X X X X X X X X) Tj 1 0 0 1 1.8 0.7 Tm (X X X X X X X X X) Tj ET Q\n";
+    let expected = b"q 0 0 0 rg\n0 0 20 10 re f\nQ\nq 0 0 20 10 re W n BT 1 0 0 rg /PCHelv 2 Tf 1 0 0 1 1.773 7.9 Tm (X X X X X X X X X) Tj 1 0 0 1 1.773 5.5 Tm (X X X X X X X X X) Tj 1 0 0 1 1.773 3.1 Tm (X X X X X X X X X) Tj 1 0 0 1 1.773 0.7 Tm (X X X X X X X X X) Tj ET Q\n";
     let mut remaining = expected.len();
     assert_eq!(overlay::content(&[&mark], &mut remaining).unwrap(), expected);
     assert_eq!(remaining, 0);
