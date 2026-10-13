@@ -3720,10 +3720,14 @@ impl Session {
 
     /// The bytes to write for Save: an incremental update of the file as opened/last saved,
     /// with `/ModDate` stamped. Call `mark_saved` after writing them successfully.
+    ///
+    /// A file whose cross-reference data had to be rebuilt is written in full even when nothing
+    /// was edited: its bytes as opened are the damaged file, and this save is how the repair the
+    /// user was told about reaches the disk (#1937).
     pub fn save_bytes(&self, id: DocId) -> Result<Arc<Vec<u8>>, EditError> {
         let doc = self.get(id).ok_or(EditError::NoDocument)?;
         let Some(editor) = doc.editor.as_ref() else { return Ok(doc.bytes.clone()) };
-        if !editor.cos.is_modified() {
+        if !editor.cos.is_modified() && !editor.cos.reconstructed() {
             return Ok(editor.cos.bytes().clone());
         }
         let opts = SaveOptions { mod_date: self.now().map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };

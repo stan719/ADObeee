@@ -466,6 +466,40 @@ fn save_is_incremental_stamps_mod_date_and_rebases() {
     assert_eq!(reopened.revisions().len(), 3);
 }
 
+/// #1937: a file whose cross-reference data had to be rebuilt saved as its original bytes when
+/// nothing was edited, so the damage Document Properties reported as repaired was still in the
+/// file. Save writes the rebuilt file in full; reopened, it needs no repair.
+#[test]
+fn a_repaired_file_is_rewritten_by_save_even_without_edits() {
+    let good = fixture(2);
+    // Every offset in the table is off by the inserted line: the chain reads but leads nowhere.
+    let mut shifted = b"%PDF-1.7\n%shifted\n".to_vec();
+    shifted.extend_from_slice(&good[b"%PDF-1.7\n".len()..]);
+    // No cross-reference table at all.
+    let mut lost = good.clone();
+    lost.truncate(good.windows(9).rposition(|w| w == b"startxref").unwrap());
+    lost.extend_from_slice(b"startxref\n999999\n%%EOF\n");
+    for (name, damaged) in [("shifted", shifted), ("lost", lost)] {
+        let mut s = Session::new().with_clock(|| 1_700_000_000);
+        let id = s.open("broken.pdf", Some("/tmp/broken.pdf".into()), Arc::new(damaged.clone()), None).unwrap();
+        let doc = s.get(id).unwrap();
+        assert!(doc.repair_log().iter().any(|l| l.contains("rebuilt cross-reference index")), "{name}: {:?}", doc.repair_log());
+        assert_eq!(doc.info.pages.len(), 2, "{name}");
+        assert!(!doc.dirty, "{name}: a repair is not an edit");
+        let saved = s.save_bytes(id).unwrap();
+        assert_ne!(&saved[..], &damaged[..], "{name}: the damaged bytes are not what Save writes");
+        let reopened = pdfcraft_cos::Document::open(saved.clone()).unwrap();
+        assert!(reopened.repair_log().is_empty(), "{name}: {:?}", reopened.repair_log());
+        assert_eq!(reopened.revisions().len(), 1, "{name}");
+        s.mark_saved(id, saved.clone(), None).unwrap();
+        let doc = s.get(id).unwrap();
+        assert!(doc.repair_log().is_empty(), "{name}: {:?}", doc.repair_log());
+        assert_eq!(doc.info.pages.len(), 2, "{name}");
+        // Sound now: saving again without edits writes the same bytes.
+        assert_eq!(s.save_bytes(id).unwrap(), saved, "{name}");
+    }
+}
+
 #[test]
 fn undo_still_works_after_save() {
     let (mut s, id) = session_with(2);
