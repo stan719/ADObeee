@@ -312,6 +312,11 @@ pub struct DocView {
     pub forward: Vec<usize>,
     /// Pending navigation: page and fraction down the page to align with the viewport top.
     pub goto: Option<(usize, f32)>,
+    /// Where a reopened file left off (page, fraction down it, frames left to hold it): applied
+    /// again for a few frames, because the first layouts happen before fit-width settles the zoom.
+    pub resume: Option<(usize, f32, u8)>,
+    /// The page at the viewport's top and how far down it the top edge is, for remembering the place.
+    pub read_anchor: (usize, f32),
     /// Pending position within that page from a destination ([`Self::go_to_dest`]): the point
     /// (fractions of the displayed page; `None` leaves that axis to `goto`) to put `rel` points
     /// from the viewport's top-left corner.
@@ -595,6 +600,8 @@ impl DocView {
             back: Vec::new(),
             forward: Vec::new(),
             goto: None,
+            resume: None,
+            read_anchor: (0, 0.0),
             goto_point: None,
             key_scroll: 0.0,
             single_edges: None,
@@ -1021,6 +1028,29 @@ impl DocView {
         self.goto = Some((page, 0.0));
         self.current = page;
         self.page_input = (page + 1).to_string();
+    }
+    /// The zoom as saved with a file: `fit-width`, `fit-page`, `fit-height` or a percentage.
+    pub fn zoom_token(&self) -> String {
+        match self.fit {
+            Fit::Width => "fit-width".into(),
+            Fit::Page => "fit-page".into(),
+            Fit::Height => "fit-height".into(),
+            Fit::None => format!("{}%", (self.zoom * 100.0).round()),
+        }
+    }
+
+    /// Apply a [`zoom_token`](Self::zoom_token); anything unreadable leaves the zoom alone.
+    pub fn apply_zoom_token(&mut self, token: &str) {
+        match token {
+            "fit-width" => self.fit = Fit::Width,
+            "fit-page" => self.fit = Fit::Page,
+            "fit-height" => self.fit = Fit::Height,
+            other => {
+                if let Some(percent) = other.strip_suffix('%').and_then(|p| p.parse::<f32>().ok()) {
+                    self.set_zoom(percent / 100.0);
+                }
+            }
+        }
     }
 
     /// Go to a destination, a bookmark's or a link's (ISO 32000-2 §12.3.2.2): its page, scrolled
@@ -2268,7 +2298,11 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         let r = rects[page.min(rects.len() - 1)];
         let point = pos2(r.left() + fx * r.width(), r.top() - y_shift + fy * r.height());
         scroll = scroll.scroll_offset(vec2((point.x - rel.x).max(0.0), (point.y - rel.y).max(0.0)));
-    } else if let Some((page, frac)) = view.goto.take() {
+    } else if let Some((page, frac)) = view.goto.take().or_else(|| {
+        let (page, frac, frames) = view.resume.take()?;
+        view.resume = frames.checked_sub(1).filter(|f| *f > 0).map(|f| (page, frac, f));
+        Some((page, frac))
+    }) {
         let page = page.min(rects.len() - 1);
         let r = rects[page];
         scroll = scroll.vertical_scroll_offset((r.top() - y_shift - GAP + frac * r.height()).max(0.0));
@@ -3182,6 +3216,13 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     if older.len() > OLD_TILES {
         older.sort_by(|a, b| a.0.total_cmp(&b.0));
         for (_, k) in older.drain(OLD_TILES..) {
+            if view.continuous && view.resume.is_none() && !rects.is_empty() {
+                let top = scroll_offset.y + y_shift + GAP;
+                let page = rects.iter().rposition(|r| r.top() <= top).unwrap_or(0);
+                view.read_anchor = (page, ((top - rects[page].top()) / rects[page].height().max(1.0)).clamp(0.0, 1.0));
+            } else if !view.continuous {
+                view.read_anchor = (view.current, 0.0);
+            }
             view.tiles.remove(&k);
         }
     }
@@ -3246,7 +3287,9 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         tag: TEXT_TAG,
         preview: false,
     }));
-    view.frame_queue = queue;
+    // A file reopened at its place lays out at the top first: skip that frame's requests so the
+    // workers start on the page the reader left, not on page 1.
+    view.frame_queue = if view.resume.is_some_and(|(_, _, left)| left >= 11) { Vec::new() } else { queue };
     view.frame_visible = visible_now.iter().copied().collect();
 
     if let Some((pos, text)) = hover_text {

@@ -549,6 +549,8 @@ pub struct PdfCraftApp {
     pub palette_query: String,
     pub all_tools_expanded: bool,
     pub recent: Vec<RecentFile>,
+    /// Where each file was last left (page, place in the page, zoom), by absolute path, oldest first.
+    pub reading_places: Vec<last_session::ReadingPlace>,
     /// Preferences: reopen the files that were open when PdfCraft last closed (#442).
     pub reopen_last_session: bool,
     /// The files open when PdfCraft last closed, read from the settings for
@@ -904,6 +906,7 @@ impl PdfCraftApp {
             palette_query: String::new(),
             all_tools_expanded: false,
             recent: Vec::new(),
+            reading_places: Vec::new(),
             reopen_last_session: false,
             last_session: Default::default(),
             quit_session: None,
@@ -1291,11 +1294,21 @@ impl PdfCraftApp {
             };
         }
         let initial = doc.initial_view();
+        let resume = doc.path.as_deref().and_then(|p| self.saved_position(p));
         self.views.push(DocView::new(id, &doc.info, self.view_defaults));
         if activate {
             self.active = Some(self.views.len() - 1);
         }
         self.apply_initial_view(self.views.len() - 1, &initial);
+        if let Some(place) = resume
+            && let Some(view) = self.views.last_mut()
+        {
+            view.apply_zoom_token(&place.zoom);
+            if place.page < pages && (place.page > 0 || place.frac > 0.0) {
+                view.go_to_page(place.page);
+                view.resume = Some((place.page, place.frac, 12));
+            }
+        }
         if activate
             && self.left_open
             && self.left == LeftPanel::Tool("organize")
@@ -1782,7 +1795,9 @@ impl PdfCraftApp {
         if index >= self.views.len() {
             return;
         }
-        let id = self.views.remove(index).id;
+        let view = self.views.remove(index);
+        let id = view.id;
+        self.remember_position(id, &view);
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = self.session.get(id).and_then(|d| d.path.clone()) {
             if self.closed_tabs.len() == 10 {
@@ -2082,7 +2097,7 @@ impl PdfCraftApp {
     /// Serialize the user's persistent state (recent files, theme). Local only.
     pub fn persist(&self) -> String {
         let trusted: Vec<String> = self.session.trusted_certificates().iter().map(pdfcraft_engine::sign::x509::to_pem).collect();
-        serde_json::json!({
+        let mut state = serde_json::json!({
             "docking": self.docking,
             "docking_left_open": self.left_open,
             "docking_right": self.right,
@@ -2141,8 +2156,10 @@ impl PdfCraftApp {
             "combine_zoom": self.combine_zoom,
             "comments_panel_closed": self.comments_panel_closed,
             "right_panel_closed": self.right_panel_closed,
-        })
-        .to_string()
+        });
+        // Outside the macro: the literal above is at serde_json's recursion limit.
+        state["reading_places"] = serde_json::json!(self.positions_to_save());
+        state.to_string()
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2177,6 +2194,7 @@ impl PdfCraftApp {
         if let Some(on) = v["system_title_bar"].as_bool() {
             self.system_title_bar = on;
         }
+        self.reading_places = last_session::places_from_json(&v["reading_places"]);
         if let Some(on) = v["reload_changed_files"].as_bool() {
             self.reload_changed_files = on;
         }

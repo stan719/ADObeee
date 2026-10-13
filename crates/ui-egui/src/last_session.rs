@@ -49,6 +49,38 @@ impl LastSession {
     }
 }
 
+/// Files whose last-read page is kept. Oldest are dropped first.
+pub const MAX_POSITIONS: usize = 500;
+
+/// Where a file was left: the page at the top of the window, how far down it, and the zoom.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ReadingPlace {
+    /// Absolute path of the file.
+    pub path: String,
+    pub page: usize,
+    /// Fraction of the page above the window's top edge.
+    pub frac: f32,
+    /// `fit-width`, `fit-page`, `fit-height` or a percentage such as `150%`.
+    pub zoom: String,
+}
+
+/// Read the saved places. Malformed entries are skipped and the list is capped.
+pub(crate) fn places_from_json(v: &serde_json::Value) -> Vec<ReadingPlace> {
+    let Some(items) = v.as_array() else { return Vec::new() };
+    let all: Vec<ReadingPlace> = items
+        .iter()
+        .filter_map(|e| {
+            let path = e["path"].as_str().filter(|p| !p.is_empty())?.to_string();
+            let page = usize::try_from(e["page"].as_u64()?).ok()?;
+            let frac = e["frac"].as_f64().filter(|f| f.is_finite()).map_or(0.0, |f| f.clamp(0.0, 1.0) as f32);
+            let zoom = e["zoom"].as_str().map_or_else(|| "fit-width".to_string(), str::to_string);
+            Some(ReadingPlace { path, page, frac, zoom })
+        })
+        .collect();
+    let skip = all.len().saturating_sub(MAX_POSITIONS);
+    all.into_iter().skip(skip).collect()
+}
+
 /// `path` made absolute against the current directory, without resolving links (and without
 /// Windows' `\\?\` prefix, which `canonicalize` adds).
 #[cfg(not(target_arch = "wasm32"))]
@@ -78,6 +110,54 @@ impl PdfCraftApp {
             Some(s) if self.allow_quit => s.clone(),
             _ => self.open_session(),
         }
+    }
+
+    /// Note where a document was left, under its file path (documents without a file have none).
+    pub(crate) fn remember_position(&mut self, id: crate::DocId, view: &crate::canvas::DocView) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(place) = self.place_of(id, view) {
+            self.reading_places.retain(|p| p.path != place.path);
+            self.reading_places.push(place);
+            let excess = self.reading_places.len().saturating_sub(MAX_POSITIONS);
+            self.reading_places.drain(..excess);
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = (id, view);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn place_of(&self, id: crate::DocId, view: &crate::canvas::DocView) -> Option<ReadingPlace> {
+        let path = self.session.get(id).and_then(|d| d.path.as_deref()).map(absolute)?;
+        Some(ReadingPlace { path, page: view.read_anchor.0, frac: view.read_anchor.1, zoom: view.zoom_token() })
+    }
+
+    /// Where `path` was last left, if known.
+    pub(crate) fn saved_position(&self, path: &str) -> Option<ReadingPlace> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let path = absolute(path);
+            self.reading_places.iter().rev().find(|p| p.path == path).cloned()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = path;
+            None
+        }
+    }
+
+    /// The remembered places plus those of the documents open now, for saving.
+    pub(crate) fn positions_to_save(&self) -> Vec<ReadingPlace> {
+        let mut out = self.reading_places.clone();
+        #[cfg(not(target_arch = "wasm32"))]
+        for v in &self.views {
+            if let Some(place) = self.place_of(v.id, v) {
+                out.retain(|p| p.path != place.path);
+                out.push(place);
+            }
+        }
+        let excess = out.len().saturating_sub(MAX_POSITIONS);
+        out.drain(..excess);
+        out
     }
 
     /// A quit is about to close its first tab: remember everything that is still open.
@@ -141,6 +221,23 @@ impl PdfCraftApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn malformed_places_are_skipped_and_capped() {
+        let v = serde_json::json!([
+            {"path": "/a.pdf", "page": 3, "frac": 0.25, "zoom": "150%"},
+            {"path": "", "page": 1}, {"path": 5, "page": 1}, {"path": "/b.pdf", "page": -2}, {"path": "/c.pdf"},
+            {"path": "/d.pdf", "page": 9, "frac": 7.0},
+        ]);
+        let places = places_from_json(&v);
+        let got: Vec<_> = places.iter().map(|p| (p.path.as_str(), p.page, p.frac, p.zoom.as_str())).collect();
+        assert_eq!(got, [("/a.pdf", 3, 0.25, "150%"), ("/d.pdf", 9, 1.0, "fit-width")]);
+        assert!(places_from_json(&serde_json::json!("x")).is_empty());
+        let many: Vec<_> = (0..MAX_POSITIONS + 20).map(|i| serde_json::json!({"path": format!("/{i}.pdf"), "page": i})).collect();
+        let kept = places_from_json(&serde_json::Value::Array(many));
+        assert_eq!(kept.len(), MAX_POSITIONS);
+        assert_eq!(kept[0].path, "/20.pdf");
+    }
 
     #[test]
     fn malformed_sessions_are_skipped_and_capped() {
