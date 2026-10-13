@@ -14,6 +14,7 @@
 
 pub mod actions;
 pub mod autotag;
+pub mod build_info;
 pub mod camera;
 pub mod camera_clean;
 pub mod camera_edges;
@@ -851,6 +852,74 @@ fn display_bytes(editor: Option<&mut Editor>, bytes: &Arc<Vec<u8>>) -> Arc<Vec<u
     write_incremental(&display, &SaveOptions::default()).map(Arc::new).unwrap_or_else(|_| bytes.clone())
 }
 
+/// Fails when the renderer still draws text under an applied redaction mark.
+///
+/// Redaction decides what lies under a mark from the positions its own interpreter computes, and
+/// its verify pass reuses them. Where they differ from the renderer's (a standard font without
+/// /Widths, whose advances the interpreter approximates; a CMap, or a font set outside `Tf`,
+/// that it reads differently), a mark drawn over the text as displayed lies over glyphs the
+/// interpreter believes are elsewhere: they stay in the file and nothing notices. The renderer is
+/// what the user saw when placing the marks, so it is asked. `after` is written as a save would
+/// write it, without the marks' own overlay (the box and its label are drawn on purpose), its
+/// text is extracted, and a glyph still mostly inside a mark fails the edit: the caller keeps
+/// the document as it was.
+fn shown_under_redactions(
+    after: &pdfcraft_cos::Document,
+    marks: &[pdfcraft_redact::Mark],
+    pages: &[pdfcraft_render::PageInfo],
+    password: Option<&str>,
+) -> Result<(), EditError> {
+    use pdfcraft_cos::Object;
+    use pdfcraft_redact::RedactError;
+    let mut marked: Vec<usize> = marks.iter().map(|m| m.page).collect();
+    marked.sort_unstable();
+    marked.dedup();
+    if marked.is_empty() {
+        return Ok(());
+    }
+    let mut shown = after.clone();
+    let model = pdfcraft_model::pages(&shown);
+    for &pi in &marked {
+        let Some(page) = model.get(pi) else { continue };
+        let Some(Object::Array(list)) = page.dict.get(b"Contents").map(|c| (*shown.resolve(c)).clone()) else { continue };
+        let kept: Vec<Object> =
+            list.into_iter().filter(|o| shown.resolve(o).as_dict().and_then(|d| d.name(b"PCMark")) != Some(b"Redaction")).collect();
+        shown.update_dict(page.obj, |d| d.set(b"Contents".to_vec(), Object::Array(kept))).map_err(|e| EditError::Write(e.to_string()))?;
+    }
+    let bytes = write_incremental(&shown, &SaveOptions::default()).map_err(|e| EditError::Write(e.to_string()))?;
+    let config = RenderConfig { password: password.map(Arc::from), ..Default::default() };
+    let mut renderer = pdfcraft_render::PageRenderer::new(Arc::new(bytes), config);
+    let mut residue = 0;
+    for &pi in &marked {
+        let request = pdfcraft_render::RenderRequest { page: pi, kind: pdfcraft_render::RequestKind::Text, scale: 1.0, ..Default::default() };
+        // A page that cannot be read back cannot be confirmed clean.
+        let (Some(info), Some(text)) = (pages.get(pi), renderer.render(request).text) else { return Err(RedactError::Unreadable(pi + 1).into()) };
+        let rects: Vec<[f64; 4]> = marks
+            .iter()
+            .filter(|m| m.page == pi)
+            .flat_map(|m| m.rects.iter())
+            .map(|r| [r[0].min(r[2]), r[1].min(r[3]), r[0].max(r[2]), r[1].max(r[3])])
+            .collect();
+        for glyph in text.glyphs.iter().filter(|g| !g.text.trim().is_empty()) {
+            let [x0, y0, x1, y1] = info.view_rect_to_user(glyph.rect).map(f64::from);
+            let area = (x1 - x0) * (y1 - y0);
+            if area.is_nan() || area <= 0.0 {
+                continue;
+            }
+            // Redaction itself takes any glyph a fifth under a mark; one that is half under it
+            // and still drawn was not where redaction thought it was.
+            let under = |r: &[f64; 4]| (x1.min(r[2]) - x0.max(r[0])).max(0.0) * (y1.min(r[3]) - y0.max(r[1])).max(0.0) >= 0.5 * area;
+            if rects.iter().any(under) {
+                residue += 1;
+            }
+        }
+    }
+    if residue > 0 {
+        return Err(RedactError::Residue(residue).into());
+    }
+    Ok(())
+}
+
 fn render_threads() -> usize {
     std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 8) - 1
 }
@@ -1338,6 +1407,8 @@ pub enum Edit {
     },
     /// Document Properties ▸ Initial View (and the language and binding).
     SetInitialView(Box<InitialView>),
+    /// Build a tagged structure tree for an untagged, text-only document.
+    AutoTagText,
     /// Add alternate text: set (or clear, with `None`) a figure's alternate text. `figure` is
     /// the figure element's object number (from `Document::figures`).
     SetAltText {
@@ -1819,6 +1890,7 @@ impl Edit {
             Edit::DuplicateField { .. } => Label::of("Duplicate field"),
             Edit::SetTabOrder { .. } | Edit::MoveInTabOrder { .. } => Label::of("Set tab order"),
             Edit::SetInitialView(_) => Label::of("Change initial view"),
+            Edit::AutoTagText => Label::of("Automatically tag text"),
             Edit::SetAltText { .. } => Label::of("Set alternate text"),
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
             Edit::MoveTag { .. } => Label::of("Move object"),
@@ -2007,6 +2079,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetTabOrder { .. }
         | Edit::MoveInTabOrder { .. }
         | Edit::SetInitialView(_)
+        | Edit::AutoTagText
         | Edit::SetAltText { .. }
         | Edit::SetTagProperty { .. }
         | Edit::MoveTag { .. }
@@ -2281,6 +2354,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         Edit::SetTabOrder { pages, order } => pdfcraft_forms::set_tab_order(doc, pages, *order)?,
         Edit::MoveInTabOrder { name, earlier } => pdfcraft_forms::move_in_tab_order(doc, name, *earlier)?,
         Edit::SetInitialView(v) => pdfcraft_organize::set_initial_view(doc, v)?,
+        Edit::AutoTagText => {
+            a11y::autotag_text(doc).map_err(|e| EditError::Accessibility(e.to_string()))?;
+        }
         Edit::SetAltText { figure, alt } => {
             let r = pdfcraft_cos::ObjRef::new(*figure, doc.generation(*figure));
             a11y::set_alt(doc, r, alt.as_deref()).map_err(|e| EditError::Accessibility(e.to_string()))?;
@@ -3369,6 +3445,14 @@ impl Session {
         // `next` is a copy: if the edit fails or crashes, the document is unchanged.
         guard(|| run_edit(&mut next, &edit, &mut cx))
             .unwrap_or_else(|m| Err(EditError::Invalid(format!("{} failed unexpectedly ({m}); the document was not changed", edit.label()))))?;
+        // Redaction removed what its own interpreter places under the marks. The marks were drawn
+        // over the page as the renderer shows it, so the renderer has the last word.
+        if let Edit::ApplyRedactions { pages } = &edit {
+            let marks: Vec<pdfcraft_redact::Mark> =
+                pdfcraft_redact::marks(&editor.cos).into_iter().filter(|m| pages.as_ref().is_none_or(|p| p.contains(&m.page))).collect();
+            guard(|| shown_under_redactions(&next, &marks, &doc.info.pages, doc.password.as_deref()))
+                .unwrap_or_else(|m| Err(EditError::Invalid(format!("{} failed unexpectedly ({m}); the document was not changed", edit.label()))))?;
+        }
         // Renamed fields are said, not slipped in: a repair-log note (with the caveat that
         // scripts were left alone) and a count in the undo step's label.
         let renamed_note = |renamed: &[(String, String)]| {
