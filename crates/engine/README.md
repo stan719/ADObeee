@@ -82,3 +82,5 @@ family (`sign`, `sign_with_timestamp`, `timestamp_document`, `embed_ltv`).
 `doc.text_edit_preview(page, block)` prepares a read-only page background with the selected
 paragraph’s glyphs removed, preserving text positioning, images and colours. It shares the
 working document’s render configuration and never enters the undo history.
+
+Scan-line detection and reviewed removal: see [scan cleanup](../../docs/scan-cleanup.md).

@@ -218,6 +218,33 @@ impl Automation {
                 out["rotated"] = json!(n);
                 out
             }
+            "scan_cleanup_preview" | "scan_cleanup_apply" => {
+                let page = self.page(&a)?;
+                let image =
+                    usize::try_from(a.int("image")?).ok().and_then(|n| n.checked_sub(1)).ok_or_else(|| failed("image must be a positive integer"))?;
+                let doc = self.doc_to_copy(&a)?;
+                if name == "scan_cleanup_apply" && a.get("generation").and_then(Value::as_u64) != Some(doc.edit_generation()) {
+                    return Err(failed("the document changed; detect scan lines again"));
+                }
+                let preview = doc.scan_cleanup_source(page, image).map_err(failed)?.detect(|| true).map_err(failed)?;
+                if name == "scan_cleanup_preview" {
+                    let candidates: Vec<_> =
+                        preview.candidates().iter().enumerate().map(|(i, c)| json!({"id": i + 1, "rect": c.rect, "pixels": c.pixels})).collect();
+                    json!({"generation": preview.generation(), "width": preview.width(), "height": preview.height(), "candidates": candidates,
+                        "notice": "Review each line: printed rules can look like scan defects. Only selected image pixels will change."})
+                } else {
+                    let selected = a
+                        .ints("candidates")?
+                        .into_iter()
+                        .map(|n| {
+                            usize::try_from(n).ok().and_then(|n| n.checked_sub(1)).ok_or_else(|| failed("candidate IDs must be positive integers"))
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let edit = preview.edit(&selected).map_err(failed)?;
+                    self.doc(&a)?.check_scan_cleanup(&preview).map_err(failed)?;
+                    self.apply(&a, edit)?
+                }
+            }
             "page_enhance_camera" => {
                 let page = self.page(&a)?;
                 let given = a.nums::<8>("corners")?;

@@ -10118,3 +10118,15 @@ commands = []
 tools = []
 evidence = []
 notes = ""
+
+[[feature]]
+id = "ocr.scan-line-cleanup"
+title = "Review and remove isolated scan lines"
+area = "I"
+tier = "P2"
+milestone = "M10"
+status = "partial"
+commands = ["ocr.enhance"]
+tools = ["scan_cleanup_preview", "scan_cleanup_apply"]
+evidence = ["crates/engine/src/scan_cleanup.rs::scan_cleanup_detects_isolated_lines_keeps_text_tables_and_cancels", "crates/engine/src/scan_cleanup.rs::scan_cleanup_replaces_only_selected_pixels_and_undo_restores_image", "crates/automation/tests/automation.rs::scan_cleanup_tools_preview_apply_stale_undo_and_preserve_text", "crates/ui-egui/src/scan_cleanup_ui.rs::scan_cleanup_ui_requires_selection_applies_and_undoes_with_a_worker"]
+notes = "Reviewable thin dark border/crease components in opaque bitmaps, selected pixel replacement, undo and stale-preview checks. Printed rules still need human review. No broad fold-shadow removal, reconstruction of obscured text, Form artwork, batch cleanup or images above 16 million pixels."
