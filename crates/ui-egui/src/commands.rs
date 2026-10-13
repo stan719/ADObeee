@@ -687,6 +687,7 @@ impl PdfCraftApp {
 
 /// Render a top-level menu's registered commands (with live labels, shortcuts and enablement).
 pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str) {
+    widgets::menu_comfort(ui);
     for spec in commands::menu(menu) {
         let label = commands::current_label(spec, &app.session, app.active_ids().map(|(_, id)| id));
         let label = crate::i18n::menu_label(spec.id, &label);
@@ -725,19 +726,49 @@ pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str
         }
         let shortcut = spec.shortcut.map(|s| shortcut_label(ui.ctx(), s)).unwrap_or_default();
         let enabled = app.command_enabled(spec);
-        let resp = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));
+        let image = widgets::menu_icon(ui, spec.icon, enabled);
+        let resp = ui.add_enabled(enabled, egui::Button::image_and_text(image, label).shortcut_text(shortcut));
         if resp.clicked() {
             app.execute(spec.id);
             ui.close();
         }
     }
-    let _ = widgets::menu_item;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use egui::os::OperatingSystem;
+
+    /// Menu entries show their command's icon, and an unknown name would silently draw a square.
+    #[test]
+    fn every_menu_entry_has_an_icon() {
+        for spec in commands::COMMANDS.iter().filter(|c| c.menu.is_some()) {
+            assert!(crate::icons::exists(spec.icon), "{} names the missing icon {:?}", spec.id, spec.icon);
+        }
+        for icon in [
+            "folder-open",
+            "pencil",
+            "files",
+            "eye",
+            "circle-help",
+            "contrast",
+            "panel-right",
+            "maximize-2",
+            "file-text",
+            "arrow-left-right",
+            "arrow-up-down",
+            "scan",
+            "zoom-in",
+            "zoom-out",
+            "rotate-cw",
+            "rotate-ccw",
+            "undo-2",
+            "redo-2",
+        ] {
+            assert!(crate::icons::exists(icon), "missing icon {icon}");
+        }
+    }
 
     #[test]
     fn localized_shortcut_labels_follow_language_and_platform() {

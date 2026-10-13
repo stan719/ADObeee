@@ -194,8 +194,23 @@ pub fn search_box(ui: &mut egui::Ui, placeholder: &str, width: f32) -> Response 
     if elided { resp.on_hover_text(placeholder) } else { resp }
 }
 
-pub fn menu_item(ui: &mut egui::Ui, label: &str, shortcut: &str) -> Response {
-    ui.add(egui::Button::new(label).shortcut_text(shortcut))
+/// Roomier rows for a menu: call first in a menu's contents.
+pub fn menu_comfort(ui: &mut egui::Ui) {
+    let spacing = ui.spacing_mut();
+    spacing.button_padding = vec2(10.0, 5.0);
+    spacing.item_spacing.y = 2.0;
+}
+
+/// The icon beside a menu entry, dimmed with the entry when it is disabled.
+pub fn menu_icon(ui: &egui::Ui, name: &str, enabled: bool) -> egui::Image<'static> {
+    let tint = if enabled { ui.visuals().text_color() } else { ui.visuals().weak_text_color() };
+    crate::icons::image(name, 15.0, tint)
+}
+
+/// A menu entry with an icon, its label and its shortcut.
+pub fn menu_item_icon(ui: &mut egui::Ui, icon: &str, label: &str, shortcut: &str) -> Response {
+    let image = menu_icon(ui, icon, true);
+    ui.add(egui::Button::image_and_text(image, label).shortcut_text(shortcut))
 }
 
 /// Corner radius of a checkbox's box. With the widgets' radius (`Tokens::radius`, 6) egui's 14 px
