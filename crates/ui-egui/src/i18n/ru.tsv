@@ -2265,3 +2265,18 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Add printer marks…	Добавить типографские метки…
+	Remove printer marks	Удалить типографские метки
+	Marks	Метки
+	All marks	Все метки
+	Trim marks	Метки обреза
+	Bleed marks	Метки выпуска под обрез
+	Registration marks	Приводные метки
+	Colour bars	Цветовые шкалы
+	Page information	Сведения о странице
+	Line weight	Толщина линии
+	Widen the page to make room	Расширить страницу, чтобы освободить место
+	Room on each side	Место с каждой стороны
+	The trim box is kept where it is, so the printed page cuts the same.	Рамка обреза остаётся на месте, поэтому напечатанная страница режется так же.
+	Printer marks added	Типографские метки добавлены
+	printer marks	типографские метки

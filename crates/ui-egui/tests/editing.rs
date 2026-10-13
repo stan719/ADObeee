@@ -4160,3 +4160,29 @@ fn private_new_chinese_keyboard_input_preserves_font_layout_and_saved_pixels() {
     assert_eq!(std::fs::read(path).unwrap(), original);
     println!("verified Chinese keyboard insertion/deletion and save/reopen rendering on {pages} pages");
 }
+
+/// Print production ▸ Add printer marks: the dialog adds removable marks around
+/// the trim box, widening the page to make room; Remove printer marks takes them off.
+#[test]
+fn printer_marks_are_added_from_the_dialog_and_removed() {
+    let mut h = harness(2, |_| {});
+    let id = h.state().views[0].id;
+    let before = h.state().session.get(id).unwrap().info.pages[0].width;
+    assert!(h.state_mut().execute("prepress.marks"));
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, Some(Dialog::PrinterMarks));
+    h.get_by_label("All marks");
+    h.get_by_label("Add").click();
+    h.run_steps(3);
+    let doc = h.state().session.get(id).unwrap();
+    assert_eq!(doc.can_undo(), Some("Add printer marks"));
+    assert!(doc.marks.contains(&pdfcraft_engine::MarkKind::PrinterMarks));
+    // No trim box: the whole page is the trim box, so the page grew 36 pt a side for the marks.
+    assert!((doc.info.pages[0].width - (before + 72.0)).abs() < 0.5, "{} → {}", before, doc.info.pages[0].width);
+    assert_eq!(h.state().toast.clone().unwrap().0, "Printer marks added");
+    assert!(h.state_mut().execute("prepress.marks.remove"));
+    h.run_steps(3);
+    let doc = h.state().session.get(id).unwrap();
+    assert!(!doc.marks.contains(&pdfcraft_engine::MarkKind::PrinterMarks));
+    assert_eq!(doc.can_undo(), Some("Remove printer marks"));
+}

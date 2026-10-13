@@ -50,7 +50,8 @@ pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnific
 pub use pdfcraft_cos::Algorithm;
 pub use pdfcraft_create::{CONVERTIBLE, CreateError, ImageResolution, SourceKind, decode_text, source_kind};
 pub use pdfcraft_edit::{
-    Added, AddedImage, AddedText, Align as TextAlign, Background, Content as AddedContent, Family as FontFamily, HeaderFooter, MarkKind, Watermark,
+    Added, AddedImage, AddedText, Align as TextAlign, Background, Content as AddedContent, Family as FontFamily, HeaderFooter, MarkKind,
+    PrinterMarks, Watermark,
 };
 pub use pdfcraft_forms::{
     BorderStyle, CheckStyle, Field as FormField, FieldAction, FieldChange, FieldFont, FieldKind as FormFieldKind, FieldProps, FieldValue,
@@ -197,6 +198,7 @@ fn uses_scripts(edit: &Edit) -> bool {
 fn scope_of(edit: &Edit) -> Scope {
     match edit {
         Edit::SetInfo { .. } => Scope::Metadata,
+        Edit::AddPrinterMarks { .. } => Scope::Full,
         // A file attachment also changes the Attachments list.
         Edit::AddAnnotation(a) if matches!(a.shape, Shape::Attachment { .. }) => Scope::Full,
         Edit::AddMeasurement(_)
@@ -228,6 +230,7 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::DeleteContent { .. }
         | Edit::ReplaceImage { .. }
         | Edit::AddHeaderFooter { .. }
+        | Edit::AddPrinterMarks { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
         | Edit::RemoveMarks { .. } => Scope::Content,
@@ -1330,6 +1333,14 @@ pub enum Edit {
     },
     /// Document Properties ▸ Initial View (and the language and binding).
     SetInitialView(Box<InitialView>),
+    /// Print production ▸ Add printer marks: trim and bleed marks, registration targets, colour
+    /// bars and page information outside the trim box, as a page mark; the page may be widened
+    /// to make room (`settings.make_room`), so the page geometry is read again.
+    AddPrinterMarks {
+        pages: Vec<usize>,
+        settings: PrinterMarks,
+        replace: bool,
+    },
     /// Build a tagged structure tree for an untagged, text-only document.
     AutoTagText,
     /// Add alternate text: set (or clear, with `None`) a figure's alternate text. `figure` is
@@ -1845,6 +1856,8 @@ impl Edit {
             Edit::RemoveMarks { kind: MarkKind::HeaderFooter } => Label::of("Remove header & footer"),
             Edit::RemoveMarks { kind: MarkKind::Watermark } => Label::of("Remove watermark"),
             Edit::RemoveMarks { kind: MarkKind::Background } => Label::of("Remove background"),
+            Edit::RemoveMarks { kind: MarkKind::PrinterMarks } => Label::of("Remove printer marks"),
+            Edit::AddPrinterMarks { .. } => Label::of("Add printer marks"),
             Edit::AddText { .. } => Label::of("Add text"),
             Edit::AddImage { .. } => Label::of("Add image"),
             Edit::UpdateContent { .. } => Label::of("Edit content"),
@@ -1976,6 +1989,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         }
         Edit::SetInfo { .. }
         | Edit::AddHeaderFooter { .. }
+        | Edit::AddPrinterMarks { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
         | Edit::RemoveMarks { .. }
@@ -2345,6 +2359,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         Edit::MarkDecorative { figure } => {
             let r = pdfcraft_cos::ObjRef::new(*figure, doc.generation(*figure));
             a11y::mark_decorative(doc, r).map_err(|e| EditError::Accessibility(e.to_string()))?;
+        }
+        Edit::AddPrinterMarks { pages, settings, replace } => {
+            pdfcraft_edit::add_printer_marks(doc, pages, settings, *replace)?;
         }
         Edit::AddHeaderFooter { pages, settings, replace } => {
             let date = cx.today;
@@ -3606,7 +3623,14 @@ impl Session {
             ) || matches!(e, Edit::MoveObjects { objects, .. } if objects.iter().any(|o| o.kind == ObjectKind::Added))
         });
         let touches_marks = edit.is_none_or(|e| {
-            matches!(e, Edit::AddHeaderFooter { .. } | Edit::AddWatermark { .. } | Edit::AddBackground { .. } | Edit::RemoveMarks { .. })
+            matches!(
+                e,
+                Edit::AddHeaderFooter { .. }
+                    | Edit::AddWatermark { .. }
+                    | Edit::AddBackground { .. }
+                    | Edit::AddPrinterMarks { .. }
+                    | Edit::RemoveMarks { .. }
+            )
         });
         (touches_added, touches_marks)
     }

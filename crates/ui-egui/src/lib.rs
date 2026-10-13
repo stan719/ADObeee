@@ -52,6 +52,7 @@ mod marks_ui;
 mod measure_ui;
 mod ocr_ui;
 mod optimize_ui;
+mod printer_marks_ui;
 mod search_ui;
 mod sign_ui;
 mod stamps_ui;
@@ -267,6 +268,8 @@ pub enum Dialog {
     Split,
     /// Pages ▸ Number pages… (page labels).
     NumberPages,
+    /// Print production ▸ Add printer marks.
+    PrinterMarks,
     /// Protect Using Password.
     Protect,
     /// Set Page Boxes (crop, trim, bleed, art, media).
@@ -738,6 +741,7 @@ pub struct PdfCraftApp {
     pub bookmark_rename: Option<(Vec<usize>, String)>,
     /// Number pages dialog settings (1-based pages).
     pub number_draft: NumberDraft,
+    pub printer_marks_draft: printer_marks_ui::PrinterMarksDraft,
     /// Protect Using Password dialog state.
     pub protect_draft: protect::ProtectDraft,
     /// Set Page Boxes dialog state.
@@ -1040,6 +1044,7 @@ impl PdfCraftApp {
             text_style: content_ui::default_style(),
             replace_draft: None,
             number_draft: NumberDraft { from: 1, to: 1, style: pdfcraft_engine::LabelStyle::Decimal, prefix: String::new(), start: 1 },
+            printer_marks_draft: Default::default(),
         }
     }
 
@@ -2376,6 +2381,7 @@ impl PdfCraftApp {
                     "header-footer" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter)),
                     "watermark" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Watermark)),
                     "background" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Background)),
+                    "printer-marks" => Some(Dialog::PrinterMarks),
                     "export-image" => Some(Dialog::Export(export_ui::ExportKind::Image)),
                     "export-text" => Some(Dialog::Export(export_ui::ExportKind::Text)),
                     "export-all-images" => Some(Dialog::Export(export_ui::ExportKind::AllImages)),
