@@ -336,7 +336,30 @@ pub(crate) fn image_owns_pointer(ui: &egui::Ui, xf: &PageXform, page: usize, inf
     let Some(rect) = image.visible_rect else { return false };
     let b = xf.user_rect(info, page, rect.map(|v| v as f32));
     let p = ui.input(|i| if i.pointer.primary_down() { i.pointer.press_origin() } else { i.pointer.hover_pos() });
-    p.is_some_and(|p| [b.left_top(), b.right_top(), b.left_bottom(), b.right_bottom()].iter().any(|c| c.distance(p) < 8.0))
+    p.is_some_and(|p| corner_at(b, p).is_some())
+}
+
+/// The resize handles of a selected box (screen): left-top, right-top, left-bottom,
+/// right-bottom, so corner `k`'s opposite is `3 - k`.
+pub(crate) fn corners(b: Rect) -> [Pos2; 4] {
+    [b.left_top(), b.right_top(), b.left_bottom(), b.right_bottom()]
+}
+
+/// The resize handle of `b` within reach of `p`.
+pub(crate) fn corner_at(b: Rect, p: Pos2) -> Option<usize> {
+    corners(b).iter().position(|c| c.distance(p) < 8.0)
+}
+
+pub(crate) fn paint_handles(painter: &egui::Painter, b: Rect) {
+    for c in corners(b) {
+        painter.rect(
+            Rect::from_center_size(c, egui::vec2(8.0, 8.0)),
+            CornerRadius::ZERO,
+            Color32::WHITE,
+            Stroke::new(1.0, ACCENT),
+            egui::StrokeKind::Middle,
+        );
+    }
 }
 
 /// What a drag on a paragraph box takes hold of.
@@ -464,23 +487,12 @@ pub(crate) fn image_input(
     // The selected image: frame, corner handles, dragging.
     if let Some(i) = selected.filter(|i| boxes.get(*i).is_some_and(|b| b.is_positive())) {
         let b = boxes[i];
-        let corners = [b.left_top(), b.right_top(), b.left_bottom(), b.right_bottom()];
-        let handles = |rect: Rect| {
-            for c in [rect.left_top(), rect.right_top(), rect.left_bottom(), rect.right_bottom()] {
-                painter.rect(
-                    Rect::from_center_size(c, egui::vec2(8.0, 8.0)),
-                    CornerRadius::ZERO,
-                    Color32::WHITE,
-                    Stroke::new(1.0, ACCENT),
-                    egui::StrokeKind::Middle,
-                );
-            }
-        };
+        let corners = corners(b);
         if view.image_selection.as_ref().is_some_and(|s| s.drag.is_none()) {
             painter.rect_stroke(b, CornerRadius::ZERO, Stroke::new(1.5, ACCENT), egui::StrokeKind::Outside);
-            handles(b);
+            paint_handles(painter, b);
         }
-        if allow_interaction && let Some(corner) = hover_pos.and_then(|p| corners.iter().position(|c| c.distance(p) < 8.0)) {
+        if allow_interaction && let Some(corner) = hover_pos.and_then(|p| corner_at(b, p)) {
             ui.ctx().set_cursor_icon(if matches!(corner, 0 | 3) { egui::CursorIcon::ResizeNwSe } else { egui::CursorIcon::ResizeNeSw });
         }
         let origin = ui.input(|i| i.pointer.press_origin());
@@ -488,7 +500,7 @@ pub(crate) fn image_input(
             && resp.drag_started()
             && let Some(o) = origin
         {
-            let corner = corners.iter().position(|c| c.distance(o) < 8.0);
+            let corner = corner_at(b, o);
             if corner.is_some() || image_contains(i, o) {
                 let opposite = corner.map(|k| corners[3 - k]);
                 if let Some(s) = view.image_selection.as_mut() {
@@ -529,7 +541,7 @@ pub(crate) fn image_input(
             if visible.is_positive() {
                 painter.rect_filled(visible, CornerRadius::ZERO, ACCENT.gamma_multiply(0.04));
                 painter.rect_stroke(visible, CornerRadius::ZERO, Stroke::new(1.5, ACCENT), egui::StrokeKind::Outside);
-                handles(preview);
+                paint_handles(painter, preview);
             }
             if resp.drag_stopped() || !ui.input(|i| i.pointer.primary_down()) {
                 if let Some(s) = view.image_selection.as_mut() {
@@ -565,7 +577,7 @@ pub(crate) fn image_input(
         painter.rect_stroke(boxes[hit], CornerRadius::ZERO, Stroke::new(1.5, ACCENT.gamma_multiply(0.7)), egui::StrokeKind::Outside);
     }
     let Some(b) = boxes.get(hit).copied() else { return false };
-    let corner = [b.left_top(), b.right_top(), b.left_bottom(), b.right_bottom()].iter().position(|c| c.distance(p) < 8.0);
+    let corner = corner_at(b, p);
     ui.ctx().set_cursor_icon(match (selected == Some(hit), corner) {
         (true, Some(0 | 3)) => egui::CursorIcon::ResizeNwSe,
         (true, Some(_)) => egui::CursorIcon::ResizeNeSw,

@@ -1,5 +1,6 @@
 # Where PdfCraft falls short of Acrobat Pro
 
+> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-13 · **Change:** minor (gap 3: vector paths selected, moved, resized, recoloured and deleted; page objects aligned, distributed and arranged, #1540; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1398 stamps read upright on rotated pages; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1317, #1327, #1302, #1315 and #1340; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (#1316: replacing a line keeps a neighbouring line whose glyph box overlaps; gap 3 remains) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -93,13 +94,24 @@ update the numbers.
   semantic grouping on every untagged PDF remain open. Replacing one line or paragraph no longer
   removes a distinct neighbour whose glyph box overlaps (#1316); a second drawing on the same
   baseline is still replaced. Estimates are unchanged.
+- **Vector editing (2026-10-13, #1540):** vector paths are page objects in Edit text & images: a
+  click on a path's painted shape selects it, a drag moves it, corner handles resize it and Delete
+  removes it with images; Fill colour and Stroke colour swatches recolour it. Right-clicking the
+  selection arranges one path or image (Bring to front … Send to back) and aligns or distributes
+  any mix of objects. Each is one undo step, also through the `object_*` tools. Recolour writes
+  DeviceRGB, resizing scales the stroke with the path, pattern-painted paths don't move, and
+  clipping paths, paths in text objects and Form internals aren't selectable; text and image boxes
+  win clicks over paths drawn above them, and text and added items aren't arranged. Estimates are
+  unchanged.
 
 - **Missing:** robust in-place editing of text PdfCraft didn't write: subset fonts without the
   needed glyphs, CJK and right-to-left text, rotated text, lists, superscript/subscript, keeping
-  structure tags, find and replace in edit mode; vector and object editing; arrange and align.
-- **Evidence:** `edit.text-edit` is partial (font reused or Helvetica substituted);
-  `edit.rtl-cjk-editing`, `edit.rotated-text-editing`, `edit.keep-tags-on-edit`,
-  `edit.vector-edit`, `edit.edit-object-tool` are planned. Users:
+  structure tags, find and replace in edit mode; objects inside Form artwork and inline images;
+  rotating and restyling vector paths; arranging text.
+- **Evidence:** `edit.text-edit` is partial (font reused or Helvetica substituted), as are
+  `edit.rtl-cjk-editing` and `edit.edit-object-tool`; `edit.rotated-text-editing` and
+  `edit.keep-tags-on-edit` are planned; `edit.vector-edit`, `edit.arrange-objects` and
+  `edit.align-distribute-objects` shipped with #1540. Users:
   [#766](https://github.com/storytold/pdfcraft/issues/766) (editing Arabic text),
   [#844](https://github.com/storytold/pdfcraft/issues/844) (several elements now move together on
   one page, not across pages),
@@ -324,6 +336,7 @@ update the numbers.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-13 | minor | Gap 3: vector paths are selected, moved, resized, recoloured and deleted, and page objects aligned, distributed and arranged, in Edit text & images and through the `object_*` tools (#1540); missing list and evidence updated (`edit.rtl-cjk-editing` and `edit.edit-object-tool` were already partial). Estimates unchanged. |
 | 2026-10-12 | minor | Gap 6: rubber stamps, explicit image rectangles and PDF-page stamps read upright on rotated pages (#1398). Estimates unchanged. |
 | 2026-10-12 | minor | #1316: replacing a line or paragraph keeps a neighbouring line whose glyph box overlaps. Gap 3 remains. Estimates unchanged. |
 | 2026-10-12 | minor | Exclusive image crops resize with their pixels across nested states, intervening operators and content streams; shared clips remain fixed. Synthetic engine/tool regressions and private image save/reopen checks; estimates unchanged. |

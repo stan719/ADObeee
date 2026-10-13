@@ -1,6 +1,6 @@
 # UI and interaction parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (column select #740, multi-object move #844, Shift-⌘-G #810 fixed) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
+> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-13 · **Change:** minor (vector paths in the Edit tool, align, distribute and arrange page objects from the selection's right-click menu, #1540; commands, tools and the View area recounted; earlier: column select #740, multi-object move #844, Shift-⌘-G #810 fixed) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 
 How PdfCraft's tools, panels, shortcuts and feel compare with Acrobat Pro's current interface (the
 2023+ "new Acrobat": All tools pane on the left, quick-action toolbar, Home view). Behaviour is
@@ -11,12 +11,13 @@ interface is copied. Gaps ranked in [gaps.md](gaps.md).
 
 ## Measured
 
-- **184 registered commands** (`crates/engine/src/commands.rs`), every one in the menus, the
+- **192 registered commands** (`crates/engine/src/commands.rs`), every one in the menus, the
   command palette and the automation `command_run` tool; menus are generated from the registry
   (`view.menus-from-registry`).
-- **141 automation tools** (`crates/automation/src/tools.rs`), so every UI action can be checked
+- **168 automation tools** (`crates/automation/src/tools.rs`), so every UI action can be checked
   headlessly.
-- **View area of the checklist: 62.5% breadth** (52 shipped, 11 partial of 92).
+- **View area of the checklist: 62.8% breadth** (53 shipped, 12 partial of 94). All three counted on
+  2026-10-13.
 
 No dump of Acrobat's menu tree has been diffed against the registry yet (gap 24).
 
@@ -46,15 +47,15 @@ No dump of Acrobat's menu tree has been diffed against the registry yet (gap 24)
 | Dynamic zoom, loupe, pan-and-zoom window | yes | no | planned |
 | Hand tool, middle-button pan, autoscroll | yes | hand tool; Linux autoscroll | partial |
 | Text selection, column select | yes, Alt-drag columns | reading-order selection; Alt/Option-drag or Edit ▸ Column select (#740) | shipped |
-| Select and move several objects at once | yes | on one page: Shift/Ctrl/⌘-click and marquee, one undo step (#844); not across pages, no group resize | partial |
-| Object handles: corners keep proportion, edges free | yes | yes for added images and signatures | shipped |
-| Arrange, align and distribute page objects | yes | fields only | partial |
+| Select and move several objects at once | yes | on one page: Shift/Ctrl/⌘-click and marquee, one undo step (#844), vector paths included (#1540); not across pages, no group resize | partial |
+| Object handles: corners keep proportion, edges free | yes | yes for added images and signatures; a selected vector path's corners resize it freely (#1540) | partial |
+| Arrange, align and distribute page objects | yes | fields; in Edit text & images, the selection's right-click menu aligns and distributes any mix of objects and arranges one vector path or image (#1540); text isn't arranged | shipped |
 | Rulers, grids, snap to grid, guides | yes | no | planned |
 | Cursor coordinates, line weights | yes | no | planned |
 | Measuring snap to paths, endpoints, midpoints, intersections | yes | yes | shipped |
 | Nudge selected objects with arrow keys (Shift for larger steps) | yes | yes in Edit text: a point, Shift ten points, for selected objects, images and an open paragraph's box (#1520) | shipped |
 | Single-key tool accelerators (H, V, Z, …) | yes, opt-in | no | planned |
-| Context menus on pages, thumbnails, comments, fields | yes | thumbnails, comments, fields | partial |
+| Context menus on pages, thumbnails, comments, fields | yes | thumbnails, comments, fields, an Edit-tool selection (Arrange, Align, Distribute, Delete; #1540) | partial |
 | Comment pop-ups as movable windows, connector lines | yes | inline in the panel | planned |
 | Disabled commands explain why | no | yes | ahead |
 
@@ -81,5 +82,6 @@ No dump of Acrobat's menu tree has been diffed against the registry yet (gap 24)
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-13 | minor | Vector paths join the Edit tool's selection with corner-handle resize (#1540); the selection's right-click menu aligns, distributes and arranges page objects (arrange: one vector path or image), so that row is shipped; object handles partial (vector path corners don't keep proportion). Commands (192), automation tools (168) and the View area (62.8%) recounted |
 | 2026-10-11 | minor | Column select shipped (#740, PR #765); several objects move together on one page (#844, PR #907); Shift-⌘-G goes back (#810, PR #835) |
 | 2026-10-10 | major | Created from the command registry, automation tools, the View area of the checklist and open UI issues |

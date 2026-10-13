@@ -2,6 +2,7 @@
 
 **Stage: alpha** · next: beta, ~26% (ready for real work 49% → 75%) and ~400–700 h away
 
+> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-13 · **Change:** minor (M7 #1540: vector paths selected, moved, resized, recoloured and deleted; page objects aligned, distributed and arranged; checklist recounted by hand, ≈ 67% → ≈ 69% tier-weighted; readiness not re-judged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-13 · **Change:** minor (M3 candidate: native opens retain chosen tools through password retries and defer startup intake while preparation is pending; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M13: CLI check visits each directory once through aliases and cycles; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M4: Extract and Split preserve shared Type 3 glyph resources; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -45,8 +46,8 @@ and add a line to the [progress log](#progress-log); when a gap closes, remove i
 
 | | Value | Kind |
 |---|---|---|
-| **Feature breadth** | **≈ 67%** tier-weighted (56.9% unweighted: 423 shipped + 74 partial of 808; P0 94.2%) | measured, `parity/acrobat-features.toml` |
-| Feature breadth, mainstream practitioner | ≈ 70% tier-weighted (63.2% unweighted; P0 95.3%) | measured ([split](docs/target-app-parity.md#mainstream-practitioner-vs-full-acrobat-pro)) |
+| **Feature breadth** | **≈ 69%** tier-weighted (58.6% unweighted: 432 shipped + 89 partial of 813; P0 94.2%) | measured, `parity/acrobat-features.toml` (counted by hand 2026-10-13) |
+| Feature breadth, mainstream practitioner | ≈ 70% tier-weighted (63.2% unweighted; P0 95.3%) | measured 2026-10-10 ([split](docs/target-app-parity.md#mainstream-practitioner-vs-full-acrobat-pro)) |
 | **Ready for real work**, full Acrobat Pro | **≈ 49%** (45–53%) | estimated, weighted sum over [dimensions](#by-dimension) |
 | **Ready for real work**, mainstream practitioner | **≈ 55%** (50–60%) | estimated ([split](docs/target-app-parity.md#mainstream-practitioner-vs-full-acrobat-pro)) |
 | **Ready for real work**, essentials user | **≈ 66%** (60–70%) | estimated ([method](docs/target-app-parity.md#essentials-user)) |
@@ -74,7 +75,7 @@ Hours are calibrated as in [Effort and calibration](docs/target-app-parity.md#ef
 
 | Dimension | Ready | Weight | Remaining (h) | Doc |
 |---|---|---|---|---|
-| Features (14 areas) | ≈ 49% depth · 67% breadth | 40% | 610–1,100 | [target-app-parity.md](docs/target-app-parity.md#by-feature-area) |
+| Features (14 areas) | ≈ 49% depth · 69% breadth | 40% | 610–1,100 | [target-app-parity.md](docs/target-app-parity.md#by-feature-area) |
 | UI/UX fidelity | ≈ 55% | 10% | 30–60 | [ui-parity.md](docs/ui-parity.md) |
 | File formats and conversion | ≈ 40% | 12% | 120–220 (within features) | [file-format-parity.md](docs/file-format-parity.md) |
 | PDF specification and standards | ≈ 60% | 8% | 150–260 (within features) | [pdf-spec-parity.md](docs/pdf-spec-parity.md) |
@@ -91,19 +92,19 @@ Hours are calibrated as in [Effort and calibration](docs/target-app-parity.md#ef
 
 | Area | Breadth (measured) | Ready (estimated) | Remaining (h) |
 |---|---|---|---|
-| A Core model and fidelity | 76.8% | 70% | 25–45 |
-| B View and navigation | 62.5% | 55% | 110–190 |
-| C Content editing | 53.3% | 30% | 100–180 |
-| D Organize pages | 61.2% | 70% | 12–25 |
+| A Core model and fidelity | 77.2% | 70% | 25–45 |
+| B View and navigation | 62.8% | 55% | 110–190 |
+| C Content editing | 61.5% | 30% | 100–180 |
+| D Organize pages | 63.0% | 70% | 12–25 |
 | E Comments and review | 77.7% | 70% | 12–25 |
 | F Forms and JavaScript | 78.5% | 65% | 40–75 |
-| G Protect, redact, sanitize | 58.5% | 55% | 15–30 |
+| G Protect, redact, sanitize | 58.3% | 55% | 15–30 |
 | H Digital signatures | 62.2% | 45% | 40–70 |
-| I Scan and OCR | 23.1% | 15% | 40–75 |
-| J Create and export | 39.7% | 25% | 55–100 |
+| I Scan and OCR | 32.7% | 15% | 40–75 |
+| J Create and export | 41.2% | 25% | 55–100 |
 | K Optimize and standards | 34.5% | 20% | 65–115 |
 | L Print | 39.7% | 35% | 30–55 |
-| M Accessibility | 63.1% | 30% | 40–70 |
+| M Accessibility | 68.9% | 30% | 40–70 |
 | N Automation, preferences, misc | 30.0% | 35% | 25–45 |
 
 What's strong and missing in each: [target-app-parity.md](docs/target-app-parity.md#by-feature-area).
@@ -150,6 +151,7 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 ## Progress log
 
 - **2026-10-13 (M3, native-opening candidate):** Chosen tools survive preparation, conversion and password retries; startup intake waits for pending preparation. Regression tests cover completion, cancellation and document identity. Estimates unchanged.
+- **2026-10-13 (M7, vector editing, #1540):** Vector paths are page objects in Edit text & images. A click on a path's painted shape selects it and a drag moves it; Shift-click and the marquee add paths to a selection of text, images and added items; corner handles resize one path; Delete or Backspace removes paths and images together; Fill colour and Stroke colour swatches recolour the selected paths. Right-clicking the selection arranges one path or image (Bring to front, Bring forward, Send backward, Send to back) among the objects it overlaps, and aligns (left, centre, right, top, middle, bottom) or distributes any mix of objects in the page's orientation. Each is one undo step and rewrites only the content streams it changes; `object_list` reports paths with their colours, and `object_resize`, `object_recolour`, `object_delete`, `object_align` and `object_arrange` do the same through automation. Limits: recolour writes DeviceRGB, resizing scales the stroke with the path, pattern-painted paths don't move, clipping paths, paths in text objects and Form internals aren't selectable, and text and added items aren't arranged. `edit.vector-edit`, `edit.arrange-objects` and `edit.align-distribute-objects` shipped; the checklist recounted by hand comes to 432 shipped + 89 partial of 813 (58.6%, ≈ 69% tier-weighted), most of the change since 2026-10-10 from other features. Readiness and hours not re-judged.
 - **2026-10-12 (M10, Windows printing without PowerShell, #1107):** craft-print now prints on Windows in-process: printers from EnumPrinters/GetDefaultPrinter, jobs drawn as vectors by Windows.Data.Pdf into the XPS print API with a driver-validated PrintTicket (exact paper, orientation, no scaling), so printing works where App Control for Business or AppLocker run PowerShell in Constrained Language Mode. Portrait and landscape sheets still print as one job (turned with /Rotate); a sheet size the driver lacks is refused rather than shrunk. Pins craft-libs f03ec27 (craft-libs#28); deny.toml allows the storytold/winprint.rs fork and adds a webpki-root-certs licence exception and a RUSTSEC-2024-0370 ignore for winprint's build-dependencies. An earlier craft-print revision was checked in Windows Sandbox under enforced WDAC: printers listed, CLI and desktop jobs spooled, and no powershell.exe in the 4688 audit. The final pinned revision passed craft-libs Windows CI, including a real paused-queue job; that Sandbox run has not been repeated. Estimates unchanged.
 - **2026-10-12 (M13, CLI robustness scans):** `pdfcraft-cli check` visits a directory once even when input roots overlap or directory symlinks lead back into the tree. PDFs reached through file symlinks remain accepted. Three real CLI regressions cover overlapping roots, a directory cycle and directory/file aliases. Estimates unchanged.
 - **2026-10-12 (M4, Type 3 extraction fidelity):** Extract and Split preserve shared image/resource dictionaries reached through Type 3 glyphs, including nested forms, patterns and soft masks. A bounded object-graph walk protects unknown glyph content; unreadable pages/forms retain their glyph resources, and shared explicit fonts are visited once. Separate page dictionaries still prune unused images. Synthetic save/reopen regressions and an opt-in Poppler pixel oracle cover resource ownership, nested forms, cycles, limits and repeated fonts. Estimates unchanged.
@@ -427,6 +429,7 @@ Newest first: the date, what moved, and the new overall estimate.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-13 | minor | M7 #1540: vector editing, align, distribute and arrange shipped; checklist recounted by hand (58.6% unweighted, ≈ 69% tier-weighted, area breadths); readiness and hours not re-judged |
 | 2026-10-12 | minor | M3/#1364 candidate: absolute local GoToR links require desktop consent or headless allow_absolute; existing relative navigation and validation retained. Estimates unchanged. |
 | 2026-10-12 | minor | M8: redaction retires inherited `/Resources` so a parent `/Pages` can't keep a removed XObject reachable; only redacted pages that inherit are pinned (one shared reference), unredacted pages are untouched; estimates unchanged |
 | 2026-10-12 | minor | M7/#1200 candidate: bounded local GoToR opening, root-confined automation, and action-preserving appearance edits; named destinations and window behavior remain partial; estimates unchanged. |
