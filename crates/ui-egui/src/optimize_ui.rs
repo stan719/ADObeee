@@ -334,7 +334,7 @@ impl PdfCraftApp {
             let stage = s.stage;
             drop(s);
             let label = if cancelling { tl!("Cancelling…").to_string() } else { stage_label(stage) };
-            self.progress_notice = Some(crate::widgets::ProgressNotice { label, fraction: stage.fraction(), cancellable: !cancelling });
+            self.progress_notice = Some(crate::widgets::ProgressNotice { label, fraction: Some(stage.fraction()), cancellable: !cancelling });
             if let Some(ctx) = &self.ctx {
                 ctx.request_repaint_after(std::time::Duration::from_millis(50));
             }
@@ -383,7 +383,7 @@ mod tests {
         }
         h.get_by_label("Optimizing… image 4 of 10");
         let shown = h.state().progress_notice.clone().unwrap();
-        assert!((shown.fraction - 0.275).abs() < 1e-4, "{shown:?}");
+        assert!((shown.fraction.unwrap_or(-1.0) - 0.275).abs() < 1e-4, "{shown:?}");
         assert!(shown.cancellable);
 
         h.get_by_label("Cancel").click();
