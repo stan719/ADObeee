@@ -218,20 +218,23 @@ pub fn install_fonts_for(ctx: &egui::Context, cjk: CjkPreference) {
 pub const SYSTEM_FALLBACK: &str = "system-fallback";
 /// The name of the installed Devanagari (Hindi) face [`installed_font_definitions`] may add.
 pub const SYSTEM_DEVANAGARI_FALLBACK: &str = "system-devanagari-fallback";
+/// The name of the installed Hangul (Korean) face [`installed_font_definitions`] may add.
+pub const SYSTEM_HANGUL_FALLBACK: &str = "system-hangul-fallback";
 
-/// What [`install_fonts_for`] installs: [`font_definitions_for`], then, on desktop, one face
-/// already installed on this machine. It only draws characters no embedded face has.
+/// What [`install_fonts_for`] installs: [`font_definitions_for`], then, on desktop, faces already
+/// installed on this machine. They only draw characters no embedded face has.
 ///
-/// - In a Chinese interface built without a `Hans` craft-fonts face (every release so far,
-///   #826), it is a Chinese system face (Microsoft YaHei, PingFang, …), placed before the
-///   Japanese craft-fonts faces: they lack hundreds of the catalog's characters (欢, 导, 签, …),
-///   and one line drawn from two faces with different vertical metrics would not sit on one
-///   baseline.
+/// - The general installed face: in a Chinese interface built without a `Hans` craft-fonts face
+///   (every release so far, #826), a Chinese system face (Microsoft YaHei, PingFang, …), placed
+///   before the Japanese craft-fonts faces and the per-script faces below: they lack hundreds of
+///   the catalog's characters (欢, 导, 签, …) or draw Han in another style, and one line drawn
+///   from two faces with different vertical metrics would not sit on one baseline.
 /// - Otherwise it is the last fallback of every family (an Arabic file name in a build without
 ///   craft-fonts).
 ///
-/// An installed Devanagari face, when there is one, ends every family just before that one, so
-/// Hindi text draws in a build without a Devanagari face.
+/// Per-script installed faces, Devanagari and Hangul, when there are, go after the embedded
+/// faces, so Hindi text and Korean file names, titles and Edit-tool text draw in a build without
+/// such faces (#407: craft-fonts has no Hangul face).
 ///
 /// `PDFCRAFT_SYSTEM_FONTS=0` leaves them out.
 pub fn installed_font_definitions(cjk: CjkPreference) -> FontDefinitions {
@@ -241,11 +244,17 @@ pub fn installed_font_definitions(cjk: CjkPreference) -> FontDefinitions {
     {
         use crate::system_fonts::{Need, fallback};
         // Before the general installed face, which stays the last fallback outside Chinese.
-        if let Some(data) = crate::system_fonts::devanagari_fallback() {
-            fonts.font_data.insert(SYSTEM_DEVANAGARI_FALLBACK.to_owned(), data);
+        let mut per_script = Vec::new();
+        for (name, data) in [
+            (SYSTEM_DEVANAGARI_FALLBACK, crate::system_fonts::devanagari_fallback()),
+            (SYSTEM_HANGUL_FALLBACK, crate::system_fonts::hangul_fallback()),
+        ] {
+            let Some(data) = data else { continue };
+            fonts.font_data.insert(name.to_owned(), data);
             for stack in fonts.families.values_mut() {
-                stack.push(SYSTEM_DEVANAGARI_FALLBACK.to_owned());
+                stack.push(name.to_owned());
             }
+            per_script.push(name);
         }
         let need = match cjk {
             _ if !pdfcraft_fonts::ui_chinese_fonts().is_empty() => Need::Other,
@@ -257,9 +266,11 @@ pub fn installed_font_definitions(cjk: CjkPreference) -> FontDefinitions {
             fonts.font_data.insert(SYSTEM_FALLBACK.to_owned(), data);
             let japanese: Vec<String> = pdfcraft_fonts::ui_japanese_fonts().iter().map(|f| f.name()).collect();
             for stack in fonts.families.values_mut() {
+                // In Chinese, also before the per-script faces: Malgun Gothic maps thousands of
+                // Han characters, and a build without craft-fonts has no Japanese face to anchor on.
                 let at = match need {
                     Need::Other => None,
-                    Need::Hans | Need::Hant => stack.iter().position(|n| japanese.contains(n)),
+                    Need::Hans | Need::Hant => stack.iter().position(|n| japanese.contains(n) || per_script.contains(&n.as_str())),
                 };
                 stack.insert(at.unwrap_or(stack.len()), SYSTEM_FALLBACK.to_owned());
             }
