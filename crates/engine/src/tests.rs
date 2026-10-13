@@ -687,7 +687,7 @@ fn form_with_field(name: &str) -> Vec<u8> {
 fn duplicating_a_page_with_a_field_keeps_the_field_name() {
     let mut s = Session::new().with_clock(|| 1_700_000_000);
     let id = s.open("a.pdf", None, Arc::new(form_with_field("Text1")), None).unwrap();
-    s.apply(id, Edit::DuplicatePages { pages: vec![0] }).unwrap();
+    s.apply(id, Edit::DuplicatePages { pages: vec![0], at: None }).unwrap();
     let doc = s.get(id).unwrap();
     assert_eq!(doc.info.pages.len(), 2);
     assert!(doc.form.iter().all(|f| f.name == "Text1"), "{:?}", doc.form.iter().map(|f| &f.name).collect::<Vec<_>>());
