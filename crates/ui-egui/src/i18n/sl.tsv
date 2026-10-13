@@ -2357,3 +2357,25 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+
+# Update availability and package guidance.
+	Installed version: {v}	Nameščena različica: {v}
+	The release is not a published stable update. Try again later.	Izdaja ni objavljena kot stabilna posodobitev. Poskusite znova pozneje.
+	Available version: {v}	Na voljo je različica: {v}
+	Package: {name}	Paket: {name}
+	Download size: {size}	Velikost prenosa: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Vrsta namestitve ni znana ali pa gre za razvojno različico. Izberite paket na uradni strani izdaj.
+	No compatible package is available for this installation.	Za to namestitev ni združljivega paketa.
+	The release has ambiguous packages. Choose a package on the official release page.	Izdaja vsebuje več ustreznih paketov. Izberite paket na uradni strani izdaj.
+	Release notes	Opombe ob izdaji
+	No release notes were provided.	Opombe ob izdaji niso na voljo.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Prenosi se odprejo v brskalniku. Namestitev je ročna; nič se ne namesti samodejno.
+	Download package…	Prenesi paket…
+	View release page…	Prikaži stran izdaje…
+	Remind Me Later	Opomni me pozneje
+	Retry	Poskusi znova
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} bajtov)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Flatpak upravlja to namestitev. Posodobitve preverite v sistemskem upravljalniku programske opreme ali z ukazom flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	To namestitev upravlja paket Debian. PdfCraft posodobite v sistemskem upravljalniku programske opreme.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	To namestitev upravlja paket RPM. PdfCraft posodobite v sistemskem upravljalniku programske opreme.
+	Use your system software manager to update PdfCraft.	PdfCraft posodobite v sistemskem upravljalniku programske opreme.

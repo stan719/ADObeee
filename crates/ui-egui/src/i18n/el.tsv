@@ -392,6 +392,26 @@
 	PdfCraft {c} is up to date.	Το PdfCraft {c} είναι ενημερωμένο.
 	Couldn't check for updates: {e}	Δεν ήταν δυνατός ο έλεγχος για ενημερώσεις: {e}
 	You have version {c}. All releases are listed at {page}.	Έχετε την έκδοση {c}. Όλες οι εκδόσεις βρίσκονται στη διεύθυνση {page}.
+	Installed version: {v}	Εγκατεστημένη έκδοση: {v}
+	The release is not a published stable update. Try again later.	Αυτή η έκδοση δεν είναι δημοσιευμένη σταθερή ενημέρωση. Δοκιμάστε ξανά αργότερα.
+	Available version: {v}	Διαθέσιμη έκδοση: {v}
+	Package: {name}	Πακέτο: {name}
+	Download size: {size}	Μέγεθος λήψης: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Ο τύπος εγκατάστασης είναι άγνωστος ή πρόκειται για έκδοση ανάπτυξης. Επιλέξτε πακέτο από την επίσημη σελίδα έκδοσης.
+	No compatible package is available for this installation.	Δεν υπάρχει συμβατό πακέτο για αυτήν την εγκατάσταση.
+	The release has ambiguous packages. Choose a package on the official release page.	Η έκδοση έχει ασαφή πακέτα. Επιλέξτε πακέτο από την επίσημη σελίδα έκδοσης.
+	Release notes	Σημειώσεις έκδοσης
+	No release notes were provided.	Δεν υπάρχουν σημειώσεις έκδοσης.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Οι λήψεις ανοίγουν στο πρόγραμμα περιήγησης. Η εγκατάσταση γίνεται χειροκίνητα· δεν εγκαθίσταται τίποτα αυτόματα.
+	Download package…	Λήψη πακέτου…
+	View release page…	Προβολή σελίδας έκδοσης…
+	Remind Me Later	Υπενθύμιση αργότερα
+	Retry	Επανάληψη
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} οκτάδες)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Το Flatpak διαχειρίζεται αυτήν την εγκατάσταση. Ελέγξτε για ενημερώσεις στη διαχείριση λογισμικού του συστήματός σας ή με την εντολή flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Αυτή η εγκατάσταση διαχειρίζεται από πακέτο Debian. Χρησιμοποιήστε τη διαχείριση λογισμικού του συστήματος για να ενημερώσετε το PdfCraft.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Αυτή η εγκατάσταση διαχειρίζεται από πακέτο RPM. Χρησιμοποιήστε τη διαχείριση λογισμικού του συστήματος για να ενημερώσετε το PdfCraft.
+	Use your system software manager to update PdfCraft.	Χρησιμοποιήστε τη διαχείριση λογισμικού του συστήματος για να ενημερώσετε το PdfCraft.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	Αναζητά την τελευταία έκδοση στο GitHub. Δεν γίνεται αυτόματα λήψη ή εγκατάσταση.
 	Later	Αργότερα
 	none	κανένα

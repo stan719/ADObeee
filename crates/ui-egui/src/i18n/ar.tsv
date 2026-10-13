@@ -774,6 +774,26 @@
 	PdfCraft {c} is up to date.	PdfCraft {c} محدَّث.
 	Couldn't check for updates: {e}	تعذّر التحقق من التحديثات: {e}
 	You have version {c}. All releases are listed at {page}.	لديك الإصدار {c}. كل الإصدارات مدرجة في {page}.
+	Installed version: {v}	الإصدار المثبّت: {v}
+	The release is not a published stable update. Try again later.	هذا الإصدار ليس تحديثًا مستقرًا منشورًا. حاول مجددًا لاحقًا.
+	Available version: {v}	الإصدار المتاح: {v}
+	Package: {name}	الحزمة: {name}
+	Download size: {size}	حجم التنزيل: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	نوع التثبيت غير معروف أو أن هذا إصدار تطويري. اختر حزمة من صفحة الإصدار الرسمية.
+	No compatible package is available for this installation.	لا تتوفر حزمة متوافقة مع هذا التثبيت.
+	The release has ambiguous packages. Choose a package on the official release page.	تتضمن هذه النسخة حزمًا غير واضحة. اختر حزمة من صفحة الإصدار الرسمية.
+	Release notes	ملاحظات الإصدار
+	No release notes were provided.	لم تُرفق ملاحظات الإصدار.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	تُفتح التنزيلات في المتصفح. التثبيت يدوي؛ ولا يُثبَّت أي شيء تلقائيًا.
+	Download package…	تنزيل الحزمة…
+	View release page…	عرض صفحة الإصدار…
+	Remind Me Later	ذكّرني لاحقًا
+	Retry	إعادة المحاولة
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} بايت)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	يدير Flatpak هذا التثبيت. تحقّق من التحديثات في مدير برامج النظام أو باستخدام flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	هذه النسخة مثبّتة بواسطة حزمة Debian. استخدم مدير برامج النظام لتحديث PdfCraft.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	هذه النسخة مثبّتة بواسطة حزمة RPM. استخدم مدير برامج النظام لتحديث PdfCraft.
+	Use your system software manager to update PdfCraft.	استخدم مدير برامج النظام لتحديث PdfCraft.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	يسأل GitHub عن أحدث إصدار. لا يُنزَّل أو يُثبَّت شيء تلقائيًا.
 	Download	تنزيل
 	Later	لاحقًا

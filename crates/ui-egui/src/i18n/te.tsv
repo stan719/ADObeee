@@ -2265,3 +2265,25 @@ animation effects	Off	ఆఫ్
 	This document is trying to open a local file:	ఈ పత్రం ఒక స్థానిక ఫైల్‌ను తెరవడానికి ప్రయత్నిస్తోంది:
 	Move tag earlier	ట్యాగ్‌ను ముందుకు తరలించు
 	Move tag later	ట్యాగ్‌ను వెనుకకు తరలించు
+
+# Update availability and package guidance.
+	Installed version: {v}	ఇన్‌స్టాల్ చేసిన సంస్కరణ: {v}
+	The release is not a published stable update. Try again later.	ఈ విడుదల ప్రచురించబడిన స్థిరమైన నవీకరణ కాదు. తర్వాత మళ్లీ ప్రయత్నించండి.
+	Available version: {v}	అందుబాటులో ఉన్న సంస్కరణ: {v}
+	Package: {name}	ప్యాకేజీ: {name}
+	Download size: {size}	డౌన్‌లోడ్ పరిమాణం: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	ఇన్‌స్టాలేషన్ రకం తెలియదు లేదా ఇది అభివృద్ధి బిల్డ్. అధికారిక విడుదలల పేజీలో ప్యాకేజీని ఎంచుకోండి.
+	No compatible package is available for this installation.	ఈ ఇన్‌స్టాలేషన్‌కు అనుకూలమైన ప్యాకేజీ లేదు.
+	The release has ambiguous packages. Choose a package on the official release page.	విడుదలలో సరిపడే ప్యాకేజీలు ఒకటి కంటే ఎక్కువ ఉన్నాయి. అధికారిక విడుదలల పేజీలో ఒకదాన్ని ఎంచుకోండి.
+	Release notes	విడుదల గమనికలు
+	No release notes were provided.	విడుదల గమనికలు ఇవ్వలేదు.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	డౌన్‌లోడ్‌లు మీ బ్రౌజర్‌లో తెరుచుకుంటాయి. ఇన్‌స్టాలేషన్ చేతితో చేయాలి; ఏదీ స్వయంచాలకంగా ఇన్‌స్టాల్ చేయబడదు.
+	Download package…	ప్యాకేజీని డౌన్‌లోడ్ చేయి…
+	View release page…	విడుదల పేజీని చూడండి…
+	Remind Me Later	తర్వాత గుర్తు చేయి
+	Retry	మళ్లీ ప్రయత్నించు
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} బైట్లు)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	ఈ ఇన్‌స్టాలేషన్‌ను Flatpak నిర్వహిస్తుంది. మీ సిస్టమ్ సాఫ్ట్‌వేర్ మేనేజర్‌లో లేదా flatpak update ఆదేశంతో నవీకరణలను తనిఖీ చేయండి.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	ఈ ఇన్‌స్టాలేషన్ Debian ప్యాకేజీకి చెందింది. PdfCraft‌ను నవీకరించడానికి మీ సిస్టమ్ సాఫ్ట్‌వేర్ మేనేజర్‌ను ఉపయోగించండి.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	ఈ ఇన్‌స్టాలేషన్ RPM ప్యాకేజీకి చెందింది. PdfCraft‌ను నవీకరించడానికి మీ సిస్టమ్ సాఫ్ట్‌వేర్ మేనేజర్‌ను ఉపయోగించండి.
+	Use your system software manager to update PdfCraft.	PdfCraft‌ను నవీకరించడానికి మీ సిస్టమ్ సాఫ్ట్‌వేర్ మేనేజర్‌ను ఉపయోగించండి.

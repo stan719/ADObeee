@@ -775,6 +775,26 @@
 	PdfCraft {c} is up to date.	PdfCraft {c} は最新です。
 	Couldn't check for updates: {e}	アップデートを確認できませんでした: {e}
 	You have version {c}. All releases are listed at {page}.	現在のバージョンは {c} です。すべてのリリースは {page} に掲載されています。
+	Installed version: {v}	インストール済みのバージョン: {v}
+	The release is not a published stable update. Try again later.	このリリースは公開済みの安定版アップデートではありません。後でもう一度お試しください。
+	Available version: {v}	利用可能なバージョン: {v}
+	Package: {name}	パッケージ: {name}
+	Download size: {size}	ダウンロードサイズ: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	インストール形式が不明か、開発版です。公式リリースページからパッケージを選んでください。
+	No compatible package is available for this installation.	このインストールに対応するパッケージはありません。
+	The release has ambiguous packages. Choose a package on the official release page.	このリリースには複数の候補パッケージがあります。公式リリースページから選んでください。
+	Release notes	リリースノート
+	No release notes were provided.	リリースノートはありません。
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	ダウンロードはブラウザーで開きます。インストールは手動で行います。自動ではインストールされません。
+	Download package…	パッケージをダウンロード…
+	View release page…	リリースページを表示…
+	Remind Me Later	後で通知
+	Retry	再試行
+	{mib} MiB ({bytes} bytes)	{mib} MiB（{bytes} バイト）
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	このインストールはFlatpakが管理しています。システムのソフトウェア管理ツールまたは flatpak update で更新を確認してください。
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	このインストールはDebianパッケージが管理しています。システムのソフトウェア管理ツールでPdfCraftを更新してください。
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	このインストールはRPMパッケージが管理しています。システムのソフトウェア管理ツールでPdfCraftを更新してください。
+	Use your system software manager to update PdfCraft.	システムのソフトウェア管理ツールでPdfCraftを更新してください。
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	GitHub で最新リリースを確認します。自動でダウンロードやインストールは行いません。
 	Download	ダウンロード
 	Later	後で

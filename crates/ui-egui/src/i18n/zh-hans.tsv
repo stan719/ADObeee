@@ -2316,3 +2316,25 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+
+# Update availability and package guidance.
+	Installed version: {v}	已安装版本：{v}
+	The release is not a published stable update. Try again later.	此版本不是已发布的稳定更新。请稍后重试。
+	Available version: {v}	可用版本：{v}
+	Package: {name}	软件包：{name}
+	Download size: {size}	下载大小：{size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	安装类型未知，或这是开发版本。请在官方发布页面选择软件包。
+	No compatible package is available for this installation.	此安装没有兼容的软件包。
+	The release has ambiguous packages. Choose a package on the official release page.	此版本有多个兼容的软件包。请在官方发布页面选择一个软件包。
+	Release notes	发行说明
+	No release notes were provided.	未提供发行说明。
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	下载会在浏览器中打开。安装需手动进行；不会自动安装任何内容。
+	Download package…	下载软件包…
+	View release page…	查看发布页面…
+	Remind Me Later	稍后提醒我
+	Retry	重试
+	{mib} MiB ({bytes} bytes)	{mib} MiB（{bytes} 字节）
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	此安装由 Flatpak 管理。请在系统软件管理器中检查更新，或运行 flatpak update。
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	此安装由 Debian 软件包管理。请使用系统软件管理器更新 PdfCraft。
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	此安装由 RPM 软件包管理。请使用系统软件管理器更新 PdfCraft。
+	Use your system software manager to update PdfCraft.	请使用系统软件管理器更新 PdfCraft。

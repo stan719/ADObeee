@@ -767,6 +767,26 @@
 	PdfCraft {c} is up to date.	PdfCraft {c} jest aktualny.
 	Couldn't check for updates: {e}	Nie można sprawdzić aktualizacji: {e}
 	You have version {c}. All releases are listed at {page}.	Masz wersję {c}. Wszystkie wydania są dostępne na {page}.
+	Installed version: {v}	Zainstalowana wersja: {v}
+	The release is not a published stable update. Try again later.	To wydanie nie jest opublikowaną stabilną aktualizacją. Spróbuj ponownie później.
+	Available version: {v}	Dostępna wersja: {v}
+	Package: {name}	Pakiet: {name}
+	Download size: {size}	Rozmiar pobierania: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Nieznany typ instalacji lub wersja deweloperska. Wybierz pakiet na oficjalnej stronie wydań.
+	No compatible package is available for this installation.	Brak pakietu zgodnego z tą instalacją.
+	The release has ambiguous packages. Choose a package on the official release page.	W tym wydaniu dostępne są niejednoznaczne pakiety. Wybierz pakiet na oficjalnej stronie wydań.
+	Release notes	Informacje o wydaniu
+	No release notes were provided.	Nie podano informacji o wydaniu.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Pobrane pliki otwierają się w przeglądarce. Instalacja jest ręczna; nic nie instaluje się automatycznie.
+	Download package…	Pobierz pakiet…
+	View release page…	Wyświetl stronę wydania…
+	Remind Me Later	Przypomnij mi później
+	Retry	Ponów próbę
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} bajtów)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Tą instalacją zarządza Flatpak. Sprawdź aktualizacje w systemowym menedżerze oprogramowania lub poleceniem flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Tą instalacją zarządza pakiet Debiana. Zaktualizuj PdfCraft w systemowym menedżerze oprogramowania.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Tą instalacją zarządza pakiet RPM. Zaktualizuj PdfCraft w systemowym menedżerze oprogramowania.
+	Use your system software manager to update PdfCraft.	Zaktualizuj PdfCraft w systemowym menedżerze oprogramowania.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	Sprawdza najnowsze wydanie na GitHubie. Nic nie jest pobierane ani instalowane automatycznie.
 	Download	Pobierz
 	Later	Później

@@ -39,6 +39,7 @@ mod motion;
 mod reopen;
 mod single_instance;
 mod text_scale;
+mod update_context;
 mod updates;
 #[cfg(test)]
 #[path = "windows_manifest.rs"]
@@ -361,6 +362,7 @@ fn app_creator<'a>(
             app.motion.source = Some(motion::source());
         }
         app.update_source = Some(std::sync::Arc::new(updates::latest_release));
+        app.update_context = update_context::detect();
         app.printer_source = Some(pdfcraft_ui_egui::system_printers());
         app.os_key_store_ids = cfg!(any(target_os = "macos", target_os = "windows"));
         #[cfg(target_os = "macos")]

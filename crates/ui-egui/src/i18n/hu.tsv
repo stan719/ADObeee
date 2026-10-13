@@ -745,6 +745,26 @@
 	PdfCraft {c} is up to date.	A PdfCraft {c} naprakész.
 	Couldn't check for updates: {e}	A frissítések keresése nem sikerült: {e}
 	You have version {c}. All releases are listed at {page}.	A jelenlegi verzió: {c}. Minden kiadás itt található: {page}.
+	Installed version: {v}	Telepített verzió: {v}
+	The release is not a published stable update. Try again later.	Ez a kiadás nem közzétett stabil frissítés. Próbáld újra később.
+	Available version: {v}	Elérhető verzió: {v}
+	Package: {name}	Csomag: {name}
+	Download size: {size}	Letöltés mérete: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	A telepítés típusa ismeretlen, vagy ez egy fejlesztői build. Válassz csomagot a hivatalos kiadási oldalon.
+	No compatible package is available for this installation.	Nem érhető el kompatibilis csomag ehhez a telepítéshez.
+	The release has ambiguous packages. Choose a package on the official release page.	A kiadáshoz többféle csomag tartozik. Válassz egyet a hivatalos kiadási oldalon.
+	Release notes	Kiadási megjegyzések
+	No release notes were provided.	Nem érkeztek kiadási megjegyzések.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	A letöltések a böngészőben nyílnak meg. A telepítés kézi; semmi sem települ automatikusan.
+	Download package…	Csomag letöltése…
+	View release page…	Kiadási oldal megtekintése…
+	Remind Me Later	Emlékeztess később
+	Retry	Újra
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} bájt)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	A telepítést a Flatpak kezeli. Keress frissítéseket a rendszer szoftverkezelőjében vagy a flatpak update paranccsal.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Ezt a telepítést egy Debian-csomag kezeli. A PdfCraft frissítéséhez használd a rendszer szoftverkezelőjét.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Ezt a telepítést egy RPM-csomag kezeli. A PdfCraft frissítéséhez használd a rendszer szoftverkezelőjét.
+	Use your system software manager to update PdfCraft.	A PdfCraft frissítéséhez használd a rendszer szoftverkezelőjét.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	A GitHubtól kéri le a legújabb kiadást. Semmi sem töltődik le vagy települ automatikusan.
 	Download	Letöltés
 	Later	Később

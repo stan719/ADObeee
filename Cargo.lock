@@ -3862,6 +3862,10 @@ version = "0.7.1"
 dependencies = [
  "async-channel",
  "futures-lite",
+ "semver",
+ "serde",
+ "serde_json",
+ "url",
  "zbus",
 ]
 

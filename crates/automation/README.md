@@ -57,6 +57,14 @@ both. The existing `query`, `count`, `matches` and rectangle semantics are uncha
 `text_extract`, comment placement and redaction keep strict all-requested-pages-must-succeed
 semantics; they never silently act on partial text.
 
+## Release metadata
+
+`update_release_info` evaluates a supplied GitHub release JSON string against an installed
+version and explicit platform, architecture and installation type. It validates metadata and
+package URLs and returns the release notes plus a package-selection result. It makes no network
+or filesystem calls and never downloads or installs anything; `help.check_updates` remains a
+separate user-initiated desktop action.
+
 ## Shared field properties
 
 `form_set_props` accepts either `field` (one name) or `fields` (1–1000 unique names):

@@ -1741,9 +1741,9 @@ tier = "P2"
 milestone = "M3"
 status = "partial"
 commands = ["help.check_updates"]
-tools = []
-evidence = ["crates/ui-egui/tests/ui_group/updates.rs::a_newer_release_is_offered_for_download", "crates/ui-egui/tests/ui_group/updates.rs::nothing_is_asked_until_the_user_checks", "apps/pdfcraft/src/updates.rs::answers_are_read_and_only_our_release_pages_are_offered"]
-notes = "asks GitHub Releases on request and offers the release page. By the owner's decision there is no check at start and no in-place install (Acrobat has both)"
+tools = ["update_release_info"]
+evidence = ["crates/ui-egui/tests/ui_group/updates.rs::a_newer_release_is_offered_for_download", "crates/ui-egui/tests/ui_group/updates.rs::nothing_is_asked_until_the_user_checks", "apps/pdfcraft/src/updates.rs::answers_are_read_and_only_our_release_pages_are_offered", "crates/automation/tests/updates.rs::selects_exact_package_and_semver_upgrade_without_io"]
+notes = "asks GitHub Releases on request, compares SemVer precedence, shows bounded release notes and package sizes, and offers an exact package link for identified installations or the release page when unknown. Managed installs receive software-manager guidance. update_release_info evaluates supplied metadata offline; it does not retrieve updates or install them. By the owner's decision there is no check at start and no in-place install (Acrobat has both)"
 
 [[feature]]
 id = "view.single-key-accelerators"

@@ -731,6 +731,26 @@
 	PdfCraft {c} is up to date.	PdfCraft {c} нұсқасы ең соңғы.
 	Couldn't check for updates: {e}	Жаңартуларды тексеру мүмкін болмады: {e}
 	You have version {c}. All releases are listed at {page}.	Сізде {c} нұсқасы бар. Барлық шығарылымдар {page} бетінде көрсетілген.
+	Installed version: {v}	Орнатылған нұсқа: {v}
+	The release is not a published stable update. Try again later.	Бұл шығарылым жарияланған тұрақты жаңарту емес. Кейінірек қайталап көріңіз.
+	Available version: {v}	Қолжетімді нұсқа: {v}
+	Package: {name}	Пакет: {name}
+	Download size: {size}	Жүктеп алу өлшемі: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Орнату түрі белгісіз немесе бұл әзірлеу жинағы. Ресми шығарылым бетінен пакет таңдаңыз.
+	No compatible package is available for this installation.	Бұл орнатылымға үйлесімді пакет жоқ.
+	The release has ambiguous packages. Choose a package on the official release page.	Бұл шығарылымда бірнеше түрлі пакет бар. Ресми шығарылым бетінен пакет таңдаңыз.
+	Release notes	Шығарылым ескертпелері
+	No release notes were provided.	Шығарылым ескертпелері берілмеген.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Жүктеп алынған файлдар браузерде ашылады. Орнату қолмен орындалады; ештеңе автоматты түрде орнатылмайды.
+	Download package…	Пакетті жүктеп алу…
+	View release page…	Шығарылым бетін ашу…
+	Remind Me Later	Кейін еске салу
+	Retry	Қайталау
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} байт)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Бұл орнатылымды Flatpak басқарады. Жүйенің бағдарламалар менеджерінен немесе flatpak update пәрменімен жаңартуларды тексеріңіз.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Бұл орнатылымды Debian пакеті басқарады. PdfCraft бағдарламасын жаңарту үшін жүйенің бағдарламалар менеджерін пайдаланыңыз.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Бұл орнатылымды RPM пакеті басқарады. PdfCraft бағдарламасын жаңарту үшін жүйенің бағдарламалар менеджерін пайдаланыңыз.
+	Use your system software manager to update PdfCraft.	PdfCraft бағдарламасын жаңарту үшін жүйенің бағдарламалар менеджерін пайдаланыңыз.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	GitHub-тан соңғы шығарылымды сұрайды. Ештеңе автоматты түрде жүктелмейді немесе орнатылмайды.
 	Download	Жүктеп алу
 	Later	Кейінірек

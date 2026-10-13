@@ -2,7 +2,8 @@
 //!
 //! The desktop app supplies how to ask ([`PdfCraftApp::update_source`]), so this crate has no
 //! network code; without a source (the web build, tests) the command opens the releases page.
-//! PdfCraft never downloads or installs anything itself: the user downloads the new version.
+//! Package links open in the browser; installation remains manual.
+//! Metadata and package policy are shared with headless consumers in `pdfcraft-platform`.
 //! It asks only when the user does: there is no check at start (the owner's decision).
 
 use std::sync::Arc;
@@ -11,39 +12,10 @@ use egui::{Align, Layout};
 
 use crate::{PdfCraftApp, theme, widgets};
 
-/// Where every PdfCraft release is listed.
-pub const RELEASES_PAGE: &str = "https://github.com/storytold/pdfcraft/releases";
-
-/// The latest published release.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Release {
-    /// Its version tag, such as `v0.2.0`.
-    pub version: String,
-    /// Its page on [`RELEASES_PAGE`], where the downloads are.
-    pub url: String,
-}
+pub use pdfcraft_platform::updates::*;
 
 /// Asks for the latest release (blocking; it runs on its own thread).
 pub type UpdateSource = Arc<dyn Fn() -> Result<Release, String> + Send + Sync>;
-
-/// Whether release `latest` (a tag such as `v0.2.0`) is newer than version `current` (`0.1.1`).
-/// Pre-release and build suffixes are ignored; a version that doesn't parse is never newer.
-pub fn is_newer(latest: &str, current: &str) -> bool {
-    matches!((parse(latest), parse(current)), (Some(l), Some(c)) if l > c)
-}
-
-fn parse(v: &str) -> Option<(u64, u64, u64)> {
-    let v = v.trim().trim_start_matches(['v', 'V']);
-    let core = v.split(['-', '+']).next()?;
-    let mut parts = core.split('.');
-    let mut next = |required: bool| match parts.next() {
-        Some(p) => p.parse::<u64>().ok(),
-        None if required => None,
-        None => Some(0),
-    };
-    let version = (next(true)?, next(false)?, next(false)?);
-    parts.next().is_none().then_some(version)
-}
 
 /// Where a check is.
 #[derive(Default)]
@@ -53,6 +25,7 @@ pub(crate) enum Check {
     #[cfg(not(target_arch = "wasm32"))]
     Running(std::sync::mpsc::Receiver<Result<Release, String>>),
     Done(Result<Release, String>),
+    Managed,
 }
 
 #[derive(Default)]
@@ -65,6 +38,13 @@ pub(crate) struct Updates {
 impl PdfCraftApp {
     /// Help ▸ Check for updates: ask for the latest release and show the outcome.
     pub fn check_for_updates(&mut self) {
+        if self.update_context.platform == Platform::Linux
+            && matches!(self.update_context.kind, InstallKind::Deb | InstallKind::Rpm | InstallKind::Flatpak)
+        {
+            self.updates.open = true;
+            self.updates.check = Check::Managed;
+            return;
+        }
         let Some(source) = self.update_source.clone() else {
             self.open_url(RELEASES_PAGE);
             return;
@@ -115,14 +95,16 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let t = theme::Tokens::get(ctx);
     let current = env!("CARGO_PKG_VERSION");
     let mut close = false;
-    let mut download: Option<String> = None;
+    let mut download: Option<(String, bool)> = None;
+    let mut retry = false;
     let modal = crate::widgets::show_modal(ctx, "updates", |ui| {
-        ui.set_width(420.0);
+        ui.set_width(480.0);
         ui.horizontal(|ui| {
             ui.add(crate::icons::image("cloud", 22.0, t.accent));
             ui.label(egui::RichText::new(tl!("Check for updates")).font(theme::semibold(16.0)));
         });
         ui.add_space(8.0);
+        ui.label(crate::i18n::fmt(tl!("Installed version: {v}"), &[("v", &pdfcraft_engine::build_info::version())]));
         match &app.updates.check {
             Check::Idle => {
                 ui.label(tl!("No check has run yet."));
@@ -134,17 +116,47 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
                     ui.label(tl!("Checking for a newer version…"));
                 });
             }
+            Check::Managed => {
+                managed_guidance(ui, app.update_context.kind);
+            }
+            Check::Done(Ok(r)) if r.draft || r.prerelease => {
+                ui.label(tl!("The release is not a published stable update. Try again later."));
+            }
             Check::Done(Ok(r)) if is_newer(&r.version, current) => {
-                let version = r.version.trim_start_matches(['v', 'V']);
+                let version = r.version.trim_start_matches('v');
                 ui.label(egui::RichText::new(crate::i18n::fmt(tl!("PdfCraft {v} is available."), &[("v", version)])).strong());
-                ui.label(
-                    egui::RichText::new(crate::i18n::fmt(
-                        tl!("You have version {c}. Download the new version from its release page."),
-                        &[("c", current)],
-                    ))
-                    .color(t.text_muted),
-                );
-                download = Some(r.url.clone());
+                ui.label(crate::i18n::fmt(tl!("Available version: {v}"), &[("v", version)]));
+                let page = if valid_release_url(&r.url, &r.version) { &r.url } else { RELEASES_PAGE };
+                match select_package(r, app.update_context) {
+                    PackageSelection::Package(asset) => {
+                        ui.label(crate::i18n::fmt(tl!("Package: {name}"), &[("name", &asset.name)]));
+                        ui.label(crate::i18n::fmt(tl!("Download size: {size}"), &[("size", &download_size(asset.size))]));
+                        download = Some((asset.url.clone(), true));
+                    }
+                    PackageSelection::Managed(kind) => managed_guidance(ui, kind),
+                    PackageSelection::Unknown => {
+                        ui.label(tl!("Installation type is unknown or this is a development build. Choose a package on the official release page."));
+                        download = Some((page.to_string(), false));
+                    }
+                    PackageSelection::Missing => {
+                        ui.label(tl!("No compatible package is available for this installation."));
+                        download = Some((page.to_string(), false));
+                    }
+                    PackageSelection::Ambiguous => {
+                        ui.label(tl!("The release has ambiguous packages. Choose a package on the official release page."));
+                        download = Some((page.to_string(), false));
+                    }
+                }
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new(tl!("Release notes")).strong());
+                if r.notes.is_empty() {
+                    ui.label(tl!("No release notes were provided."));
+                } else {
+                    // Plain text only: no remote HTML, images, or automatically opened links.
+                    egui::ScrollArea::vertical().id_salt("update-notes").max_height(180.0).show(ui, |ui| {
+                        ui.add(egui::Label::new(&r.notes).wrap());
+                    });
+                }
             }
             Check::Done(Ok(_)) => {
                 ui.label(crate::i18n::fmt(tl!("PdfCraft {c} is up to date."), &[("c", current)]));
@@ -162,19 +174,23 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
         }
         ui.add_space(10.0);
         ui.label(
-            egui::RichText::new(tl!("Asks GitHub for the latest release. Nothing is downloaded or installed automatically."))
+            egui::RichText::new(tl!("Downloads open in your browser. Installation is manual; nothing is installed automatically."))
                 .color(t.text_muted)
                 .small(),
         );
         ui.add_space(12.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if let Some(url) = download.take() {
-                let get = widgets::pill_button(ui, tl!("Download"), true).clicked();
-                let later = widgets::pill_button(ui, tl!("Later"), false).clicked();
+            if let Some((url, package)) = download.take() {
+                let label = if package { tl!("Download package…") } else { tl!("View release page…") };
+                let get = widgets::pill_button(ui, label, true).clicked();
+                let later = widgets::pill_button(ui, tl!("Remind Me Later"), false).clicked();
                 close = get || later;
-                download = get.then_some(url);
-            } else if widgets::pill_button(ui, tl!("Close"), true).clicked() {
-                close = true;
+                download = get.then_some((url, package));
+            } else {
+                close = widgets::pill_button(ui, tl!("Close"), true).clicked();
+                if matches!(app.updates.check, Check::Done(Err(_))) {
+                    retry = widgets::pill_button(ui, tl!("Retry"), false).clicked();
+                }
             }
         });
     });
@@ -182,10 +198,27 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
         close = true;
         download = None;
     }
+    if retry {
+        app.check_for_updates();
+    }
     if close {
         app.updates.open = false;
-        if let Some(url) = download {
+        if let Some((url, _)) = download {
             app.open_url(&url);
         }
     }
+}
+
+/// Byte units are binary and deliberately separate from translated surrounding text.
+fn download_size(bytes: u64) -> String {
+    crate::i18n::fmt(tl!("{mib} MiB ({bytes} bytes)"), &[("mib", &format!("{:.1}", bytes as f64 / 1_048_576.0)), ("bytes", &bytes.to_string())])
+}
+
+fn managed_guidance(ui: &mut egui::Ui, kind: InstallKind) {
+    ui.label(match kind {
+        InstallKind::Flatpak => tl!("Flatpak manages this installation. Check for updates in your system software manager or with flatpak update."),
+        InstallKind::Deb => tl!("This installation is owned by a Debian package. Use your system software manager to update PdfCraft."),
+        InstallKind::Rpm => tl!("This installation is owned by an RPM package. Use your system software manager to update PdfCraft."),
+        _ => tl!("Use your system software manager to update PdfCraft."),
+    });
 }

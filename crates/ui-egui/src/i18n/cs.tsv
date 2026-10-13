@@ -849,6 +849,26 @@ key	Space	Mezerník
 	PdfCraft {c} is up to date.	PdfCraft {c} je aktuální.
 	Couldn't check for updates: {e}	Aktualizace nelze zkontrolovat: {e}
 	You have version {c}. All releases are listed at {page}.	Máte verzi {c}. Všechna vydání najdete na {page}.
+	Installed version: {v}	Nainstalovaná verze: {v}
+	The release is not a published stable update. Try again later.	Toto vydání není zveřejněná stabilní aktualizace. Zkuste to později.
+	Available version: {v}	Dostupná verze: {v}
+	Package: {name}	Balíček: {name}
+	Download size: {size}	Velikost stahování: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Typ instalace není znám nebo jde o vývojovou verzi. Vyberte balíček na oficiální stránce vydání.
+	No compatible package is available for this installation.	Pro tuto instalaci není k dispozici kompatibilní balíček.
+	The release has ambiguous packages. Choose a package on the official release page.	Vydání obsahuje nejednoznačné balíčky. Vyberte balíček na oficiální stránce vydání.
+	Release notes	Poznámky k vydání
+	No release notes were provided.	Poznámky k vydání nebyly poskytnuty.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Stažené soubory se otevřou v prohlížeči. Instalace je ruční; nic se nenainstaluje automaticky.
+	Download package…	Stáhnout balíček…
+	View release page…	Zobrazit stránku vydání…
+	Remind Me Later	Připomenout později
+	Retry	Zkusit znovu
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} bajtů)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Tuto instalaci spravuje Flatpak. Aktualizace vyhledejte ve správci softwaru nebo příkazem flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Tuto instalaci spravuje balíček Debianu. Aktualizujte PdfCraft ve správci softwaru.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Tuto instalaci spravuje balíček RPM. Aktualizujte PdfCraft ve správci softwaru.
+	Use your system software manager to update PdfCraft.	Aktualizujte PdfCraft ve správci softwaru.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	Zjistí na GitHubu nejnovější vydání. Nic se automaticky nestahuje ani neinstaluje.
 	Download	Stáhnout
 	Later	Později

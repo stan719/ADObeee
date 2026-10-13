@@ -133,6 +133,15 @@ pub fn tools() -> Vec<ToolDef> {
             .cmd("file.open")
             .with(schema(json!({ "path": { "type": "string" }, "password": { "type": "string", "description": "User or owner password for encrypted files." } }), &["path"])),
         t("doc_list", "List open documents", "List the open documents with their ids, page counts and unsaved state.").ro().with(schema(json!({}), &[])),
+        t("update_release_info", "Evaluate release metadata", "Evaluate supplied GitHub release metadata against an installed version and explicit platform, architecture and installation type. Performs no network or filesystem access and never installs or downloads a package.")
+            .ro()
+            .with(schema(json!({
+                "metadata_json": { "type": "string", "maxLength": 1048576, "description": "GitHub release JSON. Parsed locally; release metadata and canonical PdfCraft URLs are validated." },
+                "installed_version": { "type": "string", "maxLength": 128 },
+                "platform": { "type": "string", "enum": ["windows", "macos", "linux", "freebsd", "unsupported"] },
+                "architecture": { "type": "string", "enum": ["x86", "x64", "arm64", "riscv64", "unknown"] },
+                "installation": { "type": "string", "enum": ["windows_msi", "windows_portable", "mac_app", "appimage", "deb", "rpm", "flatpak", "unknown", "development"] }
+            }), &["metadata_json", "installed_version", "platform", "architecture", "installation"])),
         t("doc_info", "Inspect a document", "Metadata, page sizes and labels, bookmarks, annotations, form fields, links, layers, attachments, fonts, security and repair notes.")
             .ro()
             .cmd("file.properties")

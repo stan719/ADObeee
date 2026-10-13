@@ -1259,6 +1259,26 @@
 	You are about to apply 1 redaction mark. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Ketinate pritaikyti 1 šalinimo žymą. Po žymomis esantis tekstas, paveikslėliai ir brėžiniai, taip pat su jomis persidengiantys komentarai ir formos laukai bus pašalinti visam laikui.
 	You are about to apply {n} redaction marks. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Ketinate pritaikyti šalinimo žymų: {n}. Po žymomis esantis tekstas, paveikslėliai ir brėžiniai, taip pat su jomis persidengiantys komentarai ir formos laukai bus pašalinti visam laikui.
 	You have version {c}. All releases are listed at {page}.	Turite versiją {c}. Visos laidos išvardytos čia: {page}.
+	Installed version: {v}	Įdiegta versija: {v}
+	The release is not a published stable update. Try again later.	Šis leidimas nėra paskelbtas stabilus naujinys. Bandykite vėliau.
+	Available version: {v}	Prieinama versija: {v}
+	Package: {name}	Paketas: {name}
+	Download size: {size}	Atsisiuntimo dydis: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Įdiegimo tipas nežinomas arba tai kūrimo versija. Pasirinkite paketą oficialiame leidimų puslapyje.
+	No compatible package is available for this installation.	Šiam įdiegimui tinkamo paketo nėra.
+	The release has ambiguous packages. Choose a package on the official release page.	Šiame leidime yra kelios galimos paketų parinktys. Pasirinkite paketą oficialiame leidimų puslapyje.
+	Release notes	Leidimo pastabos
+	No release notes were provided.	Leidimo pastabų nepateikta.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Atsisiuntimai atidaromi naršyklėje. Įdiegti reikia rankiniu būdu; niekas neįdiegiama automatiškai.
+	Download package…	Atsisiųsti paketą…
+	View release page…	Atverti leidimo puslapį…
+	Remind Me Later	Priminti vėliau
+	Retry	Bandyti dar kartą
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} baitai)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Šį įdiegimą tvarko Flatpak. Naujinimų ieškokite sistemos programinės įrangos tvarkytuvėje arba naudodami flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Šį įdiegimą valdo Debian paketas. PdfCraft naujinkite sistemos programinės įrangos tvarkytuvėje.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Šį įdiegimą valdo RPM paketas. PdfCraft naujinkite sistemos programinės įrangos tvarkytuvėje.
+	Use your system software manager to update PdfCraft.	PdfCraft naujinkite sistemos programinės įrangos tvarkytuvėje.
 	You have version {c}. Download the new version from its release page.	Turite versiją {c}. Atsisiųskite naują versiją iš jos laidos puslapio.
 	Your changes will be lost if you don't save them.	Jei pakeitimų neįrašysite, jie bus prarasti.
 	ZIP	ZIP

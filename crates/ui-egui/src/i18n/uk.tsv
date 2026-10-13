@@ -2374,3 +2374,25 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+
+# Update availability and package guidance.
+	Installed version: {v}	Встановлена версія: {v}
+	The release is not a published stable update. Try again later.	Це не опубліковане стабільне оновлення. Спробуйте пізніше.
+	Available version: {v}	Доступна версія: {v}
+	Package: {name}	Пакет: {name}
+	Download size: {size}	Розмір завантаження: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Тип встановлення невідомий або це збірка для розробки. Виберіть пакет на офіційній сторінці випусків.
+	No compatible package is available for this installation.	Для цього встановлення немає сумісного пакета.
+	The release has ambiguous packages. Choose a package on the official release page.	У випуску є кілька сумісних пакетів. Виберіть пакет на офіційній сторінці випусків.
+	Release notes	Примітки до випуску
+	No release notes were provided.	Приміток до випуску немає.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Завантаження відкриваються у браузері. Встановлення виконується вручну; автоматичного встановлення немає.
+	Download package…	Завантажити пакет…
+	View release page…	Переглянути сторінку випуску…
+	Remind Me Later	Нагадати пізніше
+	Retry	Повторити
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} байтів)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Цю інсталяцію обслуговує Flatpak. Перевірте оновлення в системному менеджері програм або командою flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Це встановлення належить пакету Debian. Оновіть PdfCraft у системному менеджері програм.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Це встановлення належить пакету RPM. Оновіть PdfCraft у системному менеджері програм.
+	Use your system software manager to update PdfCraft.	Оновіть PdfCraft у системному менеджері програм.

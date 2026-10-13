@@ -2348,3 +2348,25 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+
+# Update availability and package guidance.
+	Installed version: {v}	Yüklü sürüm: {v}
+	The release is not a published stable update. Try again later.	Sürüm, yayımlanmış kararlı bir güncelleme değil. Daha sonra yeniden deneyin.
+	Available version: {v}	Kullanılabilir sürüm: {v}
+	Package: {name}	Paket: {name}
+	Download size: {size}	İndirme boyutu: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Kurulum türü bilinmiyor veya bu bir geliştirme derlemesi. Resmî sürüm sayfasından bir paket seçin.
+	No compatible package is available for this installation.	Bu kurulum için uyumlu bir paket yok.
+	The release has ambiguous packages. Choose a package on the official release page.	Sürümde birden fazla uyumlu paket var. Resmî sürüm sayfasından bir paket seçin.
+	Release notes	Sürüm notları
+	No release notes were provided.	Sürüm notu sağlanmadı.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	İndirmeler tarayıcınızda açılır. Kurulum el ile yapılır; hiçbir şey otomatik olarak kurulmaz.
+	Download package…	Paketi indir…
+	View release page…	Sürüm sayfasını görüntüle…
+	Remind Me Later	Daha sonra hatırlat
+	Retry	Yeniden dene
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} bayt)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Bu kurulumu Flatpak yönetir. Güncellemeleri sistem yazılım yöneticinizden veya flatpak update komutuyla denetleyin.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Bu kurulum bir Debian paketine aittir. PdfCraft’ı sistem yazılım yöneticinizden güncelleyin.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Bu kurulum bir RPM paketine aittir. PdfCraft’ı sistem yazılım yöneticinizden güncelleyin.
+	Use your system software manager to update PdfCraft.	PdfCraft’ı sistem yazılım yöneticinizden güncelleyin.

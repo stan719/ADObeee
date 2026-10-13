@@ -27,6 +27,7 @@ mod redact;
 mod signing;
 mod text_cache;
 mod tools;
+mod updates;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -280,6 +281,7 @@ impl Automation {
             "command_batch" => self.command_batch(&a)?,
             "doc_inspect" => self.doc_inspect(&a)?,
             "render_preview" => return self.render_preview(&a).map(|c| vec![c]),
+            "update_release_info" => updates::update_release_info(&a)?,
             "page_number" => {
                 use pdfcraft_organize::LabelStyle as L;
                 let n = self.doc(&a)?.info.pages.len();

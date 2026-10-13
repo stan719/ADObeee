@@ -2,15 +2,18 @@
 
 use std::time::Duration;
 
-use pdfcraft_ui_egui::updates::{RELEASES_PAGE, Release};
+use pdfcraft_ui_egui::updates::Release;
 
 const LATEST: &str = "https://api.github.com/repos/storytold/pdfcraft/releases/latest";
 
 /// The latest release. The answer is untrusted: its size is capped, and only a page under
-/// [`RELEASES_PAGE`] is ever offered for download (anything else falls back to that list).
+/// the canonical PdfCraft release and asset URLs are accepted. Packages are opened in the browser.
 pub fn latest_release() -> Result<Release, String> {
     let agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(10)))
+        // The only allowed request is the exact GitHub API endpoint above. Never follow a
+        // redirect to another host, path, or scheme.
+        .max_redirects(0)
         .tls_config(ureq::tls::TlsConfig::builder().root_certs(os_roots()?).build())
         .build()
         .new_agent();
@@ -34,7 +37,7 @@ pub fn latest_release() -> Result<Release, String> {
         return Err(format!("couldn't reach GitHub (http status: {status})"));
     }
     let body = response.body_mut().with_config().limit(1 << 20).read_to_string().map_err(|e| format!("unreadable answer ({e})"))?;
-    parse(&body)
+    pdfcraft_ui_egui::updates::parse_release(&body)
 }
 
 /// The certificate authorities the operating system trusts.
@@ -69,31 +72,35 @@ fn rate_limited(reset: Option<&str>, now: u64) -> String {
     }
 }
 
-fn parse(body: &str) -> Result<Release, String> {
-    let v: serde_json::Value = serde_json::from_str(body).map_err(|e| format!("unreadable answer ({e})"))?;
-    let version = v["tag_name"].as_str().filter(|t| !t.is_empty() && t.len() <= 64).ok_or("no release found")?.to_string();
-    let url = v["html_url"]
-        .as_str()
-        .filter(|u| u.strip_prefix(RELEASES_PAGE).is_some_and(|rest| rest.starts_with('/') && !rest.contains(['?', '#', '\\'])))
-        .unwrap_or(RELEASES_PAGE)
-        .to_string();
-    Ok(Release { version, url })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn response() -> &'static str {
+        r#"{"tag_name":"v0.7.1","html_url":"https://github.com/storytold/pdfcraft/releases/tag/v0.7.1","body":"Fixes and improvements","draft":false,"prerelease":false,"assets":[{"name":"pdfcraft-0.7.1-linux-x86_64.AppImage","size":1234,"browser_download_url":"https://github.com/storytold/pdfcraft/releases/download/v0.7.1/pdfcraft-0.7.1-linux-x86_64.AppImage","digest":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}]}"#
+    }
+
     #[test]
     fn answers_are_read_and_only_our_release_pages_are_offered() {
-        let r = parse(r#"{"tag_name":"v0.2.0","html_url":"https://github.com/storytold/pdfcraft/releases/tag/v0.2.0"}"#).unwrap();
-        assert_eq!(r, Release { version: "v0.2.0".into(), url: "https://github.com/storytold/pdfcraft/releases/tag/v0.2.0".into() });
-        for elsewhere in ["https://example.com/pdfcraft.exe", "https://github.com/storytold/pdfcraft/releases.evil/x", "javascript:alert(1)"] {
-            let r = parse(&format!(r#"{{"tag_name":"v9.9.9","html_url":"{elsewhere}"}}"#)).unwrap();
-            assert_eq!(r.url, RELEASES_PAGE, "{elsewhere}");
+        let release = pdfcraft_ui_egui::updates::parse_release(response()).unwrap();
+        assert_eq!(release.version, "v0.7.1");
+        assert_eq!(release.url, "https://github.com/storytold/pdfcraft/releases/tag/v0.7.1");
+        assert_eq!(release.notes, "Fixes and improvements");
+        assert_eq!(release.assets.len(), 1);
+        assert_eq!(release.assets[0].name, "pdfcraft-0.7.1-linux-x86_64.AppImage");
+        assert_eq!(release.assets[0].digest.as_deref(), Some("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"));
+    }
+
+    #[test]
+    fn github_error_and_invalid_release_fixtures_are_rejected_without_network() {
+        for body in [
+            r#"{"message":"Not Found","documentation_url":"https://docs.github.com"}"#,
+            r#"{"message":"API rate limit exceeded"}"#,
+            "<html>upstream error</html>",
+            r#"{"tag_name":"v0.7.1","html_url":"https://example.com/release","body":"Notes","draft":false,"prerelease":false,"assets":[]}"#,
+        ] {
+            assert!(pdfcraft_ui_egui::updates::parse_release(body).is_err(), "{body}");
         }
-        assert!(parse(r#"{"message":"Not Found"}"#).is_err());
-        assert!(parse("<html>").is_err());
     }
 
     #[test]
@@ -114,14 +121,5 @@ mod tests {
         for bad in [None, Some(""), Some("soon"), Some("1799999999"), Some("1800000000")] {
             assert_eq!(rate_limited(bad, 1800000000), later);
         }
-    }
-
-    /// Live: asks GitHub over TLS with the OS's roots (`cargo test -p pdfcraft -- --ignored`).
-    #[test]
-    #[ignore = "needs network access"]
-    fn github_answers_with_the_latest_release() {
-        let r = latest_release().unwrap();
-        assert!(pdfcraft_ui_egui::updates::is_newer(&r.version, "0.0.0"), "{r:?}");
-        assert!(r.url.starts_with(RELEASES_PAGE), "{r:?}");
     }
 }

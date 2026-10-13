@@ -450,6 +450,26 @@
 	PdfCraft {c} is up to date.	PdfCraft {c} е актуална.
 	Couldn't check for updates: {e}	Неуспешна проверка за актуализации: {e}
 	You have version {c}. All releases are listed at {page}.	Имате версия {c}. Всички издания са изброени на {page}.
+	Installed version: {v}	Инсталирана версия: {v}
+	The release is not a published stable update. Try again later.	Това издание не е публикувана стабилна актуализация. Опитайте отново по-късно.
+	Available version: {v}	Налична версия: {v}
+	Package: {name}	Пакет: {name}
+	Download size: {size}	Размер за изтегляне: {size}
+	Installation type is unknown or this is a development build. Choose a package on the official release page.	Типът на инсталацията е неизвестен или това е версия за разработка. Изберете пакет от официалната страница на изданието.
+	No compatible package is available for this installation.	Няма съвместим пакет за тази инсталация.
+	The release has ambiguous packages. Choose a package on the official release page.	Пакетите за това издание са нееднозначни. Изберете пакет от официалната страница на изданието.
+	Release notes	Бележки към изданието
+	No release notes were provided.	Няма предоставени бележки към изданието.
+	Downloads open in your browser. Installation is manual; nothing is installed automatically.	Изтеглянията се отварят в браузъра. Инсталирането е ръчно; нищо не се инсталира автоматично.
+	Download package…	Изтегли пакета…
+	View release page…	Отвори страницата на изданието…
+	Remind Me Later	Напомни ми по-късно
+	Retry	Опитай отново
+	{mib} MiB ({bytes} bytes)	{mib} MiB ({bytes} байта)
+	Flatpak manages this installation. Check for updates in your system software manager or with flatpak update.	Flatpak управлява тази инсталация. Проверете за актуализации в системния софтуерен мениджър или с flatpak update.
+	This installation is owned by a Debian package. Use your system software manager to update PdfCraft.	Тази инсталация се управлява от пакет на Debian. Използвайте системния софтуерен мениджър, за да актуализирате PdfCraft.
+	This installation is owned by an RPM package. Use your system software manager to update PdfCraft.	Тази инсталация се управлява от RPM пакет. Използвайте системния софтуерен мениджър, за да актуализирате PdfCraft.
+	Use your system software manager to update PdfCraft.	Използвайте системния софтуерен мениджър, за да актуализирате PdfCraft.
 	Asks GitHub for the latest release. Nothing is downloaded or installed automatically.	Запитва GitHub за най-новото издание. Нищо не се изтегля и не се инсталира автоматично.
 	Download	Изтегли
 	Later	По-късно
