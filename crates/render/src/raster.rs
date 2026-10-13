@@ -3047,6 +3047,57 @@ trailer << /Root 1 0 R >>
         }
     }
 
+    /// Markup annotations may put their constant opacity on the annotation dictionary while the
+    /// normal appearance only contains the painted shape. The appearance must still be composited
+    /// with that opacity and Highlight's Multiply blend, otherwise an imported yellow appearance
+    /// is an opaque rectangle over the text (#1968).
+    #[test]
+    fn highlight_appearance_honours_annotation_opacity_and_blend() {
+        let render = |annot_extra: &str| {
+            let appearance = "1 1 0 rg 15 35 105 30 re f";
+            let page_content = "0 g 100 40 10 20 re f";
+            let pdf = format!(
+                "%PDF-1.7
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents 4 0 R /Annots [5 0 R] >> endobj
+4 0 obj << /Length {} >> stream
+{page_content}
+endstream endobj
+5 0 obj << /Type /Annot /Subtype /Highlight /Rect [15 35 120 65] /QuadPoints [15 65 120 65 15 35 120 35] /C [1 1 0] {annot_extra} /AP << /N 6 0 R >> >> endobj
+6 0 obj << /Type /XObject /Subtype /Form /BBox [15 35 120 65] /Length {} >> stream
+{appearance}
+endstream endobj
+trailer << /Root 1 0 R >>
+%%EOF",
+                page_content.len(),
+                appearance.len()
+            );
+            let mut renderer = PageRenderer::new(Arc::new(pdf.into_bytes()), RenderConfig::default());
+            let page = renderer.render(RenderRequest { page: 0, kind: RequestKind::Pixels, tile: None, scale: 1.0, tag: 0, ..Default::default() });
+            assert!(page.error.is_none(), "{:?}", page.error);
+            page
+        };
+        let pixel = |page: &RenderedPage, x: u32, y: u32| page.rgba[((y * page.width + x) * 4) as usize..][..4].to_vec();
+        let assert_translucent_multiply = |page: &RenderedPage| {
+            let yellow_on_white = pixel(page, 30, 50);
+            assert!(
+                yellow_on_white[0] == 255 && yellow_on_white[1] == 255 && (126..=129).contains(&yellow_on_white[2]) && yellow_on_white[3] == 255,
+                "half-opacity yellow over white: {yellow_on_white:?}"
+            );
+            assert_eq!(pixel(page, 105, 50), vec![0, 0, 0, 255], "Multiply keeps text underneath");
+        };
+
+        // External producers may use the markup annotation's /CA and rely on Highlight semantics.
+        let annotation = render("/CA 0.5");
+        assert_translucent_multiply(&annotation);
+
+        // Even without an explicit opacity, Highlight uses Multiply instead of obscuring text.
+        let opaque = render("");
+        assert_eq!(pixel(&opaque, 30, 50), vec![255, 255, 0, 255]);
+        assert_eq!(pixel(&opaque, 105, 50), vec![0, 0, 0, 255]);
+    }
+
     #[test]
     fn hiding_comments_keeps_fields() {
         let pdf = b"%PDF-1.7
