@@ -306,8 +306,8 @@ fn render_page<'a>(
 ) -> Result<Output, (String, bool)> {
     if req.kind == RequestKind::Text {
         return match catch_unwind(AssertUnwindSafe(|| crate::text::extract_page(pdf, req.page, settings))) {
-            Ok(Some(t)) => Ok((0, 0, Pixels::default(), Some(Arc::new(t)))),
-            Ok(None) => Err((format!("page {} does not exist", req.page + 1), false)),
+            Ok(Ok(t)) => Ok((0, 0, Pixels::default(), Some(Arc::new(t)))),
+            Ok(Err(error)) => Err((error, false)),
             Err(panic) => Err((format!("text extraction crashed on page {}: {}", req.page + 1, panic_message(&panic)), true)),
         };
     }
