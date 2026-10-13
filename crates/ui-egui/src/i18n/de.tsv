@@ -833,6 +833,7 @@
 	, Expires: 	, läuft ab: 
 	No digital IDs yet.	Noch keine digitalen IDs.
 	Configure New Digital ID	Neue digitale ID einrichten
+	Remove "{name}" from this list? The file itself is not deleted.	„{name}“ aus dieser Liste entfernen? Die Datei selbst wird nicht gelöscht.
 	Continue	Weiter
 	Configure a Digital ID for Signing	Digitale ID zum Signieren einrichten
 	Use a Digital ID from a file	Digitale ID aus einer Datei verwenden
@@ -2344,6 +2345,11 @@ address	Formal	Formell (Sie)
 address	Informal	Informell (du)
 address	Choose a form of address	Anrede wählen
 address	This can be changed later in Preferences.	Die Anrede kann jederzeit in den Einstellungen geändert werden.
+	Minimize	Minimieren
+	Maximize	Maximieren
+	Restore	Wiederherstellen
+	Use system title bar	System-Titelleiste verwenden
+	Show a basic title bar for the window buttons instead of the tab strip. GNOME doesn't draw title bars for apps, so this one doesn't follow its theme.	Eine einfache Titelleiste für die Fensterknöpfe statt der Tableiste anzeigen. GNOME zeichnet für Apps keine Titelleisten, daher folgt diese nicht seinem Design.
 
 # Absolute local GoToR confirmation (#1364).
 	Allow	Zulassen

@@ -116,3 +116,21 @@ fn asking_again_does_not_change_document_state() {
     assert_eq!(h.state().persist(), original);
     assert_eq!(tr(h.state().ui_language(), "Merged PRs"), "Gemergte PRs");
 }
+
+#[test]
+fn address_and_window_preferences_round_trip_together() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "de").unwrap();
+    app.set_option("address", "informal").unwrap();
+    app.system_title_bar = true;
+    let saved = app.persist();
+    let settings: serde_json::Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(settings["address"]["de"], "informal");
+    assert_eq!(settings["system_title_bar"], true);
+    assert_eq!(settings["language"], "de");
+    let mut restored = PdfCraftApp::new();
+    restored.restore(&saved);
+    assert!(restored.system_title_bar);
+    assert_eq!(restored.address.get("de"), Some(&Address::Informal));
+    assert_eq!(restored.ui_language(), Lang::from_code("de").unwrap().with_address(Address::Informal));
+}

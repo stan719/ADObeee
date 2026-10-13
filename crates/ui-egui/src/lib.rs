@@ -131,6 +131,7 @@ pub mod ui_scale;
 pub mod updates;
 mod wheel_pager;
 mod widgets;
+pub mod window_controls;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod open_worker_tests;
@@ -578,6 +579,14 @@ pub struct PdfCraftApp {
     pub toast: Option<(String, f64)>,
     /// Whether the macOS title bar is drawn by us (traffic lights over our tab strip).
     pub integrated_titlebar: bool,
+    /// Set when the desktop leaves the window frame to the app (GNOME on Wayland): the tab strip
+    /// carries these window buttons and the window's edges resize it.
+    pub window_controls: Option<window_controls::Layout>,
+    /// Preferences ▸ Use system title bar: where `window_controls` is set, give the window back
+    /// winit's frame instead of drawing the header bar (#1001).
+    pub system_title_bar: bool,
+    /// Whether the window currently has the app's header bar (`None` until the first frame).
+    app_frame_shown: Option<bool>,
     pub password_prompt: Option<PasswordPrompt>,
     pub unlock_prompt: Option<UnlockPrompt>,
     pub full_screen: bool,
@@ -918,6 +927,9 @@ impl PdfCraftApp {
             pinned: Default::default(),
             toast: None,
             integrated_titlebar: false,
+            window_controls: None,
+            system_title_bar: false,
+            app_frame_shown: None,
             password_prompt: None,
             unlock_prompt: None,
             full_screen: false,
@@ -1458,6 +1470,28 @@ impl PdfCraftApp {
                 #[cfg(target_arch = "wasm32")]
                 self.notify_fmt("Downloading attachments on the web arrives with M3.10 ({n} bytes ready)", &[("n", &bytes.len().to_string())]);
             }
+        }
+    }
+
+    /// Whether the app draws the window's title bar, buttons and resize edges: the desktop leaves
+    /// the frame to the app and Use system title bar is off.
+    pub fn draws_window_frame(&self) -> bool {
+        self.window_controls.is_some() && !self.system_title_bar
+    }
+
+    /// Follow Use system title bar at once: the window starts without winit's frame wherever the
+    /// app may draw its own, and gets it back (or loses it again) when the preference changes.
+    fn sync_window_frame(&mut self, ctx: &egui::Context) {
+        if self.window_controls.is_none() {
+            return;
+        }
+        let app_frame = self.draws_window_frame();
+        if self.app_frame_shown != Some(app_frame) {
+            // The window opens undecorated, so only a change from that needs a command.
+            if self.app_frame_shown.is_some() || !app_frame {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(!app_frame));
+            }
+            self.app_frame_shown = Some(app_frame);
         }
     }
 
@@ -2071,7 +2105,7 @@ impl PdfCraftApp {
             // Closing the app before choosing accepts formal address; do not ask again next launch.
             address.insert(self.ui_language().code().to_owned(), i18n::Address::Formal);
         }
-        serde_json::json!({
+        let mut state = serde_json::json!({
             "docking": self.docking,
             "docking_left_open": self.left_open,
             "docking_right": self.right,
@@ -2080,6 +2114,7 @@ impl PdfCraftApp {
             // Kept only while the preference is on.
             "last_session": self.reopen_last_session.then(|| self.session_to_save()),
             "reload_changed_files": self.reload_changed_files,
+            "system_title_bar": self.system_title_bar,
             "pinned_folders": self.pinned.folders,
             "theme": self.theme_preference,
             "scroll_speed": self.scroll_speed,
@@ -2090,7 +2125,6 @@ impl PdfCraftApp {
             "highlight_fields": self.view_defaults.highlight_fields,
             "units": self.units,
             "language": self.language,
-            "address": address,
             "reading_colors": self.reading_colors,
             // Null follows the system's text scaling.
             "ui_scale": self.ui_scale,
@@ -2130,8 +2164,13 @@ impl PdfCraftApp {
             "combine_zoom": self.combine_zoom,
             "comments_panel_closed": self.comments_panel_closed,
             "right_panel_closed": self.right_panel_closed,
-        })
-        .to_string()
+        });
+        // Keep language-specific choices outside the large json! expansion. The value above
+        // is always an object; splitting the insertion avoids its macro recursion limit.
+        if let Some(settings) = state.as_object_mut() {
+            settings.insert("address".into(), serde_json::json!(address));
+        }
+        state.to_string()
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2178,6 +2217,9 @@ impl PdfCraftApp {
             self.reopen_last_session = on;
         }
         self.last_session = last_session::LastSession::from_json(&v["last_session"]);
+        if let Some(on) = v["system_title_bar"].as_bool() {
+            self.system_title_bar = on;
+        }
         if let Some(on) = v["reload_changed_files"].as_bool() {
             self.reload_changed_files = on;
         }
@@ -2556,6 +2598,13 @@ impl PdfCraftApp {
             }
             ("author", _) => self.comment_prefs.author = value.to_string(),
             ("ui-scale", _) => self.ui_scale = ui_scale::parse(value)?,
+            ("system-title-bar", _) => {
+                self.system_title_bar = match value {
+                    "true" => true,
+                    "false" => false,
+                    _ => return Err("system-title-bar must be true or false".into()),
+                };
+            }
             ("flatten-fill-sign", _) => {
                 self.flatten_fill_sign_on_save = match value {
                     "true" => true,
@@ -2943,6 +2992,10 @@ impl eframe::App for PdfCraftApp {
             widgets::toast(self, &ctx);
             self.finish_render_frame(&ctx);
             return;
+        }
+        self.sync_window_frame(&ctx);
+        if self.draws_window_frame() {
+            window_controls::resize_edges(&ctx);
         }
         chrome::tab_strip(self, ui);
         chrome::mode_bar(self, ui);

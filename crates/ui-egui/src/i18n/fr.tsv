@@ -829,6 +829,7 @@
 	, Expires: 	, expire : 
 	No digital IDs yet.	Aucun ID numérique pour l'instant.
 	Configure New Digital ID	Configurer un nouvel ID numérique
+	Remove "{name}" from this list? The file itself is not deleted.	Retirer « {name} » de cette liste ? Le fichier lui-même n’est pas supprimé.
 	Continue	Continuer
 	Configure a Digital ID for Signing	Configurer un ID numérique pour signer
 	Use a Digital ID from a file	Utiliser un ID numérique provenant d'un fichier
@@ -2343,6 +2344,11 @@ address	Formal	Formel (vous)
 address	Informal	Informel (tu)
 address	Choose a form of address	Choisir la forme d’adresse
 address	This can be changed later in Preferences.	Ce choix peut être modifié dans les préférences.
+	Minimize	Réduire
+	Maximize	Agrandir
+	Restore	Restaurer
+	Use system title bar	Utiliser la barre de titre du système
+	Show a basic title bar for the window buttons instead of the tab strip. GNOME doesn't draw title bars for apps, so this one doesn't follow its theme.	Afficher une barre de titre simple pour les boutons de la fenêtre au lieu de la barre d’onglets. GNOME ne dessine pas de barre de titre pour les applications : celle-ci ne suit donc pas son thème.
 
 # Absolute local GoToR confirmation (#1364).
 	Allow	Autoriser
