@@ -44,6 +44,18 @@ fn harness() -> Harness<'static, PdfCraftApp> {
     h
 }
 
+/// Run frames until `done`, giving the document-open worker time; whether it happened.
+fn settle(h: &mut Harness<'static, PdfCraftApp>, done: impl Fn(&PdfCraftApp) -> bool) -> bool {
+    for _ in 0..200 {
+        h.run_steps(1);
+        if done(h.state()) {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    false
+}
+
 /// Commands that open a native file picker can't run headless.
 /// (Create ▸ Clipboard reads the system clipboard: tests use `create_from_clip`.)
 const PICKERS: &[&str] = &[
@@ -172,30 +184,38 @@ fn disabled_commands_explain_themselves() {
 fn a_tool_chosen_with_no_document_asks_for_one_and_runs_on_it() {
     let dir = std::env::temp_dir().join(format!("pdfcraft-tool-open-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("picked.pdf");
-    std::fs::write(&path, fixture(2)).unwrap();
-    let pick = path.to_string_lossy().into_owned();
-    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
-        let mut app = PdfCraftApp::new();
-        app.set_option("language", "en").unwrap();
-        app.pick_override = Some(vec![pick]);
-        app
-    });
-    h.run_steps(2);
-    h.state_mut().run_command("export.text");
-    assert!(h.state().toast.as_ref().is_none_or(|t| t.0 != "Open a document first"));
-    h.run_steps(3);
-    assert!(h.state().active.is_some(), "the picked file is open");
-    assert!(matches!(h.state().dialog, Some(Dialog::Export(_))), "and the tool runs on it: {:?}", h.state().dialog);
+    let pdf = dir.join("picked.pdf");
+    std::fs::write(&pdf, fixture(2)).unwrap();
+    // A picked text file becomes a PDF first; the tool runs on that.
+    let text = dir.join("picked.txt");
+    std::fs::write(&text, "picked text").unwrap();
+    let choose = |picked: Vec<String>, inline: bool| {
+        let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+            let mut app = PdfCraftApp::new();
+            app.set_option("language", "en").unwrap();
+            app.pick_override = Some(picked);
+            app.run_inline = inline;
+            app
+        });
+        h.run_steps(2);
+        h.state_mut().run_command("export.text");
+        assert!(h.state().toast.as_ref().is_none_or(|t| t.0 != "Open a document first"));
+        h
+    };
+    // On the background worker the file opens in a later frame, and the tool runs then; inline
+    // it opens and runs at once.
+    for (file, inline) in [(&pdf, false), (&text, false), (&pdf, true)] {
+        let mut h = choose(vec![file.to_string_lossy().into_owned()], inline);
+        assert!(settle(&mut h, |app| app.active.is_some()), "{} is open (inline: {inline})", file.display());
+        assert!(
+            matches!(h.state().dialog, Some(Dialog::Export(_))),
+            "and the tool runs on {} (inline: {inline}): {:?}",
+            file.display(),
+            h.state().dialog
+        );
+    }
     // Cancelled: nothing opens and nothing runs.
-    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
-        let mut app = PdfCraftApp::new();
-        app.set_option("language", "en").unwrap();
-        app.pick_override = Some(Vec::new());
-        app
-    });
-    h.run_steps(2);
-    h.state_mut().run_command("export.text");
+    let mut h = choose(Vec::new(), false);
     h.run_steps(3);
     assert!(h.state().active.is_none() && h.state().dialog.is_none());
     let _ = std::fs::remove_dir_all(&dir);
@@ -287,7 +307,7 @@ fn the_open_recent_menu_lists_files_and_opens_one() {
     h.get_by_label("Open Recent ⏵").hover();
     h.run_steps(3);
     h.get_by_label_contains("recent.pdf").click();
-    h.run_steps(4);
+    assert!(settle(&mut h, |app| app.views.len() == 2), "the recent file opened in a new tab");
     let app = h.state();
     assert_eq!(app.views.len(), 2, "the recent file opened in a new tab");
     let active = app.active.unwrap();
