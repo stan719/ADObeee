@@ -2383,3 +2383,8 @@ animation effects	Off	معطّلة
 	Form sent to {url} (HTTP {status}).	أُرسل النموذج إلى {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	تنسيق إرسال هذا النموذج أو اختيار حقوله غير مدعوم بعد.
 	Scripted submission to {u} is not supported yet.	الإرسال بواسطة برنامج نصي إلى {u} غير مدعوم بعد.
+
+# Full-document PDF submission
+	Submit PDF document	إرسال مستند PDF
+	Entire PDF document to send: {bytes} bytes	ملف PDF الكامل للإرسال: {bytes} بايت
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. يغادر ملف PDF الكامل هذا الكمبيوتر.

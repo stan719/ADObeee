@@ -76,6 +76,8 @@ pub enum FieldAction {
     ShowHide { fields: Vec<String>, hide: bool },
     /// Submit a form.
     Submit(String),
+    /// Submit the entire current PDF document.
+    SubmitPdf(String),
     /// An action of another type, kept as it is.
     Other(String),
 }
@@ -92,6 +94,7 @@ impl FieldAction {
             FieldAction::GoTo(p) => format!("Go to a page view: page {}", p + 1),
             FieldAction::ShowHide { fields, hide } => format!("{} a field: {}", if *hide { "Hide" } else { "Show" }, fields.join(", ")),
             FieldAction::Submit(u) => format!("Submit a form: {u}"),
+            FieldAction::SubmitPdf(u) => format!("Submit PDF document: {u}"),
             FieldAction::Other(s) => s.clone(),
         }
     }
@@ -123,23 +126,22 @@ fn read(doc: &Document, o: &Object, pages: &[pdfcraft_cos::ObjRef]) -> Option<Fi
             hide: !matches!(d.get(b"H"), Some(Object::Bool(false))),
         },
         b"SubmitForm" => {
-            // The editor currently authors HTML POST of all exportable fields. Keep other
-            // imported formats/selections opaque so editing another trigger cannot rewrite
-            // an FDF, XFDF or selected-fields submission as an HTML POST.
+            // The editor authors HTML POST or full-PDF POST. Keep other imported formats and
+            // field selections opaque so editing another trigger cannot rewrite their action.
             let flags = d.get(b"Flags").and_then(|f| doc.resolve(f).as_int()).unwrap_or(0);
-            if flags != 4 || d.contains(b"Fields") {
+            if flags != 4 && flags != 256 || d.contains(b"Fields") {
                 FieldAction::Other("SubmitForm with unsupported options".into())
             } else {
-                FieldAction::Submit(
-                    d.get(b"F")
-                        .map(|f| doc.resolve(f))
-                        .and_then(|f| {
-                            f.as_string()
-                                .map(|s| s.to_text())
-                                .or_else(|| f.as_dict().and_then(|fd| fd.get(b"F")).and_then(|x| doc.resolve(x).as_string().map(|s| s.to_text())))
-                        })
-                        .unwrap_or_default(),
-                )
+                let url = d
+                    .get(b"F")
+                    .map(|f| doc.resolve(f))
+                    .and_then(|f| {
+                        f.as_string()
+                            .map(|s| s.to_text())
+                            .or_else(|| f.as_dict().and_then(|fd| fd.get(b"F")).and_then(|x| doc.resolve(x).as_string().map(|s| s.to_text())))
+                    })
+                    .unwrap_or_default();
+                if flags == 256 { FieldAction::SubmitPdf(url) } else { FieldAction::Submit(url) }
             }
         }
         other => FieldAction::Other(String::from_utf8_lossy(other).into_owned()),
@@ -201,14 +203,14 @@ fn write(doc: &mut Document, a: &FieldAction, pages: &[pdfcraft_cos::ObjRef]) ->
             d.set(b"T".to_vec(), list(fields));
             d.set(b"H".to_vec(), Object::Bool(*hide));
         }
-        FieldAction::Submit(u) => {
+        FieldAction::Submit(u) | FieldAction::SubmitPdf(u) => {
             d.set(b"S".to_vec(), Object::name("SubmitForm"));
             let mut fs = Dict::new();
             fs.set(b"FS".to_vec(), Object::name("URL"));
             fs.set(b"F".to_vec(), PdfString::literal(u.as_bytes().to_vec()));
             d.set(b"F".to_vec(), Object::Dict(fs));
-            // HTML form format, as Acrobat's default for web servers (ExportFormat, bit 3).
-            d.set(b"Flags".to_vec(), Object::Int(4));
+            // ExportFormat (bit 3) for HTML; SubmitPDF (bit 9) for the complete document.
+            d.set(b"Flags".to_vec(), Object::Int(if matches!(a, FieldAction::SubmitPdf(_)) { 256 } else { 4 }));
         }
         FieldAction::Other(_) => return Ok(None),
     }

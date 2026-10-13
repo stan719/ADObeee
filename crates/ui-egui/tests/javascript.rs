@@ -89,7 +89,7 @@ fn form_submission_shows_destination_and_cancel_sends_nothing() {
     assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada & Co".into()) }));
     h.state_mut().request_form_submission(id, "https://forms.example/submit");
     h.run_steps(2);
-    assert_eq!(h.state().pending_submission.as_ref().unwrap().body, b"greeting=Ada+%26+Co");
+    assert_eq!(h.state().pending_submission.as_ref().unwrap().body.as_slice(), b"greeting=Ada+%26+Co");
     assert!(h.query_all_by_label("Submit a form").count() >= 1);
     h.get_by_label("Cancel").click();
     h.run_steps(2);
@@ -124,7 +124,44 @@ fn submit_button_opens_the_review_prompt() {
     h.run_steps(3);
     let pending = h.state().pending_submission.as_ref().expect("button click opens a prompt");
     assert_eq!(pending.url, "https://forms.example/submit");
-    assert_eq!(pending.body, b"greeting=Ada");
+    assert_eq!(pending.body.as_slice(), b"greeting=Ada");
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn submit_pdf_button_reviews_entire_current_document() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/upload".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("PDF button opens a prompt");
+    assert_eq!(pending.format, SubmissionFormat::Pdf);
+    assert_eq!(pending.url, "https://forms.example/upload");
+    assert!(pending.body.starts_with(b"%PDF-"));
+    assert!(h.query_all_by_label("Submit PDF document").count() >= 1);
     h.get_by_label("Cancel").click();
     h.run_steps(2);
     assert!(h.state().pending_submission.is_none());

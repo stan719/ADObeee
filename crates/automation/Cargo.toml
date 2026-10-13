@@ -27,8 +27,10 @@ default = ["mcp"]
 mcp = ["dep:base64"]
 
 [dev-dependencies]
-pdfcraft-fonts = { workspace = true }
+pdfcraft-cos = { workspace = true }
 flate2.workspace = true
+pdfcraft-forms = { workspace = true }
+pdfcraft-fonts = { workspace = true }
 pdfcraft-model = { workspace = true }
 pdfcraft-xfa = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }

@@ -2361,3 +2361,8 @@ animation effects	Off	Ki
 	Form sent to {url} (HTTP {status}).	Az űrlap elküldve ide: {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	Az űrlap beküldési formátuma vagy mezőválasztása még nem támogatott.
 	Scripted submission to {u} is not supported yet.	A szkriptből történő beküldés ide: {u} még nem támogatott.
+
+# Full-document PDF submission
+	Submit PDF document	PDF-dokumentum küldése
+	Entire PDF document to send: {bytes} bytes	Elküldendő teljes PDF-dokumentum: {bytes} bájt
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Csak akkor küldje el, ha megbízik a dokumentumban és a címzettben. A teljes PDF elhagyja ezt a számítógépet.

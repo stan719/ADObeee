@@ -2436,3 +2436,8 @@ animation effects	Off	Vypnuto
 	Form sent to {url} (HTTP {status}).	Formulář byl odeslán na {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	Formát odeslání nebo výběr polí tohoto formuláře zatím není podporován.
 	Scripted submission to {u} is not supported yet.	Skriptové odeslání na {u} zatím není podporováno.
+
+# Full-document PDF submission
+	Submit PDF document	Odeslat dokument PDF
+	Entire PDF document to send: {bytes} bytes	Celý dokument PDF k odeslání: {bytes} bajtů
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Odesílejte jen tehdy, pokud tomuto dokumentu a cíli důvěřujete. Celý PDF opustí tento počítač.

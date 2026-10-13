@@ -2371,3 +2371,8 @@ animation effects	Off	Disattivati
 	Form sent to {url} (HTTP {status}).	Modulo inviato a {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	Il formato di invio o la selezione dei campi di questo modulo non è ancora supportata.
 	Scripted submission to {u} is not supported yet.	L’invio tramite script a {u} non è ancora supportato.
+
+# Full-document PDF submission
+	Submit PDF document	Invia documento PDF
+	Entire PDF document to send: {bytes} bytes	Documento PDF completo da inviare: {bytes} byte
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Invia solo se ritieni attendibili il documento e la destinazione. L’intero PDF lascia questo computer.

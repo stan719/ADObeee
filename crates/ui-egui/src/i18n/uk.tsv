@@ -2384,3 +2384,8 @@ animation effects	Off	Вимкнено
 	Form sent to {url} (HTTP {status}).	Форму надіслано на {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	Формат надсилання або вибір полів цієї форми ще не підтримується.
 	Scripted submission to {u} is not supported yet.	Надсилання сценарієм на {u} ще не підтримується.
+
+# Full-document PDF submission
+	Submit PDF document	Надіслати документ PDF
+	Entire PDF document to send: {bytes} bytes	Увесь документ PDF для надсилання: {bytes} байтів
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Надсилайте лише якщо довіряєте документу та адресату. Увесь PDF залишить цей комп’ютер.

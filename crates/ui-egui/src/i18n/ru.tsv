@@ -2275,3 +2275,8 @@ animation effects	Off	Выкл
 	Form sent to {url} (HTTP {status}).	Форма отправлена по адресу {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	Формат отправки или выбор полей этой формы пока не поддерживается.
 	Scripted submission to {u} is not supported yet.	Отправка по сценарию на {u} пока не поддерживается.
+
+# Full-document PDF submission
+	Submit PDF document	Отправить документ PDF
+	Entire PDF document to send: {bytes} bytes	Весь документ PDF для отправки: {bytes} байт
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Отправляйте только если доверяете документу и адресу назначения. Весь PDF покинет этот компьютер.

@@ -2492,3 +2492,8 @@ animation effects	Off	Desactivados
 	Form sent to {url} (HTTP {status}).	Formulario enviado a {url} (HTTP {status}).
 	This form's submission format or field selection is not supported yet.	El formato de envío o la selección de campos de este formulario aún no se admite.
 	Scripted submission to {u} is not supported yet.	El envío mediante script a {u} aún no se admite.
+
+# Full-document PDF submission
+	Submit PDF document	Enviar documento PDF
+	Entire PDF document to send: {bytes} bytes	Documento PDF completo que se enviará: {bytes} bytes
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Envíalo solo si confías en este documento y en el destino. El PDF completo saldrá de este ordenador.

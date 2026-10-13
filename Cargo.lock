@@ -3939,6 +3939,7 @@ dependencies = [
  "pdfcraft-cos",
  "pdfcraft-engine",
  "pdfcraft-fonts",
+ "pdfcraft-forms",
  "pdfcraft-model",
  "pdfcraft-organize",
  "pdfcraft-platform",

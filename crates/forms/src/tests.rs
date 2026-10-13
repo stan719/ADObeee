@@ -1237,6 +1237,12 @@ fn push_buttons_keep_submit_format_and_field_selection() {
         field(&fields(&doc), "go").button,
         Some(af::ButtonAction::Submit { url: "https://forms.example/submit".into(), flags: 4, has_fields: false })
     );
+    set_field_actions(&mut doc, "go", &[(Trigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/pdf".into()))]).unwrap();
+    assert_eq!(field_actions(&doc, "go").unwrap(), [(Trigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/pdf".into()))]);
+    assert_eq!(
+        field(&fields(&doc), "go").button,
+        Some(af::ButtonAction::Submit { url: "https://forms.example/pdf".into(), flags: 256, has_fields: false })
+    );
     action.set(b"Flags".to_vec(), Object::Int(0));
     action.set(b"Fields".to_vec(), Object::Array(vec![PdfString::text("name").into()]));
     doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(action))).unwrap();

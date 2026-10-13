@@ -2362,3 +2362,8 @@ animation effects	Off	オフ
 	Form sent to {url} (HTTP {status}).	フォームを {url} に送信しました (HTTP {status})。
 	This form's submission format or field selection is not supported yet.	このフォームの送信形式またはフィールドの選択にはまだ対応していません。
 	Scripted submission to {u} is not supported yet.	スクリプトによる {u} への送信にはまだ対応していません。
+
+# Full-document PDF submission
+	Submit PDF document	PDF 文書を送信
+	Entire PDF document to send: {bytes} bytes	送信する PDF 文書全体: {bytes} バイト
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	この文書と送信先を信頼できる場合のみ送信してください。PDF 全体がこのコンピューターから送信されます。

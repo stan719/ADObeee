@@ -1551,26 +1551,37 @@ fn form_submission_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut choice = None;
     let modal = egui::Modal::new(egui::Id::new("form_submission_prompt")).show(ctx, |ui| {
         ui.set_width(460.0);
-        ui.label(egui::RichText::new(tl!("Submit a form")).font(theme::semibold(16.0)));
+        let title = match pending.format {
+            crate::SubmissionFormat::Html => tl!("Submit a form"),
+            crate::SubmissionFormat::Pdf => tl!("Submit PDF document"),
+        };
+        ui.label(egui::RichText::new(title).font(theme::semibold(16.0)));
         ui.add_space(6.0);
-        ui.label(crate::i18n::fmt(tl!("Form values to send: {count}"), &[("count", &pending.values.to_string())]));
+        match pending.format {
+            crate::SubmissionFormat::Html => {
+                ui.label(crate::i18n::fmt(tl!("Form values to send: {count}"), &[("count", &pending.values.to_string())]));
+            }
+            crate::SubmissionFormat::Pdf => {
+                ui.label(crate::i18n::fmt(tl!("Entire PDF document to send: {bytes} bytes"), &[("bytes", &pending.body.len().to_string())]));
+            }
+        }
         if let Some(host) = pdfcraft_engine::links::display_host(&pending.url) {
             ui.label(egui::RichText::new(host.ascii).font(theme::semibold(14.0)));
         }
         egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
             ui.add(egui::Label::new(egui::RichText::new(&pending.url).monospace().small()).wrap().selectable(true));
         });
-        ui.label(
-            egui::RichText::new(tl!("Only send if you trust this document and destination. The form values leave this computer."))
-                .color(t.text_muted)
-                .small(),
-        );
+        let warning = match pending.format {
+            crate::SubmissionFormat::Html => tl!("Only send if you trust this document and destination. The form values leave this computer."),
+            crate::SubmissionFormat::Pdf => tl!("Only send if you trust this document and destination. The entire PDF leaves this computer."),
+        };
+        ui.label(egui::RichText::new(warning).color(t.text_muted).small());
         ui.add_space(14.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if widgets::pill_button(ui, tl!("Cancel"), true).clicked() {
                 choice = Some(false);
             }
-            if widgets::pill_button(ui, tl!("Submit a form"), false).clicked() {
+            if widgets::pill_button(ui, title, false).clicked() {
                 choice = Some(true);
             }
         });

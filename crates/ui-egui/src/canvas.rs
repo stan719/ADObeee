@@ -3589,6 +3589,10 @@ fn run_button(app: &mut PdfCraftApp, index: usize, name: &str, action: pdfcraft_
             let id = app.views[index].id;
             app.request_form_submission(id, &url);
         }
+        B::Submit { url, flags: 256, .. } => {
+            let id = app.views[index].id;
+            app.request_pdf_submission(id, &url);
+        }
         B::Submit { .. } => app.notify_tr("This form's submission format or field selection is not supported yet."),
         B::ImportIcon => app.choose_field_image(name),
         B::Script(js) => {

@@ -2236,3 +2236,8 @@ animation effects	Off	關
 	Form sent to {url} (HTTP {status}).	表單已傳送至 {url}（HTTP {status}）。
 	This form's submission format or field selection is not supported yet.	尚未支援此表單的提交格式或欄位選擇。
 	Scripted submission to {u} is not supported yet.	尚未支援透過指令碼提交至 {u}。
+
+# Full-document PDF submission
+	Submit PDF document	傳送 PDF 文件
+	Entire PDF document to send: {bytes} bytes	要傳送的完整 PDF 文件：{bytes} 位元組
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	僅在信任此文件和目的地時傳送。完整 PDF 將離開這部電腦。

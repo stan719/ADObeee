@@ -872,6 +872,7 @@ impl Automation {
                     A::ShowHide { fields, hide: true } => json!({ "hide": fields }),
                     A::ShowHide { fields, hide: false } => json!({ "show": fields }),
                     A::Submit(u) => json!({ "submit": u }),
+                    A::SubmitPdf(u) => json!({ "submit_pdf": u }),
                     A::Other(s) => json!({ "other": s }),
                 };
                 v["trigger"] = json!(t.id());
@@ -908,8 +909,10 @@ impl Automation {
                 A::ShowHide { fields: names(&it["hide"]), hide: true }
             } else if let Some(u) = it["submit"].as_str() {
                 A::Submit(u.into())
+            } else if let Some(u) = it["submit_pdf"].as_str() {
+                A::SubmitPdf(u.into())
             } else {
-                return Err(bad(format!("{tid}: give one action (javascript, url, reset, menu, page, show, hide or submit)")));
+                return Err(bad(format!("{tid}: give one action (javascript, url, reset, menu, page, show, hide, submit or submit_pdf)")));
             };
             acts.push((t, act));
         }

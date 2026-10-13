@@ -188,10 +188,20 @@ impl Automation {
         {
             let id = self.doc(a)?.id;
             let url = a.str("url")?;
-            let destination = pdfcraft_platform::form_submit::HtmlFormDestination::new(url).map_err(bad)?;
-            let payload = self.session.html_form(id).map_err(failed)?;
-            let status = destination.post(&payload.body).map_err(failed)?;
-            Ok(json!({ "status": status, "values": payload.fields, "url": url }))
+            let destination = pdfcraft_platform::form_submit::FormDestination::new(url).map_err(bad)?;
+            match a.opt_str("format")?.unwrap_or("html") {
+                "html" => {
+                    let payload = self.session.html_form(id).map_err(failed)?;
+                    let status = destination.post_html(&payload.body).map_err(failed)?;
+                    Ok(json!({ "status": status, "format": "html", "values": payload.fields, "url": url }))
+                }
+                "pdf" => {
+                    let payload = self.session.save_bytes(id).map_err(failed)?;
+                    let status = destination.post_pdf(&payload).map_err(failed)?;
+                    Ok(json!({ "status": status, "format": "pdf", "bytes": payload.len(), "url": url }))
+                }
+                other => Err(bad(format!("unsupported submission format {other:?} (html, pdf)"))),
+            }
         }
     }
     pub(crate) fn form_fields(&self, a: &Args) -> Result<Value> {

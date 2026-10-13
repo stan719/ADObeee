@@ -2326,3 +2326,8 @@ animation effects	Off	关
 	Form sent to {url} (HTTP {status}).	表单已发送至 {url}（HTTP {status}）。
 	This form's submission format or field selection is not supported yet.	尚不支持此表单的提交格式或字段选择。
 	Scripted submission to {u} is not supported yet.	尚不支持通过脚本提交至 {u}。
+
+# Full-document PDF submission
+	Submit PDF document	发送 PDF 文档
+	Entire PDF document to send: {bytes} bytes	要发送的完整 PDF 文档：{bytes} 字节
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	仅在信任此文档和目标地址时发送。完整 PDF 将离开此计算机。
