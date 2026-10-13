@@ -674,6 +674,7 @@ impl egui::DroppedFile for Dropped {
 fn dropping_a_pdf_on_the_window_opens_it() {
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.run_inline = true; // This test covers drop dispatch; worker completion has dedicated tests.
         app.set_option("language", "en").unwrap();
         app
     });
