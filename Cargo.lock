@@ -3886,6 +3886,7 @@ dependencies = [
  "pollster 1.0.1",
  "rustls-native-certs",
  "serde_json",
+ "tempfile",
  "uds_windows",
  "ureq",
  "wayland-client",

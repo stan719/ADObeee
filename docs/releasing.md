@@ -132,6 +132,11 @@ neither the MSI nor the portable zip needs the Visual C++ redistributable.
   hand-off opens them as tabs. On Windows 11 it is under "Show more options"; a first-level entry
   needs an `IExplorerCommand` handler and package identity (a sparse MSIX package), which the MSI
   doesn't have.
+- The `PdfCraft.Document` ProgID also has a `print` verb (#1695), so Explorer offers Print (in the
+  system's language) while PdfCraft is the default for `.pdf`. It runs `pdfcraft.exe --print
+  "<file>"`, which prints on the default printer without a window and opens the file with the
+  Print dialog only when it can't (a password, printing not permitted, no default printer, a
+  refused job; the reason is in the log).
 - `test-msi.ps1 <file.msi>` checks the compiled shortcut, context-menu and dialog tables, and
   evaluates the desktop shortcut's first-install and update conditions. Packaging
   runs it in a child process before signing, so the MSI isn't held open when signtool runs. The ARM64 install

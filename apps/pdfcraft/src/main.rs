@@ -2,6 +2,8 @@
 //!
 //! Usage: `pdfcraft [options] [files…]`
 //! `--create-images [images…]` stages the images in one PDF and asks for the page DPI.
+//! `--print files…` prints each file on the default printer without a window (File Explorer's
+//! Print verb); one that can't be printed that way opens with the Print dialog (`print_verb`).
 //!
 //! View options (applied after the files open; also the seed of the UI control channel):
 //! `--page N  --zoom 150  --layout single|continuous|two-up|two-page  --continuous on|off  --panel comments|bookmarks|pages|fields|layers|attachments|none
@@ -36,6 +38,7 @@ mod decorations;
 mod logging;
 #[cfg(target_os = "windows")]
 mod motion;
+mod print_verb;
 mod reopen;
 mod single_instance;
 mod text_scale;
@@ -181,6 +184,7 @@ fn main() -> eframe::Result {
     let mut control_file: Option<String> = None;
     let mut create_images = false;
     let mut new_window = false;
+    let mut print = false;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -191,6 +195,7 @@ fn main() -> eframe::Result {
             "--control" => control_file = args.next(),
             "--create-images" => create_images = true,
             "--new-window" => new_window = true,
+            "--print" => print = true,
             flag if flag.starts_with("--") => {
                 let value = args.next().unwrap_or_default();
                 options.push((flag.trim_start_matches("--").to_string(), value));
@@ -213,6 +218,18 @@ fn main() -> eframe::Result {
             Err(e) => log::warn!("no log file: {e}"),
         }
     }
+    // File Explorer's Print verb (#1695): print without a window, and open only the files that
+    // couldn't be printed that way, with the Print dialog. When every file printed, no window.
+    let files = if print && !files.is_empty() {
+        let leftover = print_verb::run(&files);
+        if leftover.is_empty() {
+            return Ok(());
+        }
+        options.push(("dialog".into(), "print".into()));
+        leftover
+    } else {
+        files
+    };
     // Windows: a launch that only names files (an Outlook attachment, an Explorer double-click)
     // hands them to the PdfCraft already running and exits (#282, #317). Any option means the
     // caller wants this launch's own window.
