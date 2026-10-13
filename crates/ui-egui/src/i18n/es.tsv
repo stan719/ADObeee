@@ -2482,3 +2482,13 @@ animation effects	Off	Desactivados
 	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después
+	Narrower than	Más finas que
+	New width	Ancho nuevo
+	Zero-width lines always count as narrower.	Las líneas de ancho cero siempre cuentan como más finas.
+	Also	También
+	Type 3 font glyphs	Glifos de fuentes Type 3
+	Pattern strokes	Trazos de patrones
+	Lines drawn inside Type 3 glyphs and tiling patterns; off by default.	Líneas dibujadas dentro de glifos Type 3 y patrones de mosaico; desactivado de forma predeterminada.
+	No hairlines found on those pages	No se encontraron líneas finas en esas páginas
+	Fixed {n} hairlines on {p} pages	Se corrigieron {n} líneas finas en {p} páginas
+	Fix hairlines…	Corregir líneas finas…

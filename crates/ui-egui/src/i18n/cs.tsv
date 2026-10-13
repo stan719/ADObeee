@@ -2426,3 +2426,13 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	Narrower than	Užší než
+	New width	Nová šířka
+	Zero-width lines always count as narrower.	Čáry s nulovou šířkou se vždy počítají jako užší.
+	Also	Také
+	Type 3 font glyphs	Glyfy písem Type 3
+	Pattern strokes	Tahy vzorů
+	Lines drawn inside Type 3 glyphs and tiling patterns; off by default.	Čáry kreslené uvnitř glyfů Type 3 a dlaždicových vzorů; ve výchozím stavu vypnuto.
+	No hairlines found on those pages	Na těchto stránkách nebyly nalezeny vlasové čáry
+	Fixed {n} hairlines on {p} pages	Opraveno {n} vlasových čar na {p} stránkách
+	Fix hairlines…	Opravit vlasové čáry…

@@ -50,7 +50,8 @@ pub use pdfcraft_organize::view::{InitialView, Layout as InitialLayout, Magnific
 pub use pdfcraft_cos::Algorithm;
 pub use pdfcraft_create::{CONVERTIBLE, CreateError, ImageResolution, SourceKind, decode_text, source_kind};
 pub use pdfcraft_edit::{
-    Added, AddedImage, AddedText, Align as TextAlign, Background, Content as AddedContent, Family as FontFamily, HeaderFooter, MarkKind, Watermark,
+    Added, AddedImage, AddedText, Align as TextAlign, Background, Content as AddedContent, Family as FontFamily, Hairlines, HairlinesFixed,
+    HeaderFooter, MarkKind, Watermark,
 };
 pub use pdfcraft_forms::{
     BorderStyle, CheckStyle, Field as FormField, FieldAction, FieldChange, FieldFont, FieldKind as FormFieldKind, FieldProps, FieldValue,
@@ -230,7 +231,8 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::AddHeaderFooter { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
-        | Edit::RemoveMarks { .. } => Scope::Content,
+        | Edit::RemoveMarks { .. }
+        | Edit::FixHairlines { .. } => Scope::Content,
         Edit::Batch { edits, .. } => {
             let mut scopes = edits.iter().map(scope_of);
             let first = scopes.next().unwrap_or(Scope::Full);
@@ -1330,6 +1332,12 @@ pub enum Edit {
     },
     /// Document Properties ▸ Initial View (and the language and binding).
     SetInitialView(Box<InitialView>),
+    /// Print production ▸ Fix hairlines: strokes narrower than `settings.narrower_than` points on
+    /// the page (after every transformation; zero-width lines always) get `settings.width`.
+    FixHairlines {
+        pages: Vec<usize>,
+        settings: Hairlines,
+    },
     /// Build a tagged structure tree for an untagged, text-only document.
     AutoTagText,
     /// Add alternate text: set (or clear, with `None`) a figure's alternate text. `figure` is
@@ -1813,6 +1821,7 @@ impl Edit {
             Edit::DuplicateField { .. } => Label::of("Duplicate field"),
             Edit::SetTabOrder { .. } | Edit::MoveInTabOrder { .. } => Label::of("Set tab order"),
             Edit::SetInitialView(_) => Label::of("Change initial view"),
+            Edit::FixHairlines { .. } => Label::of("Fix hairlines"),
             Edit::AutoTagText => Label::of("Automatically tag text"),
             Edit::SetAltText { .. } => Label::of("Set alternate text"),
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
@@ -2002,6 +2011,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetTabOrder { .. }
         | Edit::MoveInTabOrder { .. }
         | Edit::SetInitialView(_)
+        | Edit::FixHairlines { .. }
         | Edit::AutoTagText
         | Edit::SetAltText { .. }
         | Edit::SetTagProperty { .. }
@@ -2191,6 +2201,12 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::EraseInk { page, index, path, radius } => {
             pdfcraft_annot::erase_ink(doc, *page, *index, path, *radius, &cx.meta())?;
+        }
+        Edit::FixHairlines { pages, settings } => {
+            let fixed = pdfcraft_edit::fix_hairlines(doc, pages, settings)?;
+            if fixed.lines == 0 {
+                return Err(EditError::Edit(pdfcraft_edit::EditError::Invalid("no hairlines found on those pages".into())));
+            }
         }
         Edit::ReplaceText { page, quads, text, author, strike, caret } => {
             pdfcraft_annot::add_text_replacement(doc, *page, quads, text, author, strike, caret, &cx.meta())?;
@@ -3949,6 +3965,15 @@ impl Session {
     }
 
     /// The print-ready PDF for `settings` (sheets laid out for the paper; see `pdfcraft-print`).
+    /// How many hairlines [`Edit::FixHairlines`] would change on `pages` of `id`, and on how many
+    /// pages, without changing the document (the edit itself refuses when there is nothing to fix).
+    pub fn count_hairlines(&self, id: DocId, pages: &[usize], settings: &Hairlines) -> HairlinesFixed {
+        let Some(doc) = self.get(id) else { return HairlinesFixed::default() };
+        let Some(editor) = doc.editor.as_ref() else { return HairlinesFixed::default() };
+        let mut cos = editor.cos.clone();
+        pdfcraft_edit::fix_hairlines(&mut cos, pages, settings).unwrap_or_default()
+    }
+
     pub fn print_pdf(&self, id: DocId, settings: &print::Settings) -> Result<Vec<u8>, EditError> {
         let doc = self.get(id).ok_or(EditError::NoDocument)?;
         if !doc.allows_printing() {

@@ -2316,3 +2316,13 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+	Narrower than	细于
+	New width	新宽度
+	Zero-width lines always count as narrower.	零宽度的线始终视为更细。
+	Also	同时
+	Type 3 font glyphs	Type 3 字体字形
+	Pattern strokes	图案描边
+	Lines drawn inside Type 3 glyphs and tiling patterns; off by default.	绘制在 Type 3 字形和平铺图案内部的线；默认关闭。
+	No hairlines found on those pages	这些页面上未找到细线
+	Fixed {n} hairlines on {p} pages	已修复 {p} 页上的 {n} 条细线
+	Fix hairlines…	修复细线…
