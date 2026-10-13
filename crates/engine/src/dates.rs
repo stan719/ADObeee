@@ -56,7 +56,7 @@ const AR_DAYS: [&str; 7] = ["الأحد", "الاثنين", "الثلاثاء", 
 
 /// The languages month and weekday names can be written in (Preferences ▸ Date format ▸ Language):
 /// the interface languages, in the same order and with the same names.
-pub static DATE_LANGUAGES: [DateLanguage; 22] = [
+pub static DATE_LANGUAGES: [DateLanguage; 26] = [
     DateLanguage {
         code: "en",
         name: "English",
@@ -360,6 +360,74 @@ pub static DATE_LANGUAGES: [DateLanguage; 22] = [
         days: ["sekmadienis", "pirmadienis", "antradienis", "trečiadienis", "ketvirtadienis", "penktadienis", "šeštadienis"],
         days_short: ["sk", "pr", "an", "tr", "kt", "pn", "št"],
     },
+    // Indonesian. Month and weekday names are the same with and after a day number, so
+    // `months_with_day` is `None`.
+    DateLanguage {
+        code: "id",
+        name: "Bahasa Indonesia",
+        months: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
+        months_with_day: None,
+        months_short: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+        days: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
+        days_short: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+    },
+    // Vietnamese: the month name is `tháng Một` with a day number and `Tháng Một` standing
+    // alone, as in English.
+    DateLanguage {
+        code: "vi",
+        name: "Tiếng Việt",
+        months: [
+            "Tháng Một",
+            "Tháng Hai",
+            "Tháng Ba",
+            "Tháng Tư",
+            "Tháng Năm",
+            "Tháng Sáu",
+            "Tháng Bảy",
+            "Tháng Tám",
+            "Tháng Chín",
+            "Tháng Mười",
+            "Tháng Mười Một",
+            "Tháng Mười Hai",
+        ],
+        months_with_day: Some([
+            "tháng Một",
+            "tháng Hai",
+            "tháng Ba",
+            "tháng Tư",
+            "tháng Năm",
+            "tháng Sáu",
+            "tháng Bảy",
+            "tháng Tám",
+            "tháng Chín",
+            "tháng Mười",
+            "tháng Mười Một",
+            "tháng Mười Hai",
+        ]),
+        months_short: ["Thg 1", "Thg 2", "Thg 3", "Thg 4", "Thg 5", "Thg 6", "Thg 7", "Thg 8", "Thg 9", "Thg 10", "Thg 11", "Thg 12"],
+        days: ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"],
+        days_short: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+    },
+    // Hindi (Devanagari). Month and weekday names are the same with and after a day number.
+    DateLanguage {
+        code: "hi",
+        name: "हिन्दी",
+        months: ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्तूबर", "नवंबर", "दिसंबर"],
+        months_with_day: None,
+        months_short: ["जन॰", "फ़र॰", "मार्च", "अप्रैल", "मई", "जून", "जुला॰", "अग॰", "सित॰", "अक्तू॰", "नव॰", "दिस॰"],
+        days: ["रविवार", "सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार"],
+        days_short: ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"],
+    },
+    // Korean: months are numbered (`3월`) and weekdays end in 요일; no names change after a day.
+    DateLanguage {
+        code: "ko",
+        name: "한국어",
+        months: ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+        months_with_day: None,
+        months_short: ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+        days: ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],
+        days_short: ["일", "월", "화", "수", "목", "금", "토"],
+    },
 ];
 
 /// The date language for `code` (any case), or `None` when there's none.
@@ -658,6 +726,41 @@ mod tests {
         assert_eq!(in_lang("mmmm yyyy", "ru"), "март 2026");
         // A weekday (dddd) is not a day number.
         assert_eq!(in_lang("dddd, mmmm", "cs"), "sobota, březen");
+    }
+
+    /// Indonesian month names are the same with and after a day number; Vietnamese lowers `tháng`
+    /// after a day number and keeps it capitalised standing alone.
+    #[test]
+    fn indonesian_and_vietnamese_month_and_weekday_names() {
+        assert_eq!(in_lang("d mmmm yyyy", "id"), "7 Maret 2026");
+        assert_eq!(in_lang("mmmm yyyy", "id"), "Maret 2026");
+        assert_eq!(in_lang("dddd, d mmmm yyyy", "id"), "Sabtu, 7 Maret 2026");
+        assert_eq!(in_lang("d mmmm yyyy", "vi"), "7 tháng Ba 2026");
+        assert_eq!(in_lang("mmmm yyyy", "vi"), "Tháng Ba 2026");
+        assert_eq!(in_lang("ddd, d mmm", "vi"), "T7, 7 Thg 3");
+        // Indonesian month names are Latin, so they reach a PDF; Vietnamese ones are not Western
+        // European, and the date-text path refuses them with what to use instead.
+        let mut s = Session::new().with_clock(|| 1_700_000_000);
+        s.set_date_language(Some("vi")).unwrap();
+        assert!(s.today_text_for_pdf(Some("d mmmm yyyy"), None).unwrap_err().contains("dd.mm.yyyy"));
+        s.set_date_language(Some("id")).unwrap();
+        assert_eq!(s.today_text_for_pdf(Some("d mmmm yyyy"), None).as_deref(), Ok("14 November 2023"));
+    }
+
+    /// Hindi and Korean names are the same with and after a day number. Neither is Western
+    /// European, so the date-text path refuses them with what to use instead.
+    #[test]
+    fn hindi_and_korean_month_and_weekday_names() {
+        assert_eq!(in_lang("d mmmm yyyy", "hi"), "7 मार्च 2026");
+        assert_eq!(in_lang("dddd, mmmm", "hi"), "शनिवार, मार्च");
+        assert_eq!(in_lang("ddd, d mmm", "hi"), "शनि, 7 मार्च");
+        assert_eq!(in_lang("yyyy\\년 mmmm d\\일 dddd", "ko"), "2026년 3월 7일 토요일");
+        assert_eq!(in_lang("ddd", "ko"), "토");
+        let mut s = Session::new().with_clock(|| 1_700_000_000);
+        for code in ["hi", "ko"] {
+            s.set_date_language(Some(code)).unwrap();
+            assert!(s.today_text_for_pdf(Some("d mmmm yyyy"), None).unwrap_err().contains("dd.mm.yyyy"), "{code}");
+        }
     }
 
     #[test]
