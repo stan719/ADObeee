@@ -27,7 +27,7 @@ use regions::{group_blocks, rewrite_styled_block};
 /// One line of existing text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextLine {
-    /// The line's text as shown.
+    /// The line's text in logical typing order.
     pub text: String,
     /// Its box in user space.
     pub rect: [f64; 4],
@@ -54,8 +54,8 @@ pub struct TextLine {
     origin: Origin,
     /// Explicit marked-content scope (when present); distinct scopes must not be guessed into one paragraph.
     scope: Option<usize>,
-    /// Right-to-left `/ActualText` already supplies typing order; glyph text still needs bidi
-    /// recovery. Left-to-right ActualText (e.g. a Latin ligature) joins its line as usual.
+    /// RTL `/ActualText` and glyph runs with a backwards pen already supply typing order;
+    /// other glyph text needs bidi recovery. Latin ActualText joins its line as usual.
     logical_order: bool,
     /// Some of the line's text is `/ActualText`, which is already in logical order: visual-order
     /// Indic recovery would scramble it.
@@ -708,6 +708,10 @@ fn interpret(
                 if !pieces.iter().any(|p| matches!(p, Object::String(s) if !s.bytes.is_empty())) {
                     continue;
                 }
+                // Some producers encode RTL letters in typing order and use positive TJ
+                // adjustments to place successive glyphs to the left. Their negative pen
+                // advance is already RTL; reversing it again swaps the editable letters.
+                let logical_order = x_text < 0.0 && text.chars().any(crate::bidi::is_rtl);
                 out.push(Shown {
                     op: i,
                     extra_ops: Vec::new(),
@@ -733,7 +737,7 @@ fn interpret(
                     visual_order: m.visual_order,
                     decodable,
                     scope: marked.last().copied().flatten(),
-                    logical_order: false,
+                    logical_order,
                     actual_text: false,
                 });
             }

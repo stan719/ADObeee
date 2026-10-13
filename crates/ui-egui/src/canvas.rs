@@ -3153,7 +3153,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     view.viewport_screen = out.inner_rect;
     view.auto_scroll.paint(ui, avail);
     if unobstructed && matches!(tool, QuickTool::Select | QuickTool::ColumnSelect) {
-        selection_actions(ui, avail, view, info, prefs, allowed && !comments_hidden);
+        selection_actions(ui, avail, view, doc, prefs, allowed && !comments_hidden);
     }
 
     // Collect all main-page demand, including cached surfaces, for byte admission later.
@@ -3437,10 +3437,19 @@ enum SelectionAction {
     Markup(comments::CommentTool),
     Replace,
     Copy,
+    Edit,
 }
 
 /// Actions on an existing text selection, next to the selected words.
-fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info: &DocInfo, prefs: &comments::CommentPrefs, can_comment: bool) {
+fn selection_actions(
+    ui: &mut egui::Ui,
+    viewport: Rect,
+    view: &mut DocView,
+    doc: &pdfcraft_engine::Document,
+    prefs: &comments::CommentPrefs,
+    can_comment: bool,
+) {
+    let info = &doc.info;
     if ui.input(|input| input.pointer.is_decidedly_dragging()) {
         return;
     }
@@ -3453,6 +3462,16 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
         return;
     }
     let rect = xf.view_rect(last);
+    let editable = doc
+        .allows_modification()
+        .then(|| {
+            doc.text_blocks(selection.page).iter().enumerate().find_map(|(i, block)| {
+                (xf.user_rect(info, selection.page, block.rect.map(|v| v as f32)).expand(2.0).intersects(rect)
+                    && block.editor_text.matches(&selected).count() == 1)
+                    .then_some(i)
+            })
+        })
+        .flatten();
     if !viewport.intersects(rect) {
         return;
     }
@@ -3461,13 +3480,17 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
     let mut chosen = None;
     egui::Area::new(egui::Id::new(("text-selection-actions", view.id.0))).order(egui::Order::Foreground).fixed_pos(pos2(x, y)).show(ui.ctx(), |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.set_max_width((viewport.width() - 16.0).clamp(1.0, 520.0));
+            ui.horizontal_wrapped(|ui| {
+                if ui.add_enabled(editable.is_some(), egui::Button::new(tl!("Edit text"))).clicked() {
+                    chosen = Some(SelectionAction::Edit);
+                }
                 for (label, action) in [
                     (tl!("Add comment"), SelectionAction::Note),
                     (tl!("Highlight"), SelectionAction::Markup(comments::CommentTool::Highlight)),
                     (tl!("Underline"), SelectionAction::Markup(comments::CommentTool::Underline)),
                     (tl!("Strikethrough"), SelectionAction::Markup(comments::CommentTool::StrikeOut)),
-                    (tl!("Replace text"), SelectionAction::Replace),
+                    (tl_ctx!("review-suggestion", "Replace text"), SelectionAction::Replace),
                 ] {
                     if ui.add_enabled(can_comment, egui::Button::new(label)).clicked() {
                         chosen = Some(action);
@@ -3482,6 +3505,14 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
     let Some(action) = chosen else { return };
     if let SelectionAction::Copy = action {
         ui.ctx().copy_text(selected);
+        return;
+    }
+    if let SelectionAction::Edit = action {
+        if let Some(block) = editable
+            && crate::edit_text_ui::open_block(ui.ctx(), doc, view, selection.page, block, Some(&selected))
+        {
+            view.clear_selection();
+        }
         return;
     }
     let Some((page, quads)) = view.selection_quads(info) else { return };
@@ -3513,7 +3544,7 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
             }));
         }
         // Copied above.
-        SelectionAction::Copy => {}
+        SelectionAction::Copy | SelectionAction::Edit => {}
     }
 }
 

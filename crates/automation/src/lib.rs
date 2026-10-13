@@ -587,7 +587,8 @@ impl Automation {
                     return Err(ToolError::InvalidArgs(format!("paragraph {k} is out of range: page {} has {n} paragraphs", page + 1)));
                 }
                 let block = self.doc(&a)?.text_blocks(page)[k as usize - 1].clone();
-                let text = a.opt_str("text")?.map(str::to_owned).unwrap_or(block.text);
+                let width = a.opt_num("width")?;
+                let text = a.opt_str("text")?.map(str::to_owned).unwrap_or_else(|| if width.is_some() { block.text } else { block.editor_text });
                 let mut style = pdfcraft_engine::BlockStyle {
                     ranges: parse_style_ranges(a.get("ranges"))?,
                     resource: a.opt_str("font_resource")?.map(str::to_owned),
@@ -597,7 +598,7 @@ impl Automation {
                     line_spacing: a.opt_num("line_spacing")?,
                     char_spacing: a.opt_num("char_spacing")?,
                     scale: a.opt_num("scale")?,
-                    width: a.opt_num("width")?,
+                    width,
                     ..Default::default()
                 };
                 let (dx, dy) = (a.opt_num("dx")?, a.opt_num("dy")?);

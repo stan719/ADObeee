@@ -117,6 +117,8 @@ pub struct LineEditor {
     pub overflow: bool,
     /// The initial source container width in screen pixels.
     max_width: f32,
+    /// Expanded single-row bidi draft width and translation, in PDF user units.
+    draft_layout: Option<(f64, [f64; 2])>,
     /// Current screen-space size. Recomputed from the current page transform before painting.
     size: f32,
     focus: bool,
@@ -171,6 +173,12 @@ pub(crate) fn extras_panel(ui: &mut egui::Ui, e: &mut Extras) -> bool {
 }
 
 impl LineEditor {
+    fn grows_as_single_row(&self) -> bool {
+        !self.text.contains('\n')
+            && ((!self.multiline && self.source.as_ref().is_some_and(|(block, _)| block.lines.len() == 1 || block.invisible))
+                || self.original.contains('\n'))
+    }
+
     pub(crate) fn has_changes(&self) -> bool {
         self.text != self.original || self.look != self.look0 || self.extras != self.extras0
     }
@@ -189,6 +197,8 @@ impl LineEditor {
     pub fn style(&self) -> pdfcraft_engine::BlockStyle {
         let (l, o) = (&self.look, &self.look0);
         let mut style = pdfcraft_engine::BlockStyle {
+            width: self.draft_layout.map(|(width, _)| width),
+            offset: self.draft_layout.map(|(_, offset)| offset),
             resource: self.font_resource.clone(),
             family: (l.family != o.family || l.bold != o.bold || l.italic != o.italic).then_some((l.family, l.bold, l.italic)),
             size: (l.size != o.size).then_some(l.size),
@@ -228,6 +238,7 @@ impl LineEditor {
     pub fn applied(&mut self) {
         self.selection = None;
         self.font_resource = None;
+        self.draft_layout = None;
         self.look0 = self.look.clone();
         self.extras0 = self.extras;
         self.original = self.text.clone();
@@ -237,6 +248,7 @@ impl LineEditor {
     /// Adopt the rewritten paragraph's current geometry before the next overlay frame.
     pub(crate) fn refresh_source(&mut self, block: &pdfcraft_engine::TextBlock, lines: Vec<pdfcraft_engine::TextLine>) {
         self.source_rect = block.rect.map(|v| v as f32);
+        self.draft_layout = None;
         self.multiline = block.rows.len() > 1;
         self.source = Some((block.clone(), lines));
         self.text = block.editor_text.clone();
@@ -723,37 +735,70 @@ pub(crate) fn page_input(
     ui.ctx().set_cursor_icon(if on_edge { egui::CursorIcon::ResizeHorizontal } else { egui::CursorIcon::Text });
     if resp.clicked() {
         view.image_selection = None;
-        let l = &lines[hit];
-        let source_lines = doc.text_lines(page);
-        let text = l.editor_text.clone();
-        // Screen pixels per point, from the box's width.
-        let scale = (boxes[hit].width() - 4.0) / ((l.rect[2] - l.rect[0]).max(1.0) as f32);
-        // How far the editor box may grow: a single-line paragraph's rewrite grows to the
-        // page's right edge, a multi-line paragraph rewraps to its own width.
-        let right = xf.rect.right().min(view.viewport_rect().right()) - 6.0;
-        let max_width = if l.rows.len() == 1 { (right - boxes[hit].left()).max(boxes[hit].width()) } else { boxes[hit].width() };
-        view.line_editor = Some(LineEditor {
-            selection: None,
-            font_resource: None,
-            page,
-            block: hit,
-            text: text.clone(),
-            original: text,
-            rect: boxes[hit],
-            source_rect: l.rect.map(|v| v as f32),
-            multiline: l.rows.len() > 1,
-            source: Some((l.clone(), source_lines)),
-            fonts: install_source_fonts(ui.ctx(), doc, page),
-            overflow: false,
-            max_width,
-            size: (l.size as f32 * scale).clamp(8.0, 72.0),
-            focus: true,
-            look: look_of(l),
-            look0: look_of(l),
-            extras: Extras::default(),
-            extras0: Extras::default(),
-        });
+        open_block(ui.ctx(), doc, view, page, hit, None);
     }
+    true
+}
+
+/// Open the paragraph editor from the edit tool or selection toolbar. Typing replaces the
+/// selected word in the logical buffer; applying rewrites the actual page content.
+pub(crate) fn open_block(
+    ctx: &egui::Context,
+    doc: &pdfcraft_engine::Document,
+    view: &mut DocView,
+    page: usize,
+    block: usize,
+    selected: Option<&str>,
+) -> bool {
+    if !doc.allows_modification() {
+        return false;
+    }
+    let Some(xf) = view.page_xform(page) else { return false };
+    let blocks = doc.text_blocks(page);
+    let Some(l) = blocks.get(block) else { return false };
+    let rect = xf.user_rect(&doc.info, page, l.rect.map(|v| v as f32)).expand(2.0);
+    let text = l.editor_text.clone();
+    let selection = selected.and_then(|s| text.find(s).map(|at| at..at.saturating_add(s.len())));
+    if selected.is_some() && selection.is_none() {
+        return false;
+    }
+    let scale = (rect.width() - 4.0).max(1.0) / ((l.rect[2] - l.rect[0]).max(1.0) as f32);
+    let right = xf.rect.right().min(view.viewport_rect().right()) - 6.0;
+    let max_width = if l.rows.len() == 1 { (right - rect.left()).max(rect.width()) } else { rect.width() };
+    let mut state = egui::text_edit::TextEditState::default();
+    let cursor = selection.as_ref().map_or_else(
+        || egui::text::CCursorRange::one(egui::text::CCursor::new(text.chars().count())),
+        |r| {
+            let a = text.get(..r.start).unwrap_or_default().chars().count();
+            let b = text.get(..r.end).unwrap_or_default().chars().count();
+            egui::text::CCursorRange::two(egui::text::CCursor::new(a), egui::text::CCursor::new(b))
+        },
+    );
+    state.cursor.set_char_range(Some(cursor));
+    state.store(ctx, egui::Id::new("edit-text-line-input"));
+    view.image_selection = None;
+    view.line_editor = Some(LineEditor {
+        selection,
+        font_resource: None,
+        page,
+        block,
+        text: text.clone(),
+        original: text,
+        rect,
+        source_rect: l.rect.map(|v| v as f32),
+        multiline: l.rows.len() > 1,
+        source: Some((l.clone(), doc.text_lines(page))),
+        fonts: install_source_fonts(ctx, doc, page),
+        overflow: false,
+        max_width,
+        draft_layout: None,
+        size: (l.size as f32 * scale).clamp(8.0, 72.0),
+        focus: true,
+        look: look_of(l),
+        look0: look_of(l),
+        extras: Extras::default(),
+        extras0: Extras::default(),
+    });
     true
 }
 
@@ -975,48 +1020,85 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo) -
     ed.size = (ed.look.size as f32 * scale).clamp(1.0, 300.0);
     let font = editor_font(&ed.look, ed.size);
     let text_color = color32(ed.look.color);
+    let bidi_field = crate::bidi::has_rtl(&ed.text) || crate::bidi::has_rtl(&ed.original);
+    let rtl_field =
+        unicode_bidi::get_base_direction(if ed.text.is_empty() { ed.original.as_str() } else { ed.text.as_str() }) == unicode_bidi::Direction::Rtl;
+    let single_run = ed.source.as_ref().is_some_and(|(block, _)| block.lines.len() == 1 || block.invisible);
+    // The bidi editor paints with the interface face, not the source subset's fitted
+    // advances. Measure that same face even before typing, so a short source word is
+    // not split. RTL fields grow toward the left, retaining the source's right edge.
+    let growing_bidi = bidi_field && ed.grows_as_single_row();
+    let source_screen_rect = ed.rect;
+    let grow_width = |text: &str, rtl: bool| {
+        let natural = ctx.fonts_mut(|fonts| {
+            fonts.layout_no_wrap(crate::bidi::visual_auto(text).into_owned(), FontId::proportional(font.size), text_color).size().x
+        });
+        let available = if rtl { source_screen_rect.right() - xf.rect.left() } else { xf.rect.right() - source_screen_rect.left() };
+        (natural.ceil() + 1.0).max(source_screen_rect.width()).min(available.max(source_screen_rect.width()))
+    };
+    let bidi_width = growing_bidi.then(|| grow_width(&ed.text, rtl_field));
+    let editor_pos = Pos2::new(if rtl_field { ed.rect.right() - bidi_width.unwrap_or(ed.rect.width()) } else { ed.rect.left() }, ed.rect.top());
     let mut done = None;
-    egui::Area::new(egui::Id::new("edit-text-line")).order(egui::Order::Foreground).fixed_pos(Pos2::new(ed.rect.left(), ed.rect.top())).show(
-        ctx,
-        |ui| {
-            // The editor opens at the source size. Once text changes, show the real draft
-            // extent: single rows grow toward the page edge, paragraphs rewrap at their
-            // source width, and the visible frame grows/shrinks vertically with their rows.
-            // An OCR phrase (several stretched words on one scanned line) also grows rightwards.
-            let single_run = ed.source.as_ref().is_some_and(|(block, _)| block.lines.len() == 1 || block.invisible);
-            let width = if !ed.multiline && single_run && !ed.text.contains('\n') && ed.has_changes() {
-                let job = editor_job(ui, ed, &ed.text, scale, f32::INFINITY);
-                let natural = ui.fonts_mut(|f| f.layout_job(job)).size().x;
-                natural.max(ed.size * 0.4).min((xf.rect.right() - ed.rect.left() - 36.0 * scale).max(ed.rect.width()))
-            } else {
-                ed.rect.width().max(1.0)
-            };
-            ui.set_width(width);
-            let measured = editor_galley(ui, ed, &ed.text, scale, width);
-            ed.overflow = ed.has_changes() && (measured.rect.width() > ed.rect.width() + 1.5 || measured.rect.height() > ed.rect.height() + 1.5);
-            let visible = Rect::from_min_size(ed.rect.min, measured.rect.size().max(egui::vec2(1.0, 1.0)));
-            // Unsupported source programs use an interface fallback whose glyph advances
-            // can differ from the PDF's. Keep every visible row inside the growing frame.
-            let live = draft_rect.map_or(visible, |bounds| bounds.union(visible));
-            ui.painter().rect_stroke(live.expand(2.0), CornerRadius::ZERO, Stroke::new(1.5, ACCENT), egui::StrokeKind::Outside);
-            // White, unless the text is too pale to read on white (white text from a coloured
-            // banner, #913): then a dark box, with a caret that shows on it.
-            let fill = if background_ready { Color32::TRANSPARENT } else { editor_fill(text_color) };
-            // Until the background worker finishes, cover the entire source box, including
-            // lines the draft no longer occupies. Shrinking the text must never expose a copy.
-            if !background_ready {
-                ui.painter().rect_filled(ed.rect.expand(1.0), CornerRadius::ZERO, fill);
+    egui::Area::new(egui::Id::new("edit-text-line")).order(egui::Order::Foreground).fixed_pos(editor_pos).show(ctx, |ui| {
+        // The editor opens at the source size. Once text changes, show the real draft
+        // extent: single rows grow toward the page edge, paragraphs rewrap at their
+        // source width, and the visible frame grows/shrinks vertically with their rows.
+        // An OCR phrase (several stretched words on one scanned line) also grows rightwards.
+        let width = if let Some(width) = bidi_width {
+            width
+        } else if !ed.multiline && single_run && !ed.text.contains('\n') && ed.has_changes() {
+            let job = editor_job(ui, ed, &ed.text, scale, f32::INFINITY);
+            let natural = ui.fonts_mut(|f| f.layout_job(job)).size().x;
+            natural.max(ed.size * 0.4).min((xf.rect.right() - ed.rect.left() - 36.0 * scale).max(ed.rect.width()))
+        } else {
+            ed.rect.width().max(1.0)
+        };
+        ui.set_width(width);
+        let measured = if bidi_field {
+            ui.fonts_mut(|fonts| fonts.layout(crate::bidi::visual_auto(&ed.text).into_owned(), FontId::proportional(font.size), text_color, width))
+        } else {
+            editor_galley(ui, ed, &ed.text, scale, width)
+        };
+        ed.overflow = ed.has_changes() && (measured.rect.width() > ed.rect.width() + 1.5 || measured.rect.height() > ed.rect.height() + 1.5);
+        let visible = Rect::from_min_size(editor_pos, measured.rect.size().max(egui::vec2(1.0, 1.0)));
+        // Unsupported source programs use an interface fallback whose glyph advances
+        // can differ from the PDF's. Keep every visible row inside the growing frame.
+        let live = draft_rect.map_or(visible, |bounds| bounds.union(visible));
+        ui.painter().rect_stroke(live.expand(2.0), CornerRadius::ZERO, Stroke::new(1.5, ACCENT), egui::StrokeKind::Outside);
+        // White, unless the text is too pale to read on white (white text from a coloured
+        // banner, #913): then a dark box, with a caret that shows on it.
+        let fill = if background_ready { Color32::TRANSPARENT } else { editor_fill(text_color) };
+        // Until the background worker finishes, cover the entire source box, including
+        // lines the draft no longer occupies. Shrinking the text must never expose a copy.
+        if !background_ready {
+            ui.painter().rect_filled(ed.rect.expand(1.0), CornerRadius::ZERO, fill);
+        }
+        egui::Frame::NONE.fill(fill).show(ui, |ui| {
+            // A textless PDF preview keeps its real page background through the transparent editor.
+            // The temporary opaque cover uses the shared caret-contrast rule.
+            ui.visuals_mut().text_cursor.stroke.color =
+                if background_ready { if luminance(text_color) < 0.5 { Color32::BLACK } else { Color32::WHITE } } else { caret_color_on(fill) };
+            let rows = 1;
+            let snapshot = ed.clone();
+            let mut layouter =
+                |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| editor_galley(ui, &snapshot, text.as_str(), scale, wrap_width);
+            // egui collapses a stored selection before showing an unfocused field.
+            // Focus first so the toolbar's selected word survives the first layout.
+            if ed.focus {
+                ui.memory_mut(|m| m.request_focus(egui::Id::new("edit-text-line-input")));
             }
-            egui::Frame::NONE.fill(fill).show(ui, |ui| {
-                // A textless PDF preview keeps its real page background through the transparent editor.
-                // The temporary opaque cover uses the shared caret-contrast rule.
-                ui.visuals_mut().text_cursor.stroke.color =
-                    if background_ready { if luminance(text_color) < 0.5 { Color32::BLACK } else { Color32::WHITE } } else { caret_color_on(fill) };
-                let rows = 1;
-                let snapshot = ed.clone();
-                let mut layouter =
-                    |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| editor_galley(ui, &snapshot, text.as_str(), scale, wrap_width);
-                let output = egui::TextEdit::multiline(&mut ed.text)
+            let output = if bidi_field {
+                let mut options = crate::bidi_edit::Options::new(ui, "edit-text-line-input");
+                options.id = egui::Id::new("edit-text-line-input");
+                options.font = FontId::proportional(font.size);
+                options.width = width;
+                options.rows = rows;
+                options.margin = egui::Margin::ZERO;
+                options.frame = egui::Frame::NONE;
+                options.color = text_color;
+                crate::bidi_edit::show(ui, &mut ed.text, options)
+            } else {
+                egui::TextEdit::multiline(&mut ed.text)
                     .id(egui::Id::new("edit-text-line-input"))
                     .font(font.clone())
                     .margin(egui::Margin::ZERO)
@@ -1025,31 +1107,41 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo) -
                     .frame(egui::Frame::NONE)
                     .desired_width(width)
                     .desired_rows(rows)
-                    .show(ui);
-                if let Some(cursor) = output.cursor_range {
-                    let selected = cursor.as_sorted_char_range();
-                    let byte = |index| ed.text.char_indices().nth(index).map_or(ed.text.len(), |(at, _)| at);
-                    ed.selection = (!selected.is_empty()).then(|| byte(selected.start.into())..byte(selected.end.into()));
-                }
-                let r = output.response;
-                if r.changed() {
-                    // The next pass measures the updated draft with the Apply/Save rewrite.
-                    ctx.request_repaint();
-                }
-                if ed.focus {
-                    r.request_focus();
-                    ed.focus = false;
-                }
-                let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
-                let apply = ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.command);
-                if esc {
-                    done = Some(false);
-                } else if apply || (r.lost_focus() && !outside && !hold) {
-                    done = Some(true);
-                }
-            });
-        },
-    );
+                    .show(ui)
+            };
+            if let Some(cursor) = output.cursor_range {
+                let selected = cursor.as_sorted_char_range();
+                let byte = |index| ed.text.char_indices().nth(index).map_or(ed.text.len(), |(at, _)| at);
+                ed.selection = (!selected.is_empty()).then(|| byte(selected.start.into())..byte(selected.end.into()));
+            }
+            let r = output.response;
+            if r.changed() {
+                // The next pass measures the updated draft with the Apply/Save rewrite.
+                ctx.request_repaint();
+            }
+            if ed.focus {
+                r.request_focus();
+                ed.focus = false;
+            }
+            let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
+            let apply = ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.command);
+            if esc {
+                done = Some(false);
+            } else if apply || (r.lost_focus() && !outside && !hold) {
+                done = Some(true);
+            }
+        });
+    });
+    // Apply uses the same single-row container as the visible editor. Recompute after
+    // TextEdit processes this frame's input, including typing followed by click-away.
+    ed.draft_layout = if (crate::bidi::has_rtl(&ed.text) || crate::bidi::has_rtl(&ed.original)) && ed.grows_as_single_row() && ed.has_changes() {
+        let rtl = unicode_bidi::get_base_direction(ed.text.as_str()) == unicode_bidi::Direction::Rtl;
+        let width = f64::from(grow_width(&ed.text, rtl) / scale);
+        let source_width = f64::from((ed.source_rect[2] - ed.source_rect[0]).abs());
+        (width > source_width + 0.5).then_some((width, [if rtl { source_width - width } else { 0.0 }, 0.0]))
+    } else {
+        None
+    };
     match done {
         Some(apply) => {
             let ed = view.line_editor.take()?;
@@ -1098,6 +1190,7 @@ mod tests {
             fonts: BTreeMap::new(),
             overflow: false,
             max_width: 400.0,
+            draft_layout: None,
             size: block.size as f32,
             focus: true,
             look: look_of(&block),

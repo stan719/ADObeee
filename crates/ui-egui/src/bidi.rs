@@ -130,6 +130,73 @@ pub fn visual_auto(text: &str) -> Cow<'_, str> {
     Cow::Owned(lines.join("\n"))
 }
 
+/// Display characters paired with their original logical byte position. Editing must never
+/// put the display string back into the buffer: its order is only for painting/hit testing.
+#[derive(Clone, Debug)]
+pub(crate) struct MappedChar {
+    pub ch: char,
+    pub byte: usize,
+    pub rtl: bool,
+}
+
+pub(crate) struct MappedLine {
+    pub range: Range<usize>,
+    pub chars: Vec<MappedChar>,
+    pub rtl: bool,
+}
+
+/// Like `wrap`, retaining whitespace and logical positions for cursor/selection mapping.
+pub(crate) fn mapped_lines(text: &str, mut fits: impl FnMut(&str) -> bool) -> Vec<MappedLine> {
+    let info = BidiInfo::new(text, None);
+    let mut lines = Vec::new();
+    for para in &info.paragraphs {
+        let whole = text.get(para.range.clone()).unwrap_or_default();
+        if whole == "\n" && text.get(..para.range.start).is_some_and(|s| s.ends_with('\r')) {
+            continue;
+        }
+        let content = para.range.start..para.range.start.saturating_add(whole.trim_end_matches(is_paragraph_separator).len());
+        let broken = break_lines(text, content.clone(), &mut fits);
+        for (i, range) in broken.iter().enumerate() {
+            let start = if i == 0 { content.start } else { range.start };
+            let end = broken.get(i.saturating_add(1)).map_or(content.end, |next| next.start);
+            let range = start..end;
+            let mut shown = Vec::new();
+            if !range.is_empty() {
+                let (levels, runs) = info.visual_runs(para, range.clone());
+                for run in runs {
+                    let rtl = levels.get(run.start).is_some_and(Level::is_rtl);
+                    let piece = text.get(run.clone()).unwrap_or_default();
+                    let mut chars: Vec<_> = piece
+                        .char_indices()
+                        .filter(|(_, ch)| !is_bidi_control(*ch))
+                        .map(|(at, ch)| MappedChar { ch: if rtl { mirrored(ch) } else { ch }, byte: run.start.saturating_add(at), rtl })
+                        .collect();
+                    if rtl {
+                        chars.reverse();
+                    }
+                    shown.extend(chars);
+                }
+                // Undo only the script stretches, as push_for_shaper does.
+                let mut first = None;
+                for i in 0..=shown.len() {
+                    if shown.get(i).is_some_and(|c| is_rtl_script(c.ch) || is_joiner(c.ch)) {
+                        first.get_or_insert(i);
+                    } else if let Some(start) = first.take()
+                        && let Some(part) = shown.get_mut(start..i)
+                    {
+                        part.reverse();
+                    }
+                }
+            }
+            lines.push(MappedLine { range, chars: shown, rtl: para.level.is_rtl() });
+        }
+    }
+    if text.is_empty() || text.ends_with(is_paragraph_separator) {
+        lines.push(MappedLine { range: text.len()..text.len(), chars: Vec::new(), rtl: false });
+    }
+    lines
+}
+
 /// The byte ranges of the lines `range` of `text` breaks into: as many words as `fits` accepts
 /// per line, a word too wide for any line split between characters. Always at least one line.
 fn break_lines(text: &str, range: Range<usize>, fits: &mut impl FnMut(&str) -> bool) -> Vec<Range<usize>> {
@@ -314,13 +381,13 @@ fn is_modifier_key(c: char) -> bool {
 
 /// Characters of the right-to-left scripts' blocks: letters, marks and the scripts' own
 /// punctuation, all drawn by the script's face.
-fn is_rtl_script(c: char) -> bool {
+pub(crate) fn is_rtl_script(c: char) -> bool {
     matches!(u32::from(c), 0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFC | 0x1_0800..=0x1_0FFF | 0x1_E800..=0x1_EFFF)
 }
 
 /// The zero-width (non-)joiners inside a word (Persian `می‌روم`): egui shapes them with the
 /// letter before them.
-fn is_joiner(c: char) -> bool {
+pub(crate) fn is_joiner(c: char) -> bool {
     matches!(c, '\u{200C}' | '\u{200D}')
 }
 

@@ -1195,7 +1195,8 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
             ui.set_width(260.0);
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(crate::bidi::visual_auto(&prefs.author)).font(theme::semibold(13.0)));
-                ui.label(egui::RichText::new(tl!(title)).font(theme::regular(11.5)).color(t.text_faint));
+                let title = if matches!(c.kind, ComposerKind::Replace) { tl_ctx!("review-suggestion", title) } else { tl!(title) };
+                ui.label(egui::RichText::new(title).font(theme::regular(11.5)).color(t.text_faint));
             });
             ui.add_space(6.0);
             let hint = match c.kind {
@@ -1204,8 +1205,9 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
                 ComposerKind::Replace => tl!("Replacement text"),
                 _ => tl!("Add a comment"),
             };
-            let edit =
-                ui.add(egui::TextEdit::multiline(&mut c.text).hint_text(hint).desired_rows(3).desired_width(f32::INFINITY).id_salt("composer-text"));
+            let mut options = crate::bidi_edit::Options::new(ui, "composer-text");
+            options.hint = hint.to_owned();
+            let edit = crate::bidi_edit::show(ui, &mut c.text, options).response;
             if c.focus {
                 edit.request_focus();
                 c.focus = false;

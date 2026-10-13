@@ -2373,3 +2373,226 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+
+# Panel names.
+	Tools	الأدوات
+	Inspector	المفتش
+
+# Engine diagnostics, accessibility reports, signature details and edit history.
+	A font isn't embedded	أحد الخطوط غير مضمَّن
+	A {} action isn't allowed	الإجراء {} غير مسموح به
+	A {} annotation has additional actions	يحتوي تعليق {} على إجراءات إضافية
+	A {} annotation has no appearance stream	لا يحتوي تعليق {} على تدفق مظهر
+	A {} annotation isn't set to print, or is hidden	تعليق {} غير معدّ للطباعة أو مخفي
+	Accessibility Report	تقرير إمكانية الوصول
+	Change Author	تغيير المؤلف
+	Change Keywords	تغيير الكلمات المفتاحية
+	Change Subject	تغيير الموضوع
+	Change Title	تغيير العنوان
+	Create links	إنشاء روابط
+	Detailed Report	تقرير مفصّل
+	DeviceCMYK is used, but the PDF/A output intent isn't a CMYK profile	يُستخدم DeviceCMYK، لكن مقصد إخراج PDF/A ليس ملف تعريف CMYK
+	DeviceRGB is used, but the PDF/A output intent isn't an RGB profile	يُستخدم DeviceRGB، لكن مقصد إخراج PDF/A ليس ملف تعريف RGB
+	Field "{}" on page {p} has no description (tooltip)	الحقل "{}" في الصفحة {p} ليس له وصف (تلميح)
+	Filename	اسم الملف
+	Flatten Fill & Sign	دمج التعبئة والتوقيع في الصفحة
+	Font (unnamed) on page {p} doesn't map its characters to Unicode	الخط (بلا اسم) في الصفحة {p} لا يربط أحرفه بترميز Unicode
+	Font {} on page {p} doesn't map its characters to Unicode	الخط {} في الصفحة {p} لا يربط أحرفه بترميز Unicode
+	Form field on page {p} isn't tagged	حقل النموذج في الصفحة {p} غير موسوم
+	H{n} follows an H{d}; headings should not skip levels	يتبع H{n} عنوانًا من المستوى H{d}؛ يجب ألّا تتخطى العناوين المستويات
+	No document language is set	لم تُحدَّد لغة المستند
+	No page has text: the document appears to be images of pages	لا تحتوي أي صفحة على نص؛ يبدو أن المستند يتكون من صور للصفحات
+	Page {p} doesn't tab in structure order	التنقل بمفتاح Tab في الصفحة {p} لا يتبع ترتيب البنية
+	Page {p}: {n} untagged content item	الصفحة {p}: {n} من عناصر المحتوى غير موسومة
+	Page {p}: {n} untagged content items	الصفحة {p}: {n} من عناصر المحتوى غير موسومة
+	Page {} has additional actions	تحتوي الصفحة {} على إجراءات إضافية
+	PdfCraft can't check this signature yet: {}.	لا يستطيع PdfCraft فحص هذا التوقيع بعد: {}.
+	Report created	تاريخ إنشاء التقرير
+	Rule Name	اسم القاعدة
+	Save as {level}	حفظ بصيغة {level}
+	Signature is invalid	التوقيع غير صالح
+	Signature is valid	التوقيع صالح
+	Signature validity is unknown	صلاحية التوقيع غير معروفة
+	Signing time is from the clock on the signer's computer.	وقت التوقيع مأخوذ من ساعة حاسوب الموقّع.
+	The ECDSA signature is not in canonical DER (trailing bytes, padding or a missing sign byte); it was read anyway.	توقيع ECDSA ليس بصيغة DER القياسية (بايتات زائدة أو حشو أو بايت إشارة مفقود)؛ تمت قراءته رغم ذلك.
+	The ECDSA signature is the raw r and s values instead of a DER sequence; it was read anyway.	توقيع ECDSA هو القيمتان الخام r وs بدلًا من تسلسل DER؛ تمت قراءته رغم ذلك.
+	The RSA signature value does not have the length of the key's modulus (leading zero bytes dropped or added); it was read anyway.	طول قيمة توقيع RSA لا يطابق طول معامل المفتاح (حُذفت أو أُضيفت بايتات صفرية في البداية)؛ تمت قراءته رغم ذلك.
+	The RSA signature's DigestInfo has no NULL parameter (older signers write it so); it was read anyway.	لا تحتوي DigestInfo في توقيع RSA على معامل NULL (تكتبها برامج التوقيع القديمة بهذه الطريقة)؛ تمت قراءته رغم ذلك.
+	The certificate of {} does not allow this many CA certificates below it (path length), so it is not used to vouch for {}.	شهادة {} لا تسمح بهذا العدد من شهادات سلطات التصديق التابعة لها (طول المسار)، لذا لا تُستخدم لإثبات موثوقية {}.
+	The certificate of {} is not a CA certificate that may issue certificates, so it is not used to vouch for {}.	شهادة {} ليست شهادة سلطة تصديق مخوّلة بإصدار الشهادات، لذا لا تُستخدم لإثبات موثوقية {}.
+	The certificate of {} was not valid at the time of signing, so it is not used to vouch for {}.	شهادة {} لم تكن صالحة وقت التوقيع، لذا لا تُستخدم لإثبات موثوقية {}.
+	The checker found problems which may prevent the document from being fully accessible.	عثر الفاحص على مشكلات قد تمنع إتاحة المستند بالكامل لذوي الاحتياجات الخاصة.
+	The document has been altered or corrupted since the signature was applied.	عُدّل المستند أو تلف منذ تطبيق التوقيع.
+	The document has been altered or corrupted since the timestamp was applied.	عُدّل المستند أو تلف منذ تطبيق الختم الزمني.
+	The document has been altered since this signature was applied in ways it does not permit ({}).	عُدّل المستند منذ تطبيق هذا التوقيع بطرق لا يسمح بها ({}).
+	The document has been altered since this timestamp was applied in ways it does not permit ({}).	عُدّل المستند منذ تطبيق هذا الختم الزمني بطرق لا يسمح بها ({}).
+	The document has been modified since this signature was applied, but the changes are permitted ({}).	عُدّل المستند منذ تطبيق هذا التوقيع، لكن التغييرات مسموح بها ({}).
+	The document has been modified since this timestamp was applied, but the changes are permitted ({}).	عُدّل المستند منذ تطبيق هذا الختم الزمني، لكن التغييرات مسموح بها ({}).
+	The document has no tags (structure tree)	لا يحتوي المستند على وسوم (شجرة بنية)
+	The document has no title	ليس للمستند عنوان
+	The document isn't marked as tagged (MarkInfo Marked)	لم يُعلَّم المستند بأنه موسوم (MarkInfo Marked)
+	The document isn't tagged, so none of its content is	المستند غير موسوم، لذا لا يوجد محتوى موسوم فيه
+	The document's embedded revocation information shows that the signer's certificate has not been revoked.	تشير معلومات الإبطال المضمَّنة في المستند إلى أن شهادة الموقّع لم تُبطَل.
+	The embedded timestamp token is valid and its authority is trusted; trusted time is {}.	رمز الختم الزمني المضمَّن صالح وسلطته موثوقة؛ الوقت الموثوق هو {}.
+	The font {} isn't embedded	الخط {} غير مضمَّن
+	The metadata doesn't identify the file as {}	البيانات الوصفية لا تحدّد الملف على أنه {}
+	The security settings don't allow screen readers to read the text	إعدادات الأمان لا تسمح لقارئات الشاشة بقراءة النص
+	The signature algorithm and the SignerInfo's digest algorithm name different hashes; the signature was made with the SignerInfo's.	خوارزمية التوقيع وخوارزمية التجزئة في SignerInfo تحدّدان تجزئتين مختلفتين؛ أُنشئ التوقيع باستخدام خوارزمية SignerInfo.
+	The signature carries an unverified timestamp ({}): the timestamp authority is not in your list of trusted certificates, so the signing time claimed by the signer is used instead.	يحمل التوقيع ختمًا زمنيًا لم يُتحقّق منه ({}): سلطة الختم الزمني ليست في قائمة شهاداتك الموثوقة، لذا يُستخدم وقت التوقيع الذي يذكره الموقّع بدلًا منه.
+	The signature contents are not hexadecimal.	محتويات التوقيع ليست بترميز ست عشري.
+	The signature could not be checked ({}).	تعذّر فحص التوقيع ({}).
+	The signature could not be read ({}).	تعذّرت قراءة التوقيع ({}).
+	The signature could not be verified ({}).	تعذّر التحقّق من التوقيع ({}).
+	The signature has no valid byte range.	ليس للتوقيع نطاق بايتات صالح.
+	The signature includes an embedded timestamp.	يتضمن التوقيع ختمًا زمنيًا مضمَّنًا.
+	The signature is BER-encoded (indefinite lengths) rather than DER; it was read leniently.	التوقيع مرمَّز بصيغة BER (أطوال غير محدّدة) بدلًا من DER؛ تمت قراءته بتسامح.
+	The signature uses the legacy adbe.x509.rsa_sha1 format.	يستخدم التوقيع الصيغة القديمة adbe.x509.rsa_sha1.
+	The signature value does not match the signer's certificate: the signature is corrupt.	قيمة التوقيع لا تطابق شهادة الموقّع؛ التوقيع تالف.
+	The signature's byte range does not exclude exactly its contents.	نطاق بايتات التوقيع لا يستثني محتوياته بدقة.
+	The signature's byte range does not match the file.	نطاق بايتات التوقيع لا يطابق الملف.
+	The signature's timestamp token could not be verified ({}).	تعذّر التحقّق من رمز الختم الزمني للتوقيع ({}).
+	The signature's timestamp token does not cover the signature value.	رمز الختم الزمني للتوقيع لا يغطي قيمة التوقيع.
+	The signed content is a constructed (segmented) OCTET STRING, as BER allows; it was read anyway.	المحتوى الموقَّع هو OCTET STRING مركّب (مجزّأ)، كما تسمح صيغة BER؛ تمت قراءته رغم ذلك.
+	The signer's certificate does not allow digital signatures (its key usage has neither digital signature nor non-repudiation).	شهادة الموقّع لا تسمح بالتوقيعات الرقمية (استخدام المفتاح لا يتضمن التوقيع الرقمي أو عدم الإنكار).
+	The signer's certificate has been revoked ({}).	أُبطلت شهادة الموقّع ({}).
+	The signer's certificate has critical extensions PdfCraft does not recognize ({}).	تحتوي شهادة الموقّع على امتدادات حرجة لا يتعرّف عليها PdfCraft ({}).
+	The signer's certificate is not in the signature.	شهادة الموقّع غير موجودة في التوقيع.
+	The signer's certificate is not issued for signing documents (its extended key usage has no document-signing purpose).	شهادة الموقّع غير صادرة لتوقيع المستندات (استخدام المفتاح الموسّع لا يتضمن غرض توقيع المستندات).
+	The signer's certificate was not valid at the time of signing.	شهادة الموقّع لم تكن صالحة وقت التوقيع.
+	The signer's identity is unknown because it has not been included in your list of trusted certificates and none of its parent certificates are trusted certificates.	هوية الموقّع غير معروفة لأن شهادته ليست في قائمة شهاداتك الموثوقة، ولا توجد شهادة موثوقة ضمن شهادات الجهات المصدرة لها.
+	The signer's identity is valid.	هوية الموقّع صالحة.
+	The timestamp authority's certificate was not valid at the time of timestamping.	شهادة سلطة الختم الزمني لم تكن صالحة وقت إنشاء الختم.
+	The timestamp contents are not hexadecimal.	محتويات الختم الزمني ليست بترميز ست عشري.
+	The timestamp has no valid byte range.	ليس للختم الزمني نطاق بايتات صالح.
+	The timestamp token could not be read ({}).	تعذّرت قراءة رمز الختم الزمني ({}).
+	The timestamp token is valid and its authority is trusted.	رمز الختم الزمني صالح وسلطته موثوقة.
+	The timestamp token is valid, but the timestamp authority is not in your list of trusted certificates.	رمز الختم الزمني صالح، لكن سلطته ليست في قائمة شهاداتك الموثوقة.
+	The timestamp's byte range does not exclude exactly its contents.	نطاق بايتات الختم الزمني لا يستثني محتوياته بدقة.
+	The timestamp's byte range does not match the file.	نطاق بايتات الختم الزمني لا يطابق الملف.
+	The window shows the file name, not the title (Initial View > Show)	تعرض النافذة اسم الملف بدلًا من العنوان (العرض الأولي > إظهار)
+	This document has not been modified since this signature was applied.	لم يُعدَّل هذا المستند منذ تطبيق هذا التوقيع.
+	This document has not been modified since this timestamp was applied.	لم يُعدَّل هذا المستند منذ تطبيق هذا الختم الزمني.
+	This signature uses RIPEMD-160, a legacy 160-bit hash algorithm that is no longer recommended for signatures. It still validates, but it should not be relied on.	يستخدم هذا التوقيع RIPEMD-160، وهي خوارزمية تجزئة قديمة بطول 160 بت لم تعد موصى بها للتوقيعات. ما زال التوقيع يجتاز التحقّق، لكن ينبغي عدم الاعتماد عليه.
+	This signature uses SHA-1, a weak hash algorithm: collisions in it have been demonstrated. It still validates because many documents signed years ago use it, but it should not be relied on.	يستخدم هذا التوقيع SHA-1، وهي خوارزمية تجزئة ضعيفة ثبت وجود تصادمات فيها. ما زال التوقيع يجتاز التحقّق لأن كثيرًا من المستندات الموقَّعة منذ سنوات تستخدمها، لكن ينبغي عدم الاعتماد عليه.
+	Unsigned signature field	حقل توقيع غير موقَّع
+	alternate text hides an annotation inside it	النص البديل يحجب تعليقًا داخله
+	alternate text on an element with no page content	نص بديل على عنصر لا يحتوي على محتوى صفحة
+	comments	التعليقات
+	document security store	مخزن أمان المستند
+	document structure	بنية المستند
+	form fill	تعبئة النموذج
+	its alternate text is inside another element's and will never be read	نصه البديل داخل النص البديل لعنصر آخر ولن يُقرأ
+	links	الروابط
+	metadata	البيانات الوصفية
+	no alternate text	لا يوجد نص بديل
+	no header cells (TH)	لا توجد خلايا رأس (TH)
+	no summary	لا يوجد ملخص
+	not in a TR	ليس داخل TR
+	not in a Table, THead, TBody or TFoot	ليس داخل Table أو THead أو TBody أو TFoot
+	not in an L (list)	ليس داخل L (قائمة)
+	not in an LI (list item)	ليس داخل LI (عنصر قائمة)
+	other changes	تغييرات أخرى
+	page content	محتوى الصفحة
+	page {n} is out of range (1–{count})	الصفحة {n} خارج النطاق (1–{count})
+	pages added or removed	صفحات أُضيفت أو أُزيلت
+	rows have between {min} and {max} columns	يتراوح عدد أعمدة الصفوف بين {min} و{max}
+	the first heading is an H{n}; headings should not skip levels	العنوان الأول من المستوى H{n}؛ يجب ألّا تتخطى العناوين المستويات
+	the signed version could not be read	تعذّرت قراءة النسخة الموقَّعة
+	{n} pages and no bookmarks	{n} من الصفحات دون إشارات مرجعية
+	{page} is not a page number or label	{page} ليس رقم صفحة أو تسميتها
+	{ty} element on page {p}: {what}	عنصر {ty} في الصفحة {p}: {what}
+	{ty} element: {what}	عنصر {ty}: {what}
+	{} annotation on page {p} isn't tagged	تعليق {} في الصفحة {p} غير موسوم
+	{} annotations aren't allowed	تعليقات {} غير مسموح بها
+	… and {n} more	… و{n} أخرى
+
+# Contextual calendar and certificate captions.
+calendar weekday	Su	أحد
+calendar weekday	Mo	اثنين
+calendar weekday	Tu	ثلاثاء
+calendar weekday	We	أربعاء
+calendar weekday	Th	خميس
+calendar weekday	Fr	جمعة
+calendar weekday	Sa	سبت
+certificate	Issued to	صادرة إلى
+certificate	Issued by	صادرة عن
+certificate	Valid from	صالحة من
+certificate	Valid to	صالحة حتى
+certificate	Intended usage	الاستخدام المقصود
+certificate	Version	الإصدار
+certificate	Serial number	الرقم التسلسلي
+certificate	Issuer	الجهة المصدرة
+certificate	Validity starts	بداية الصلاحية
+certificate	Validity ends	نهاية الصلاحية
+certificate	Public key	المفتاح العام
+certificate	Basic constraints	القيود الأساسية
+certificate	Key usage	استخدام المفتاح
+certificate	Self-signed	موقَّعة ذاتيًا
+certificate	SHA-1 digest	تجزئة SHA-1
+certificate	SHA-256 digest	تجزئة SHA-256
+
+# Dynamic labels, certificate key usages and validation messages.
+	Paste	لصق
+	Select all	تحديد الكل
+	Next	التالي
+	Previous	السابق
+	Refresh	تحديث
+	Save changes?	هل تريد حفظ التغييرات؟
+	of	من
+	Comment	تعليق
+	Font	خط
+	Color	لون
+	Theme	المظهر
+	System	النظام
+	Import	استيراد
+	Automatically	تلقائيًا
+	Never	أبدًا
+	Always	دائمًا
+	On	مفعّل
+	Enabled	مفعّل
+	Error	خطأ
+	Warning	تحذير
+	Information	معلومات
+	Folder	مجلد
+	Duplicate	تكرار
+	Move	نقل
+	Organize	تنظيم
+	Search results	نتائج البحث
+	CRL Signing	توقيع قوائم إبطال الشهادات
+	Certificate Signing	توقيع الشهادات
+	Choose a digital ID.	اختر هوية رقمية.
+	Creator	المنشئ
+	Cut and stack needs Two-sided: Off. Print single-sided sheets.	يتطلب القص والتكديس تعطيل الطباعة على الوجهين. اطبع الأوراق على وجه واحد.
+	Data Encipherment	تشفير البيانات
+	Decipher Only	فك التشفير فقط
+	Digital Signature	توقيع رقمي
+	Encipher Only	التشفير فقط
+	English	الإنجليزية
+	Enter a URL	أدخل عنوان URL
+	Enter a name.	أدخل اسمًا.
+	Enter a page number	أدخل رقم صفحة
+	Enter the field names	أدخل أسماء الحقول
+	Key Agreement	الاتفاق على المفتاح
+	Key Encipherment	تشفير المفتاح
+	Non-Repudiation	عدم الإنكار
+	Panel layout could not be restored: {error}	تعذّرت استعادة ترتيب اللوحات: {error}
+	Panel move was not applied: {error}	لم يُطبَّق نقل اللوحة: {error}
+	Producer	برنامج الإنتاج
+	Rendering…	جارٍ العرض…
+	Rev. {rev}: Certified by an unknown signer	المراجعة {rev}: مُصدَّقة من موقّع غير معروف
+	Rev. {rev}: Certified by {name}	المراجعة {rev}: مُصدَّقة من {name}
+	Rev. {rev}: Signed by an unknown signer	المراجعة {rev}: موقَّعة من موقّع غير معروف
+	Rev. {rev}: Signed by {name}	المراجعة {rev}: موقَّعة من {name}
+	Rotate view clockwise (⇧⌘+)	تدوير العرض باتجاه عقارب الساعة (⇧⌘+)
+	Save (M4)	حفظ (M4)
+	Still rendering — this page is unusually complex…	العرض مستمر — هذه الصفحة معقّدة على نحو غير معتاد…
+	The password is incorrect.	كلمة المرور غير صحيحة.
+	The password must have at least 6 characters.	يجب ألّا تقل كلمة المرور عن 6 أحرف.
+	The passwords do not match.	كلمتا المرور غير متطابقتين.
+	There is no folder to save the digital ID in.	لا يوجد مجلد لحفظ الهوية الرقمية فيه.
+	Unsigned signature field: {name}	حقل توقيع غير موقَّع: {name}
+	Zoom in / out (also pinch or ⌘-scroll)	تكبير / تصغير (أيضًا بالقرص أو ⌘ مع التمرير)
+	{who}, certificate issued by an unknown issuer.	{who}، شهادة صادرة عن جهة غير معروفة.
+	{who}, certificate issued by {issuer}.	{who}، شهادة صادرة عن {issuer}.
+review-suggestion	Replace text	اقتراح استبدال النص
+review-suggestion	Replacement text	اقتراح النص البديل

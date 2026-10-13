@@ -33,15 +33,42 @@ The Brazilian Portuguese catalog has 2,000 entries: the ~1,826-entry gist André
 
 ## Arabic and right-to-left text
 
-The Arabic catalog has 2,137 entries in Modern Standard Arabic with Western digits. Counts use the six [CLDR Arabic forms](https://www.unicode.org/cldr/charts/48/supplemental/language_plural_rules.html#ar) (`0`, `1`, `2`, `3–10`, `11–99`, the rest), and dates use the Arabic names of the Gregorian months.
+The Arabic catalog has 2,546 entries in Modern Standard Arabic with Western digits. Counts use the six [CLDR Arabic forms](https://www.unicode.org/cldr/charts/48/supplemental/language_plural_rules.html#ar) (`0`, `1`, `2`, `3–10`, `11–99`, the rest), and dates use the Arabic names of the Gregorian months.
 
 egui joins the letters of an Arabic word and runs them right to left, but it places the words of a line left to right in the order they are written. So catalog entries are written in logical (typing) order, and `i18n` puts each one into display order when the catalog loads (`bidi::display_rtl`): the line reads right to left, Latin words and numbers inside it read left to right, `{name}` placeholders and keyboard shortcuts stay whole, spaces at either end stay where the code concatenates, and a short caption keeps its colon on the right, beside the widget it captions. Lookups (`tl!`, `tr`, `trn`) therefore return display-order text for Arabic; `i18n::fmt` inserts values as they are. The command search matches a query of several Arabic words word by word.
+
+Arabic translations include accessibility and PDF/A findings, signature details, print
+errors, edit-history labels, calendar weekdays, certificate captions and dynamic validation
+messages. Catalog validation covers direct lookups, multiline literals and placeholders.
+
+For existing PDF text, the editor first tries the source face. When an Arabic subset lacks
+contextual shaping tables or new characters, it uses the approved craft-fonts Arabic document
+face, writes static glyph outlines and keeps logical text for copy/search. Source font
+substitution can change the appearance. Explicit font selections remain strict, and mixed
+contextual font/style runs retain their existing restrictions.
+
+Arabic PDF editing preserves logical character order for RTL source runs positioned with
+backward text advances. Newly shaped glyphs do not inherit negative character spacing used
+for source glyph placement; spacing explicitly selected in the editor remains honoured.
+
+The selection toolbar offers **Edit text** for a unique selection in one editable paragraph
+and preselects the source word. Applying the editor changes page content. The review
+replacement action is labelled as a suggestion in Arabic and creates an annotation.
+
+Arabic comment and PDF text editors keep logical text buffers while mapping display order,
+caret movement and selections. Single-row inline fields measure their displayed font and
+expand toward the available page space, keeping the RTL right edge anchored. Applying an
+expanded field uses the same paragraph width as its displayed draft. Validation covers
+keyboard and pointer interaction, clipboard operations, selection replacement, mixed-script
+text, wrapping, undo/redo and rendering after save and reopen.
+Explicit replacements can remove source row breaks. Formatting-only actions preserve them,
+unless a new paragraph width requests reflow.
 
 What Arabic does not have yet:
 
 - **The layout is not mirrored.** Panels, menus, toolbars and alignment are as in the left-to-right languages, with Arabic labels in them.
 - **A wrapped paragraph breaks at the wrong end.** A label too long for its line continues on the next line with its *first* words, so wrapped descriptions and tooltips read from the last line up. Single-line labels are right.
-- **Text you type into a field** (search, comments, form values) has joined letters but its words run left to right while you edit it. What is stored is correct.
+- **Search and form fields** still use the native left-to-right word layout. Comment composers and PDF text editors use a bidirectional display/cursor layer for buffers up to 64 KiB; larger buffers retain native editing without truncation. Logical buffers, copying, undo and saved text keep typing order.
 - Labels built by joining translated pieces in code (a list such as `A · B · C`) keep the code's left-to-right order.
 
 These need bidirectional support in the text layout itself, not in the catalog.
