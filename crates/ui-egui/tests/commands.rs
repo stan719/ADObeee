@@ -580,3 +580,19 @@ fn palette_ime_outside_click_closes_without_running_a_command() {
     assert!(h.state().palette_query.is_empty());
     assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().info.pages[0].rotation, 0);
 }
+
+#[test]
+fn scan_acquire_opens_the_scanner_dialog() {
+    let mut h = harness();
+    assert!(h.state_mut().execute("scan.acquire"));
+    h.run_steps(2);
+    assert_eq!(h.state().dialog, Some(Dialog::Scanner));
+    if pdfcraft_platform::scan::supported() {
+        h.get_by_label("Create PDF");
+        h.get_by_label("Insert scanned pages");
+        h.get_by_label("Multiple files");
+    } else {
+        // No backend: the dialog says so and lists no devices.
+        h.get_by_label("Scanning needs Windows (WIA) in this version.");
+    }
+}
