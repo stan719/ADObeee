@@ -992,7 +992,33 @@ impl Automation {
         let id = self.doc(a)?.id;
         let before = self.doc(a)?.bytes.len();
         let path = self.resolve(a.str("path")?, true)?;
-        let mut settings = Settings::default();
+        let profile = a.opt_str("profile")?.unwrap_or("reduce");
+        let mut settings = match profile {
+            "reduce" => Settings::default(),
+            "lossless" => {
+                for key in [
+                    "color",
+                    "gray",
+                    "discard",
+                    "discard_thumbnails",
+                    "discard_alternate_images",
+                    "discard_tags",
+                    "discard_print_settings",
+                    "flate_unencoded",
+                    "remove_invalid_links",
+                    "remove_unreferenced_dests",
+                    "remove_unused_xobjects",
+                ] {
+                    if a.get(key).is_some() {
+                        return Err(ToolError::InvalidArgs(format!(
+                            "profile lossless cannot be combined with {key}; omit profile for custom optimization"
+                        )));
+                    }
+                }
+                Settings::lossless()
+            }
+            other => return Err(ToolError::InvalidArgs(format!("unknown optimization profile {other:?} (reduce, lossless)"))),
+        };
         let images = |key: &str, base: ImageSettings| -> Result<ImageSettings> {
             let Some(v) = a.get(key) else { return Ok(base) };
             let mut s = base;
@@ -1027,6 +1053,7 @@ impl Automation {
             ("flate_unencoded", &mut settings.flate_unencoded),
             ("remove_invalid_links", &mut settings.remove_invalid_links),
             ("remove_unreferenced_dests", &mut settings.remove_unreferenced_dests),
+            ("remove_unused_xobjects", &mut settings.remove_unused_xobjects),
         ] {
             if let Some(b) = a.opt_bool(key)? {
                 *flag = b;

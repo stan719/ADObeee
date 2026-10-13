@@ -2010,6 +2010,49 @@ fn an_optimize_job_reports_its_stages_and_can_be_cancelled() {
 }
 
 #[test]
+fn optimizing_absent_hidden_information_is_a_successful_no_op() {
+    let (mut session, id) = session_with(1);
+    let original = session.get(id).unwrap().bytes.clone();
+    let (bytes, report) = session.optimized_bytes(id, &optimize::Settings::lossless(), &[Hidden::Metadata, Hidden::Attachments]).unwrap();
+    assert!(report.discarded.is_empty());
+    assert_eq!(session.get(id).unwrap().bytes, original);
+    assert!(!session.get(id).unwrap().dirty);
+    let reopened = session.open("optimized.pdf", None, bytes, None).unwrap();
+    assert_eq!(page_texts(&session, reopened), ["Page 1"]);
+}
+
+#[test]
+fn optimizing_catalog_associated_files_reports_the_actual_removal() {
+    use pdfcraft_cos::{Dict, Document, Object, PdfString, SaveOptions, Stream, write_full};
+    let mut document = Document::open(Arc::new(fixture(1))).unwrap();
+    let attachment = document.add(Object::Stream(Stream::from_raw(Dict::new(), b"synthetic associated-file payload".to_vec())));
+    let file = document.add(Object::Dict(Dict::from_iter([
+        (b"Type".to_vec(), Object::Name(b"Filespec".to_vec())),
+        (b"F".to_vec(), PdfString::text("note.txt").into()),
+        (b"AFRelationship".to_vec(), Object::Name(b"Supplement".to_vec())),
+        (b"EF".to_vec(), Object::Dict(Dict::from_iter([(b"F".to_vec(), Object::Ref(attachment))]))),
+    ])));
+    let files = document.add(Object::Array(vec![Object::Ref(file)]));
+    document.update_dict(document.root().unwrap(), |catalog| catalog.set(b"AF".to_vec(), Object::Ref(files))).unwrap();
+    let original = Arc::new(write_full(&document, &SaveOptions::default()).unwrap());
+    let mut session = Session::new();
+    let id = session.open("associated.pdf", None, original.clone(), None).unwrap();
+    let (bytes, report) = session.optimized_bytes(id, &optimize::Settings::lossless(), &[Hidden::Attachments]).unwrap();
+    assert_eq!(report.discarded, [(Hidden::Attachments, 1)]);
+    assert_eq!(session.get(id).unwrap().bytes, original);
+    assert!(!session.get(id).unwrap().dirty);
+    let saved = Document::open(bytes.clone()).unwrap();
+    assert!(!saved.get(saved.root().unwrap()).as_dict().unwrap().contains(b"AF"));
+    assert_eq!(pdfcraft_redact::sanitize::scan(&saved).into_iter().find(|(h, _)| *h == Hidden::Attachments), Some((Hidden::Attachments, 0)));
+    assert!(!saved.object_numbers().into_iter().any(|n| {
+        matches!(&*saved.get(pdfcraft_cos::ObjRef::new(n, saved.generation(n))), Object::Stream(stream)
+            if stream.decoded().is_ok_and(|data| data == b"synthetic associated-file payload"))
+    }));
+    let reopened = session.open("optimized.pdf", None, bytes, None).unwrap();
+    assert_eq!(page_texts(&session, reopened), ["Page 1"]);
+}
+
+#[test]
 fn flattening_keeps_the_look_and_drops_the_objects() {
     let mut s = Session::new().with_clock(|| 1_700_000_000);
     let id = s.open("form.pdf", None, Arc::new(form_fixture()), None).unwrap();
@@ -2603,8 +2646,11 @@ fn recognize_text_makes_a_scanned_page_searchable() {
     let mut s = Session::new().with_clock(|| 1_700_000_000);
     let text = s.create_from_text("t", "The quick brown fox jumps over the lazy dog.").unwrap();
     let id = s.open("text.pdf", None, text, None).unwrap();
-    let png = export::Exporter::new(s.get(id).unwrap()).png(0, 150.0).unwrap();
-    let scan = s.create_from_images(&[("scan.png".into(), png)]).unwrap();
+    // Match the normal OCR resolution so this text-layer integration test does not
+    // depend on recognition of an undersampled 11 pt fixture.
+    let png = export::Exporter::new(s.get(id).unwrap()).png(0, 300.0).unwrap();
+    // PNG export has no density metadata; preserve the original page's point size.
+    let scan = s.create_from_images_with_resolution(&[("scan.png".into(), png)], ImageResolution::Dpi(300.0)).unwrap();
     let id = s.open("scan.pdf", None, scan, None).unwrap();
     assert_eq!(page_texts(&s, id), [""], "a picture has no text");
 
