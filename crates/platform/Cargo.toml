@@ -17,6 +17,11 @@ zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] 
 async-channel = "2"
 futures-lite = "2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# A plain fsync where a volume refuses the full flush `sync_all` asks for (SMB, FUSE); already in
+# the tree through pdfcraft-cli.
+rustix = { version = "1", features = ["fs"] }
+
 [dev-dependencies]
 # Exercise the actual portal wire decoder and cancellable worker on every native test host.
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }

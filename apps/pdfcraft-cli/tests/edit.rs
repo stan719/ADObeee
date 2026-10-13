@@ -239,3 +239,30 @@ fn a_page_past_the_end_after_earlier_edits_names_that_option() {
     assert!(err.contains("--move: page 3 does not exist") && err.contains("has 2 pages"), "{err}");
     assert!(!output.exists());
 }
+
+/// Editing a file in place replaces it whole, through a staging file beside it (#1793), and
+/// leaves nothing else in the folder.
+#[test]
+fn an_in_place_edit_replaces_the_file_and_leaves_nothing_behind() {
+    let path = tmp("in-place", "doc.pdf");
+    std::fs::write(&path, fixture()).unwrap();
+    let p = path.to_str().unwrap();
+    let out = Command::new(BIN).args(["edit", p, "--out", p, "--rotate", "1:90", "--full"]).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(first_page_rotation(&path), 90);
+    let left: Vec<_> = std::fs::read_dir(path.parent().unwrap()).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
+    assert_eq!(left, ["doc.pdf"]);
+}
+
+/// A folder at `--out` is refused and stays a folder.
+#[test]
+fn a_folder_at_out_is_refused() {
+    let input = tmp("out-folder", "in.pdf");
+    std::fs::write(&input, fixture()).unwrap();
+    let folder = tmp("out-folder", "out.pdf");
+    std::fs::create_dir_all(&folder).unwrap();
+    let out = Command::new(BIN).args(["edit", input.to_str().unwrap(), "--out", folder.to_str().unwrap(), "--rotate", "1:90"]).output().unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("out.pdf"));
+    assert!(folder.is_dir());
+}

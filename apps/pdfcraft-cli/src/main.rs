@@ -26,6 +26,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use pdfcraft_engine::export::ImageFormat;
+use pdfcraft_platform::staging::{StagedFile, StagingName, write_atomically};
 use pdfcraft_render::{PageRenderer, RenderConfig, RenderRequest, RequestKind, inspect};
 
 /// The `mcp` lines of [`USAGE`]: only a build with the `mcp` feature has the command.
@@ -278,6 +279,14 @@ fn read(path: &str) -> Result<Arc<Vec<u8>>, String> {
     std::fs::read(path).map(Arc::new).map_err(|e| format!("{path}: {e}"))
 }
 
+/// Replace `out` with `bytes` the way the desktop app saves: through a flushed file beside it,
+/// renamed into place, so a failed write, even an in-place `edit`, leaves the file that was there
+/// (#1793).
+fn write_out(out: impl AsRef<Path>, bytes: &[u8]) -> Result<(), String> {
+    let out = out.as_ref();
+    write_atomically(out, bytes, StagingName::SuffixThenTag).map_err(|e| format!("{}: {e}", out.display()))
+}
+
 fn info(args: &[String]) -> Result<(), CliError> {
     validate_options("info", args, INFO_OPTIONS)?;
     let path = *positional(args).first().ok_or("info: missing file")?;
@@ -469,7 +478,7 @@ fn edit(args: &[String]) -> Result<(), CliError> {
         session.apply(id, e).map_err(|e| e.to_string())?;
     }
     let bytes = if full { session.save_full_bytes(id) } else { session.save_bytes(id) }.map_err(|e| e.to_string())?;
-    std::fs::write(out, bytes.as_slice()).map_err(|e| format!("{out}: {e}").into())
+    Ok(write_out(out, &bytes)?)
 }
 
 fn file_stem(path: &str) -> String {
@@ -485,7 +494,7 @@ fn combine(args: &[String]) -> Result<(), CliError> {
     }
     let sources = inputs.iter().map(|p| Ok((file_stem(p), read(p)?))).collect::<Result<Vec<_>, String>>()?;
     let bytes = pdfcraft_engine::Session::new().combine(&sources).map_err(|e| e.to_string())?;
-    std::fs::write(out, bytes.as_slice()).map_err(|e| format!("{out}: {e}").into())
+    Ok(write_out(out, &bytes)?)
 }
 
 fn extract(args: &[String]) -> Result<(), CliError> {
@@ -496,7 +505,7 @@ fn extract(args: &[String]) -> Result<(), CliError> {
     let mut session = pdfcraft_engine::Session::new();
     let id = session.open(path, None, read(path)?, flag(args, "--password")).map_err(|e| e.to_string())?;
     let bytes = session.extract(id, &pages).map_err(|e| e.to_string())?;
-    std::fs::write(out, bytes.as_slice()).map_err(|e| format!("{out}: {e}").into())
+    Ok(write_out(out, &bytes)?)
 }
 
 fn split(args: &[String]) -> Result<(), CliError> {
@@ -516,9 +525,22 @@ fn split(args: &[String]) -> Result<(), CliError> {
     // An output folder that does not exist yet is created (#249); one that can't be is reported
     // as the folder's problem, not as the first part's.
     std::fs::create_dir_all(&dir).map_err(|e| format!("split: --out-dir {}: {e}", dir.display()))?;
-    for (a, b, bytes) in parts {
-        let name = dir.join(if a == b { format!("{stem}-p{a}.pdf") } else { format!("{stem}-p{a}-{b}.pdf") });
-        std::fs::write(&name, bytes.as_slice()).map_err(|e| format!("{}: {e}", name.display()))?;
+    // Every part is written and flushed before any replaces an existing file, so a full disk or a
+    // folder in the way fails the split with all the earlier outputs as they were (#1793).
+    let staged = parts
+        .iter()
+        .map(|(a, b, bytes)| {
+            let name = dir.join(if a == b { format!("{stem}-p{a}.pdf") } else { format!("{stem}-p{a}-{b}.pdf") });
+            let part = StagedFile::write(&name, bytes, StagingName::SuffixThenTag).map_err(|e| format!("{}: {e}", name.display()))?;
+            Ok((name, part))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let mut names = Vec::with_capacity(staged.len());
+    for (name, part) in staged {
+        part.commit().map_err(|e| format!("{}: {e}", name.display()))?;
+        names.push(name);
+    }
+    for name in names {
         stdout_line(format_args!("{}", name.display()))?;
     }
     Ok(())
@@ -556,7 +578,7 @@ fn render(args: &[String]) -> Result<(), CliError> {
             pam
         }
     };
-    std::fs::write(out, bytes).map_err(|e| format!("{out}: {e}"))?;
+    write_out(out, &bytes)?;
     let _ = writeln!(std::io::stderr().lock(), "rendered page {page} at {dpi} dpi: {}×{} px in {} ms", p.width, p.height, p.millis);
     for warning in &p.warnings {
         match warning {
@@ -690,7 +712,7 @@ fn check(args: &[String]) -> Result<(), CliError> {
     }
     eprintln!("\nchecked {} files: {:?}", files.len(), counts);
     if let Some(out) = flag(args, "--json") {
-        std::fs::write(out, serde_json::to_string_pretty(&results).unwrap_or_default()).map_err(|e| e.to_string())?;
+        write_out(out, serde_json::to_string_pretty(&results).unwrap_or_default().as_bytes())?;
     }
     Ok(())
 }
@@ -847,7 +869,7 @@ fn ui(args: &[String]) -> Result<(), CliError> {
     if let (Some(out), Some(data)) = (flag(args, "--out"), result.get("png_base64").and_then(|d| d.as_str())) {
         use base64::Engine as _;
         let png = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| e.to_string())?;
-        std::fs::write(out, png).map_err(|e| format!("{out}: {e}"))?;
+        write_out(out, &png)?;
         result["png_base64"] = serde_json::json!(format!("written to {out}"));
     }
     stdout_line(format_args!("{}", serde_json::to_string_pretty(&result).unwrap_or_default()))?;

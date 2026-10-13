@@ -2,7 +2,7 @@
 //! "save changes?" prompt when closing a tab or quitting with unsaved edits.
 
 use pdfcraft_engine::Edit;
-use pdfcraft_platform::staging::{StagingName, create_staging, staging_suffixes};
+use pdfcraft_platform::staging::StagingName;
 
 use crate::PdfCraftApp;
 
@@ -918,57 +918,7 @@ pub(crate) fn is_mail_temp_copy(path: &str) -> bool {
 /// Write via a temporary file in the same directory and rename over the target, so a crash or
 /// full disk never leaves a half-written PDF where the original was.
 pub fn write_atomically(path: &str, bytes: &[u8]) -> std::io::Result<()> {
-    write_atomically_with(path, bytes, staging_suffixes())
-}
-
-/// [`write_atomically`], trying the staging names that `suffixes` give.
-fn write_atomically_with(path: &str, bytes: &[u8], suffixes: impl IntoIterator<Item = u64>) -> std::io::Result<()> {
-    write_atomically_syncing(path, bytes, suffixes, std::fs::File::sync_all)
-}
-
-/// [`write_atomically_with`], flushing the staging file with `sync_all` (the standard library's
-/// in the app, a failing one in tests).
-fn write_atomically_syncing(
-    path: &str,
-    bytes: &[u8],
-    suffixes: impl IntoIterator<Item = u64>,
-    sync_all: impl FnOnce(&std::fs::File) -> std::io::Result<()>,
-) -> std::io::Result<()> {
-    use std::io::Write;
-    let target = std::path::Path::new(path);
-    let dir = target.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));
-    let name = target.file_name().and_then(|n| n.to_str()).unwrap_or("save");
-    let (tmp, f) = create_staging(dir, name, StagingName::TagThenSuffix, suffixes)?;
-    let result = (|| {
-        // Closed at the end of the block, before the rename.
-        {
-            let mut f = f;
-            f.write_all(bytes)?;
-            sync_staged(&f, sync_all)?;
-        }
-        std::fs::rename(&tmp, target)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result
-}
-
-/// Flush the staging file to the disk before it replaces the original. On macOS `sync_all` asks
-/// for a full flush (`F_FULLFSYNC`), which SMB and FUSE volumes, such as a mounted Cryptomator
-/// vault, refuse as unsupported: there a plain `fsync` is the strongest flush the volume offers.
-/// Any other failure still fails the save.
-fn sync_staged(f: &std::fs::File, sync_all: impl FnOnce(&std::fs::File) -> std::io::Result<()>) -> std::io::Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-        use rustix::io::Errno;
-        match sync_all(f) {
-            Err(e) if matches!(Errno::from_io_error(&e), Some(Errno::NOTSUP | Errno::NOTTY)) => Ok(rustix::fs::fsync(f)?),
-            other => other,
-        }
-    }
-    #[cfg(not(target_os = "macos"))]
-    sync_all(f)
+    pdfcraft_platform::staging::write_atomically(std::path::Path::new(path), bytes, StagingName::TagThenSuffix)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1056,198 +1006,15 @@ fn bookmark_at<'a>(items: &'a [pdfcraft_render::OutlineItem], path: &[usize]) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{SaveTarget, is_mail_temp_copy, write_atomically, write_atomically_syncing, write_atomically_with};
-    use pdfcraft_platform::staging::{STAGING_ATTEMPTS, staging_suffixes};
-    use std::path::{Path, PathBuf};
+    use super::{SaveTarget, is_mail_temp_copy};
+    use std::path::PathBuf;
 
-    /// A fresh, empty folder for one staging test.
+    /// A fresh, empty folder for one test.
     fn staging_dir(test: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("pdfcraft-ui-staging-{}-{test}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
-    }
-
-    fn staged(dir: &Path, suffix: u64) -> PathBuf {
-        dir.join(format!(".out.pdf.pdfcraft-{suffix:016x}.tmp"))
-    }
-
-    fn read(p: &Path) -> String {
-        std::fs::read_to_string(p).unwrap()
-    }
-
-    /// A symbolic link to a file, where the system allows one (Windows needs Developer Mode or an
-    /// administrator for it).
-    fn file_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
-        #[cfg(unix)]
-        {
-            std::os::unix::fs::symlink(target, link)
-        }
-        #[cfg(windows)]
-        {
-            std::os::windows::fs::symlink_file(target, link)
-        }
-        #[cfg(not(any(unix, windows)))]
-        {
-            Err(std::io::Error::other(format!("no symbolic links here: {} {}", target.display(), link.display())))
-        }
-    }
-
-    #[test]
-    fn saving_never_writes_through_a_file_planted_at_the_staging_name() {
-        let dir = staging_dir("planted");
-        let outside = dir.join("outside.txt");
-        std::fs::write(&outside, "PRECIOUS").unwrap();
-        let target = dir.join("out.pdf");
-        let path = target.to_string_lossy().into_owned();
-        // A hard link needs no privileges on any system, and writing to it writes to `outside`.
-        std::fs::hard_link(&outside, staged(&dir, 1)).unwrap();
-        std::fs::write(staged(&dir, 2), "PLANTED").unwrap();
-        write_atomically_with(&path, b"NEW", [1, 2, 3]).unwrap();
-        assert_eq!(read(&target), "NEW");
-        assert_eq!(read(&outside), "PRECIOUS");
-        assert_eq!(read(&staged(&dir, 1)), "PRECIOUS");
-        assert_eq!(read(&staged(&dir, 2)), "PLANTED");
-        assert!(!staged(&dir, 3).exists(), "the staging file was renamed into place");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn saving_never_writes_through_a_symbolic_link_at_the_staging_name() {
-        let dir = staging_dir("symlink");
-        let outside = dir.join("outside.txt");
-        std::fs::write(&outside, "PRECIOUS").unwrap();
-        let target = dir.join("out.pdf");
-        if let Err(e) = file_symlink(&outside, &staged(&dir, 1)) {
-            eprintln!("symbolic links not checked: {e}");
-            return;
-        }
-        write_atomically_with(&target.to_string_lossy(), b"NEW", [1, 2]).unwrap();
-        assert_eq!(read(&target), "NEW");
-        assert_eq!(read(&outside), "PRECIOUS");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn saving_never_creates_a_file_through_a_dangling_link_at_the_staging_name() {
-        let dir = staging_dir("dangling");
-        let unborn = dir.join("created-through-a-link.txt");
-        let target = dir.join("out.pdf");
-        if let Err(e) = file_symlink(&unborn, &staged(&dir, 1)) {
-            eprintln!("symbolic links not checked: {e}");
-            return;
-        }
-        write_atomically_with(&target.to_string_lossy(), b"NEW", [1, 2]).unwrap();
-        assert_eq!(read(&target), "NEW");
-        assert!(!unborn.exists(), "nothing was created through the dangling link");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_folder_at_the_staging_name_is_left_alone() {
-        let dir = staging_dir("folder");
-        std::fs::create_dir(staged(&dir, 1)).unwrap();
-        std::fs::write(staged(&dir, 1).join("inside.txt"), "PLANTED").unwrap();
-        let target = dir.join("out.pdf");
-        write_atomically_with(&target.to_string_lossy(), b"NEW", [1, 2]).unwrap();
-        assert_eq!(read(&target), "NEW");
-        assert_eq!(read(&staged(&dir, 1).join("inside.txt")), "PLANTED");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn saving_gives_up_rather_than_reuse_a_taken_name() {
-        let dir = staging_dir("taken");
-        let target = dir.join("out.pdf");
-        std::fs::write(&target, "OLD").unwrap();
-        for s in 1..=STAGING_ATTEMPTS as u64 {
-            std::fs::write(staged(&dir, s), "PLANTED").unwrap();
-        }
-        assert!(write_atomically_with(&target.to_string_lossy(), b"NEW", 1..).is_err());
-        assert_eq!(read(&target), "OLD");
-        for s in 1..=STAGING_ATTEMPTS as u64 {
-            assert_eq!(read(&staged(&dir, s)), "PLANTED");
-        }
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// The names in a folder: what a test can see was left behind.
-    fn listing(dir: &Path) -> Vec<String> {
-        let mut names: Vec<_> = std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
-        names.sort();
-        names
-    }
-
-    #[test]
-    fn saving_a_long_name_leaves_only_the_saved_file() {
-        assert_ne!(staging_suffixes().next(), staging_suffixes().next(), "each save draws new names");
-        // 60 four-byte characters: a 244-byte name, within every system's limit. Its staging name
-        // must be too (on Linux the whole name in it would be 275 bytes).
-        let dir = staging_dir("clean");
-        let name = format!("{}.pdf", "\u{1F600}".repeat(60));
-        let path = dir.join(&name).to_string_lossy().into_owned();
-        write_atomically(&path, b"NEW").unwrap();
-        write_atomically(&path, b"NEWER").unwrap();
-        assert_eq!(read(&dir.join(&name)), "NEWER");
-        assert_eq!(listing(&dir), [name], "no staging file is left behind");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// Windows refuses to replace a read-only file, so the rename fails: the staging file must not
-    /// be left behind.
-    #[cfg(windows)]
-    #[test]
-    fn a_failed_save_removes_the_staging_file() {
-        let dir = staging_dir("readonly");
-        let target = dir.join("out.pdf");
-        std::fs::write(&target, "OLD").unwrap();
-        let mut perms = std::fs::metadata(&target).unwrap().permissions();
-        perms.set_readonly(true);
-        std::fs::set_permissions(&target, perms.clone()).unwrap();
-        let e = write_atomically_with(&target.to_string_lossy(), b"NEW", [7]).unwrap_err();
-        assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "the rename failed: {e}");
-        assert_eq!(read(&target), "OLD");
-        assert_eq!(listing(&dir), ["out.pdf"], "the staging file was removed");
-        #[allow(clippy::permissions_set_readonly_false)]
-        perms.set_readonly(false);
-        std::fs::set_permissions(&target, perms).unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// On macOS `sync_all` asks for a full flush, which SMB and FUSE volumes (a Cryptomator vault,
-    /// #981) refuse as unsupported: ENOTSUP (45) or ENOTTY (25). The save still goes through.
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn a_volume_without_full_flush_still_saves() {
-        for errno in [45, 25] {
-            let dir = staging_dir(&format!("nofullsync-{errno}"));
-            let target = dir.join("out.pdf");
-            std::fs::write(&target, "OLD").unwrap();
-            let asked = std::cell::Cell::new(false);
-            let refuse = |_: &std::fs::File| {
-                asked.set(true);
-                Err(std::io::Error::from_raw_os_error(errno))
-            };
-            write_atomically_syncing(&target.to_string_lossy(), b"NEW", [7], refuse).unwrap();
-            assert!(asked.get(), "the full flush was tried");
-            assert_eq!(read(&target), "NEW");
-            assert_eq!(listing(&dir), ["out.pdf"], "no staging file is left behind");
-            let _ = std::fs::remove_dir_all(&dir);
-        }
-    }
-
-    /// Only "not supported" is let through: any other flush failure fails the save and keeps the
-    /// original.
-    #[test]
-    fn a_failed_flush_keeps_the_original() {
-        let dir = staging_dir("syncfails");
-        let target = dir.join("out.pdf");
-        std::fs::write(&target, "OLD").unwrap();
-        let e = write_atomically_syncing(&target.to_string_lossy(), b"NEW", [7], |_| Err(std::io::Error::other("disk gone"))).unwrap_err();
-        assert_eq!(e.to_string(), "disk gone");
-        assert_eq!(read(&target), "OLD");
-        assert_eq!(listing(&dir), ["out.pdf"], "the staging file was removed");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
