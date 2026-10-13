@@ -3053,8 +3053,8 @@ trailer << /Root 1 0 R >>
     /// is an opaque rectangle over the text (#1968).
     #[test]
     fn highlight_appearance_honours_annotation_opacity_and_blend() {
-        let render = |annot_extra: &str| {
-            let appearance = "1 1 0 rg 15 35 105 30 re f";
+        let render = |annot_extra: &str, resources: &str, prefix: &str| {
+            let appearance = format!("{prefix}1 1 0 rg 15 35 105 30 re f");
             let page_content = "0 g 100 40 10 20 re f";
             let pdf = format!(
                 "%PDF-1.7
@@ -3065,7 +3065,7 @@ trailer << /Root 1 0 R >>
 {page_content}
 endstream endobj
 5 0 obj << /Type /Annot /Subtype /Highlight /Rect [15 35 120 65] /QuadPoints [15 65 120 65 15 35 120 35] /C [1 1 0] {annot_extra} /AP << /N 6 0 R >> >> endobj
-6 0 obj << /Type /XObject /Subtype /Form /BBox [15 35 120 65] /Length {} >> stream
+6 0 obj << /Type /XObject /Subtype /Form /BBox [15 35 120 65] {resources} /Length {} >> stream
 {appearance}
 endstream endobj
 trailer << /Root 1 0 R >>
@@ -3089,11 +3089,20 @@ trailer << /Root 1 0 R >>
         };
 
         // External producers may use the markup annotation's /CA and rely on Highlight semantics.
-        let annotation = render("/CA 0.5");
+        let annotation = render("/CA 0.5", "", "");
         assert_translucent_multiply(&annotation);
 
+        // Existing PdfCraft files and external appearances may encode the same opacity in /AP.
+        // That explicit paint alpha must replace the default, not turn 50% into 25%.
+        let resources = "/Resources << /ExtGState << /GS0 << /BM /Multiply /CA 0.5 /ca 0.5 >> >> >>";
+        assert_translucent_multiply(&render("/CA 0.5", resources, "/GS0 gs "));
+        assert_translucent_multiply(&render("", resources, "/GS0 gs "));
+
+        // Explicit appearance opacity wins even when it differs from the annotation default.
+        assert_translucent_multiply(&render("/CA 0.2", resources, "/GS0 gs "));
+
         // Even without an explicit opacity, Highlight uses Multiply instead of obscuring text.
-        let opaque = render("");
+        let opaque = render("", "", "");
         assert_eq!(pixel(&opaque, 30, 50), vec![255, 255, 0, 255]);
         assert_eq!(pixel(&opaque, 105, 50), vec![0, 0, 0, 255]);
     }

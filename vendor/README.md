@@ -5,8 +5,9 @@ licence files unchanged. Every patch is marked `PdfCraft patch:` in the source, 
 PdfCraft test, and should be proposed upstream. Remove the vendored copy once upstream releases
 the fix. Vendoring copyleft code is never allowed (plan/adr/0001).
 
-Highlight annotation appearances are additionally composited as a group with the annotation's
-`/CA` constant opacity and Multiply blending. This keeps externally authored appearances (for
+Highlight annotation appearances inherit the annotation's `/CA` as their default paint alpha,
+which an explicit appearance ExtGState overrides rather than multiplying twice. They are
+composited in a unit-opacity Multiply group. This keeps externally authored appearances (for
 example Foxit highlights) from painting an opaque Normal rectangle over their text. Covered by
 `raster::tests::highlight_appearance_honours_annotation_opacity_and_blend`.
 

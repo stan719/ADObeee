@@ -269,15 +269,19 @@ pub fn interpret_page<'a>(
                 context.pre_concat_affine(affine);
                 context.push_root_transform();
 
-                // PdfCraft patch: a markup annotation's constant opacity applies to its whole
-                // appearance. Highlight appearances from external editors can otherwise paint as
-                // opaque Normal artwork and cover the text they mark.
+                // PdfCraft patch: use annotation opacity as the appearance's default paint alpha.
+                // An explicit appearance ExtGState overrides it, rather than being multiplied by
+                // it again (PdfCraft and external producers also encode /CA inside the appearance).
+                // The outer unit-opacity Multiply group keeps opaque Normal artwork from covering
+                // the marked text without applying opacity twice.
                 if is_highlight {
-                    device.push_transparency_group(
-                        annot.get::<f32>(CA).unwrap_or(1.0).clamp(0.0, 1.0),
-                        None,
-                        BlendMode::Multiply,
-                    );
+                    let state = &mut context.get_mut().graphics_state;
+                    let opacity = annot.get::<f32>(CA).unwrap_or(1.0).clamp(0.0, 1.0);
+                    state.non_stroke_alpha = opacity;
+                    state.stroke_alpha = opacity;
+                    state.soft_mask = None;
+                    state.blend_mode = BlendMode::Multiply;
+                    device.push_transparency_group(1.0, None, BlendMode::Multiply);
                 }
                 draw_form_xobject(resources, &apx, context, device);
                 if is_highlight {
