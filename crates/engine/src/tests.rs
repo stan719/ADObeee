@@ -2173,27 +2173,36 @@ fn signing_saving_trusting_and_commenting_afterwards() {
     // After the test certificate's start date (2026-10-02).
     let mut s = Session::new().with_clock(|| 1_800_000_000);
     let id = s.open("fixture.pdf", None, Arc::new(fixture(2)), None).unwrap();
-    assert!(s.get(id).unwrap().signatures.is_empty());
+    let doc = s.get(id).unwrap();
+    assert!(doc.validated_signatures().is_none(), "ordinary open defers validation");
+    assert!(!doc.is_signed());
+    assert!(doc.validated_signatures().is_none(), "exact presence checks do not validate");
     let opts = SignOptions { page: 1, rect: Some([20.0, 20.0, 180.0, 60.0]), reason: Some("Approved".into()), ..SignOptions::default() };
     let signed = s.sign(id, &digital_id, opts).unwrap();
     s.mark_signed(id, signed, Some("/tmp/signed.pdf".into())).unwrap();
     let doc = s.get(id).unwrap();
     assert_eq!(doc.name, "signed.pdf");
     assert!(doc.is_signed() && !doc.dirty && doc.can_undo().is_none(), "signing can't be undone");
-    let sig = &doc.signatures[0];
+    assert!(doc.validated_signatures().is_none(), "signed presence does not perform validation");
+    let sig = &doc.signatures()[0];
+    let first = doc.validated_signatures().unwrap();
+    assert!(std::ptr::eq(sig, &first[0]));
+    assert!(std::ptr::eq(first.as_ptr(), doc.signatures().as_ptr()), "repeated reads reuse validation");
     assert_eq!((sig.status, sig.page, sig.date.as_deref()), (SignatureStatus::Unknown, Some(1), Some("D:20270115080000Z")));
     assert_eq!(s.save_full_bytes(id).unwrap_err(), EditError::Signed);
     // Trusting the signer makes it valid; a later comment is permitted.
     s.set_trusted_certificates(vec![digital_id.certificate.clone()]);
-    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Valid);
+    assert!(s.get(id).unwrap().validated_signatures().is_none(), "trust changes invalidate validated details");
+    assert_eq!(s.get(id).unwrap().signatures()[0].status, SignatureStatus::Valid);
     s.apply(id, rect_comment(0, [80.0, 80.0, 120.0, 120.0])).unwrap();
-    let sig = &s.get(id).unwrap().signatures[0];
+    assert!(s.get(id).unwrap().validated_signatures().is_none(), "edits invalidate revision classification");
+    let sig = &s.get(id).unwrap().signatures()[0];
     let comments = sign::Modification::Allowed(vec![sign::kind::COMMENTS]);
     assert_eq!((sig.status, sig.modification.clone()), (SignatureStatus::Valid, comments));
     // Saving keeps the signature (incremental).
     let saved = s.save_bytes(id).unwrap();
     s.mark_saved(id, saved, None).unwrap();
-    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Valid);
+    assert_eq!(s.get(id).unwrap().signatures()[0].status, SignatureStatus::Valid);
     // Edits that would need a full rewrite are refused, and change nothing.
     let before = s.get(id).unwrap().can_undo().map(str::to_owned);
     assert!(matches!(s.apply(id, Edit::Sanitize), Err(EditError::SignedRewrite(_))));
@@ -3580,6 +3589,83 @@ fn adopting_page_only_fields_is_noted_as_a_repair() {
     let names: Vec<&str> = doc.form.iter().map(|f| f.name.as_str()).collect();
     assert_eq!(names, ["alpha", "beta"]);
     assert_eq!(doc.repair_log(), vec!["the form's /Fields list omits 2 fields; they were read from the page annotations".to_string()]);
+}
+
+#[test]
+fn signed_state_covers_adopted_signature_fields_before_validation() {
+    let make_pdf = |widget: bool, value: Option<&str>| {
+        let mut objs = vec![
+            "<< /Type /Catalog /Pages 2 0 R /AcroForm 4 0 R >>".to_string(),
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 300] >>".to_string(),
+            format!("<< /Type /Page /Parent 2 0 R /Annots {} >>", if widget { "[5 0 R]" } else { "[]" }),
+            "<< /Fields [] /DA (/Helv 0 Tf 0 g) >>".to_string(),
+            format!("<< /Type /Annot /Subtype /Widget /FT /Sig /T (adopted) /Rect [10 200 90 220] /P 3 0 R{} >>", value.unwrap_or("")),
+        ];
+        if value.is_some() {
+            objs.push("<< /Type /Sig >>".to_string());
+        }
+        let mut bytes = b"%PDF-1.7\n".to_vec();
+        let mut offsets = Vec::new();
+        for (i, object) in objs.iter().enumerate() {
+            offsets.push(bytes.len());
+            bytes.extend_from_slice(format!("{} 0 obj\n{object}\nendobj\n", i + 1).as_bytes());
+        }
+        let xref = bytes.len();
+        bytes.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+        for offset in offsets {
+            bytes.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+        }
+        bytes.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+        bytes
+    };
+    let open = |bytes| {
+        let mut session = Session::new();
+        let id = session.open("signature.pdf", None, Arc::new(bytes), None).unwrap();
+        (session, id)
+    };
+
+    let (session, id) = open(make_pdf(false, None));
+    let doc = session.get(id).unwrap();
+    assert!(!doc.is_signed(), "no signature field");
+    assert!(doc.validated_signatures().is_none());
+    let (session, id) = open(make_pdf(true, None));
+    let doc = session.get(id).unwrap();
+    assert!(!doc.is_signed(), "empty signature field");
+    assert!(doc.validated_signatures().is_none());
+    let (session, id) = open(make_pdf(true, Some(" /V 6 0 R")));
+    let doc = session.get(id).unwrap();
+    assert!(doc.is_signed(), "a malformed signature dictionary still blocks full rewrites");
+    assert!(doc.validated_signatures().is_none());
+    assert!(doc.signatures().is_empty(), "the adopted page-only field is outside current validation output");
+}
+
+#[test]
+fn signed_state_covers_standalone_document_timestamps() {
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 300] >>",
+        "<< /Type /Page /Parent 2 0 R >>",
+        "<< /Type /DocTimeStamp /SubFilter /ETSI.RFC3161 /ByteRange [0 1 2 1] >>",
+    ];
+    let mut bytes = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, object) in objects.iter().enumerate() {
+        offsets.push(bytes.len());
+        bytes.extend_from_slice(format!("{} 0 obj\n{object}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = bytes.len();
+    bytes.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes());
+    for offset in offsets {
+        bytes.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    bytes.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objects.len() + 1).as_bytes());
+
+    let mut session = Session::new();
+    let id = session.open("timestamp.pdf", None, Arc::new(bytes), None).unwrap();
+    let doc = session.get(id).unwrap();
+    assert!(doc.is_signed());
+    assert!(doc.validated_signatures().is_none());
+    assert!(doc.signatures().iter().any(|signature| signature.doc_timestamp));
 }
 
 /// A page too large for the renderer at the asked resolution exports at the most it allows (and

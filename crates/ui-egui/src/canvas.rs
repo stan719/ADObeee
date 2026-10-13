@@ -2061,7 +2061,8 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     // Opened without the owner password and something is restricted.
     let secured = doc.security_summary().is_some_and(|s| !(s.owner || (s.permissions.modify() && s.permissions.assemble())));
     let repaired = !doc.repair_log().is_empty();
-    match notices(view, doc, secured, repaired, crate::sign_ui::banner(&doc.signatures), ui, &t) {
+    let signatures = doc.validated_signatures().unwrap_or_default();
+    match notices(view, doc, secured, repaired, crate::sign_ui::banner(signatures), ui, &t) {
         #[cfg(not(target_arch = "wasm32"))]
         Some(Notice::Reload) => app.watch.reload_request = Some(view.id),
         #[cfg(target_arch = "wasm32")]
@@ -3297,7 +3298,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         app.start_signing(page, Some(rect), None, certify.then_some(2));
     }
     if let Some(field) = app.views[index].sign.field.take() {
-        let signed = app.session.get(app.views[index].id).is_some_and(|d| d.signatures.iter().any(|s| s.field == field && s.signed));
+        let signed = app.session.get(app.views[index].id).is_some_and(|d| d.signatures().iter().any(|s| s.field == field && s.signed));
         if signed {
             app.right = Some(RightPanel::Signatures);
             if !app.sig_expanded.contains(&field) {

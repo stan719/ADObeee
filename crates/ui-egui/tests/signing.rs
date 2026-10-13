@@ -114,7 +114,7 @@ fn drawing_a_signature_creating_an_id_signing_and_trusting() {
     assert!(dir.join("contract_signed.pdf").exists());
     let doc = s.session.get(s.views[0].id).unwrap();
     assert_eq!(doc.name, "contract_signed.pdf");
-    let sig = doc.signatures.iter().find(|x| x.signed).expect("signed");
+    let sig = doc.signatures().iter().find(|x| x.signed).expect("signed");
     assert_eq!((sig.status, sig.reason.as_deref(), sig.page), (SignatureStatus::Unknown, Some("I approve"), Some(0)));
     assert_eq!(s.right, Some(RightPanel::Signatures));
     h.get_by_label("At least one signature has problems.");
@@ -127,7 +127,7 @@ fn drawing_a_signature_creating_an_id_signing_and_trusting() {
     h.run_steps(3);
     h.get_by_label("Signed and all signatures are valid.");
     let s = h.state();
-    assert_eq!(s.session.get(s.views[0].id).unwrap().signatures[0].status, SignatureStatus::Valid);
+    assert_eq!(s.session.get(s.views[0].id).unwrap().signatures()[0].status, SignatureStatus::Valid);
     // Show certificate: the Certificate Viewer.
     h.get_by_label("Show certificate…").click();
     h.run_steps(3);
@@ -152,7 +152,7 @@ fn drawing_a_signature_creating_an_id_signing_and_trusting() {
     let s = h.state();
     assert_eq!(s.views.len(), 2);
     let v = s.session.get(s.views[1].id).unwrap();
-    assert!(v.name.contains("signed version") && v.signatures.iter().any(|x| x.signed));
+    assert!(v.name.contains("signed version") && v.signatures().iter().any(|x| x.signed));
     // Trusted certificates and the ID list persist.
     let saved = s.persist();
     let mut fresh = PdfCraftApp::new();
@@ -194,7 +194,7 @@ fn certifying_without_a_visible_signature() {
     let s = h.state();
     assert_eq!(s.sign_draft.as_ref().and_then(|d| d.error.clone()), None);
     let doc = s.session.get(s.views[0].id).unwrap();
-    let sig = doc.signatures.iter().find(|x| x.signed).unwrap();
+    let sig = doc.signatures().iter().find(|x| x.signed).unwrap();
     assert_eq!((sig.certify, sig.visible), (Some(2), false));
     h.get_by_label_contains("Certified by Test Signer EC");
 }
@@ -246,7 +246,7 @@ fn clicking_an_empty_signature_field_signs_it() {
     h.get_by_label("Sign").click();
     h.run_steps(6);
     let s = h.state();
-    let sig = s.session.get(s.views[1].id).unwrap().signatures.iter().find(|x| x.field == "Approver").cloned().unwrap();
+    let sig = s.session.get(s.views[1].id).unwrap().signatures().iter().find(|x| x.field == "Approver").cloned().unwrap();
     assert!(sig.signed && sig.visible);
 }
 
@@ -284,7 +284,7 @@ fn the_fill_and_sign_signature_or_an_image_shows_in_a_digital_signature() {
     h.run_steps(6);
     let s = h.state();
     assert_eq!(s.sign_draft.as_ref().and_then(|d| d.error.clone()), None);
-    let sig = s.session.get(s.views[0].id).unwrap().signatures.iter().find(|x| x.signed).cloned().unwrap();
+    let sig = s.session.get(s.views[0].id).unwrap().signatures().iter().find(|x| x.signed).cloned().unwrap();
     assert!(sig.visible && sig.status == SignatureStatus::Unknown, "{:?}", sig.details);
     // Remembered for the next signature, and across a restart.
     assert_eq!(s.sign_graphic, SignGraphic::FillSign);
@@ -306,7 +306,7 @@ fn the_fill_and_sign_signature_or_an_image_shows_in_a_digital_signature() {
     assert_eq!(s.sign_draft.as_ref().and_then(|d| d.error.clone()), None);
     let signed = std::fs::read(dir.join("contract_signed.pdf")).unwrap();
     assert!(signed.windows(6).any(|w| w == b"/Image"), "the image is embedded");
-    assert_eq!(s.session.get(s.views[0].id).unwrap().signatures.iter().filter(|x| x.signed).count(), 2);
+    assert_eq!(s.session.get(s.views[0].id).unwrap().signatures().iter().filter(|x| x.signed).count(), 2);
     let mut fresh = PdfCraftApp::new();
     fresh.restore(&s.persist());
     assert_eq!(fresh.sign_graphic, SignGraphic::Image(image));
