@@ -54,6 +54,7 @@ struct Line {
     end: usize,
     y: f32,
     rtl: bool,
+    cells: std::ops::Range<usize>,
 }
 #[derive(Clone)]
 struct Layout {
@@ -63,23 +64,29 @@ struct Layout {
     height: f32,
     row_height: f32,
     width: f32,
+    carets: Vec<Option<Pos2>>,
 }
 
 impl Layout {
     fn caret(&self, index: usize) -> Pos2 {
-        if let Some(cell) = self.cells.iter().find(|c| c.index == index) {
-            return cell.before;
-        }
-        if let Some(line) = self.lines.iter().find(|l| l.start == index && l.start == l.end) {
-            return pos2(if line.rtl { self.width } else { 0.0 }, line.y);
-        }
-        self.cells.iter().find(|c| c.index.saturating_add(1) == index).map_or(Pos2::ZERO, |c| c.after)
+        self.carets.get(index).copied().flatten().unwrap_or(Pos2::ZERO)
     }
     fn nearest(&self, p: Pos2) -> usize {
+        let row = self.lines.partition_point(|line| line.y + self.row_height * 0.5 < p.y);
+        let line = [row.checked_sub(1), Some(row)]
+            .into_iter()
+            .flatten()
+            .filter_map(|i| self.lines.get(i))
+            .min_by(|a, b| (a.y + self.row_height * 0.5 - p.y).abs().total_cmp(&(b.y + self.row_height * 0.5 - p.y).abs()));
+        let Some(line) = line else { return 0 };
+        if line.start == line.end {
+            return line.start;
+        }
         self.cells
+            .get(line.cells.clone())
+            .unwrap_or_default()
             .iter()
             .flat_map(|c| [(c.index, c.before), (c.index.saturating_add(1), c.after)])
-            .chain(self.lines.iter().filter(|l| l.start == l.end).map(|l| (l.start, pos2(if l.rtl { self.width } else { 0.0 }, l.y))))
             .min_by(|a, b| {
                 let distance = |v: Pos2| (v.y + self.row_height * 0.5 - p.y).abs() * self.width.max(1000.0) + (v.x - p.x).abs();
                 distance(a.1).total_cmp(&distance(b.1))
@@ -97,14 +104,18 @@ impl Layout {
             }
             _ => {
                 let left = key == egui::Key::ArrowLeft;
-                self.cells
+                let row = self.lines.partition_point(|line| line.y < p.y - 0.5);
+                self.lines
+                    .get(row)
+                    .and_then(|line| self.cells.get(line.cells.clone()))
+                    .unwrap_or_default()
                     .iter()
                     .flat_map(|c| [(c.index, c.before), (c.index.saturating_add(1), c.after)])
                     .filter(|(i, v)| *i != index && (v.y - p.y).abs() < 0.5 && if left { v.x < p.x - 0.01 } else { v.x > p.x + 0.01 })
                     .min_by(|a, b| (a.1.x - p.x).abs().total_cmp(&(b.1.x - p.x).abs()))
                     .map_or_else(
                         || {
-                            let Some((row, line)) = self.lines.iter().enumerate().find(|(_, l)| (l.y - p.y).abs() < 0.5) else { return index };
+                            let Some(line) = self.lines.get(row) else { return index };
                             let next = if left == line.rtl { row.checked_add(1) } else { row.checked_sub(1) };
                             next.and_then(|r| self.lines.get(r))
                                 .map_or(index, |l| self.nearest(pos2(if left { self.width } else { 0.0 }, l.y + self.row_height * 0.5)))
@@ -118,7 +129,15 @@ impl Layout {
 
 fn layout(ui: &Ui, text: &str, font: &FontId, width: f32) -> Layout {
     let row_height = ui.fonts_mut(|f| f.row_height(font)).max(1.0);
-    let mut result = Layout { cells: Vec::new(), pieces: Vec::new(), lines: Vec::new(), height: row_height, row_height, width };
+    let mut result = Layout {
+        cells: Vec::new(),
+        pieces: Vec::new(),
+        lines: Vec::new(),
+        height: row_height,
+        row_height,
+        width,
+        carets: vec![None; text.chars().count().saturating_add(1)],
+    };
     let mut bytes: Vec<_> = text.char_indices().map(|(at, _)| at).collect();
     bytes.push(text.len());
     let character = |at| bytes.binary_search(&at).unwrap_or_else(|i| i);
@@ -208,8 +227,26 @@ fn layout(ui: &Ui, text: &str, font: &FontId, width: f32) -> Layout {
             end: character(line.range.end),
             y,
             rtl: line.rtl || (line.range.is_empty() && crate::i18n::current().rtl()),
+            cells: cells_start..result.cells.len(),
         });
         result.height = y + row_height;
+    }
+    // Logical lookup is constant-time. Row-local hit testing/navigation never scans
+    // unrelated rows; the text byte limit bounds all of these index allocations.
+    for cell in &result.cells {
+        if let Some(slot) = result.carets.get_mut(cell.index) {
+            slot.get_or_insert(cell.before);
+        }
+    }
+    for line in result.lines.iter().filter(|line| line.start == line.end) {
+        if let Some(slot) = result.carets.get_mut(line.start) {
+            slot.get_or_insert(pos2(if line.rtl { width } else { 0.0 }, line.y));
+        }
+    }
+    for cell in &result.cells {
+        if let Some(slot) = result.carets.get_mut(cell.index.saturating_add(1)) {
+            slot.get_or_insert(cell.after);
+        }
     }
     result
 }
@@ -245,6 +282,8 @@ fn shadow(ui: &Ui, text: &dyn egui::TextBuffer, height: f32, width: f32, visible
 /// no content is truncated or rewritten to make it fit the interface.
 pub(crate) fn show(ui: &mut Ui, text: &mut String, options: Options) -> egui::text_edit::TextEditOutput {
     let Options { id, font, width, rows, color, mut frame, margin, hint } = options;
+    // egui uses the custom frame's margin; TextEdit::margin only supplies a default
+    // frame when none was provided. Keep geometry and painting on this one source.
     frame.inner_margin = margin;
     let width = width.min(ui.available_width()).max(1.0);
     if text.len() > 65_536 || (!bidi::has_rtl(text) && !crate::i18n::current().rtl()) {
@@ -254,7 +293,6 @@ pub(crate) fn show(ui: &mut Ui, text: &mut String, options: Options) -> egui::te
             .desired_width(width)
             .desired_rows(rows)
             .frame(frame)
-            .margin(margin)
             .text_color(color)
             .hint_text(hint)
             .show(ui);
@@ -320,7 +358,6 @@ pub(crate) fn show(ui: &mut Ui, text: &mut String, options: Options) -> egui::te
                 .min_size(vec2(width, display.height))
                 .clip_text(true)
                 .frame(frame)
-                .margin(margin)
                 .text_color(Color32::TRANSPARENT)
                 .hint_text(hint.clone())
                 .layouter(&mut layouter)

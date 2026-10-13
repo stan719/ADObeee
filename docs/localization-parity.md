@@ -1,16 +1,21 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-13 · **Change:** minor (list all registered interface languages; preserve the original coverage snapshot) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
+> **Last reviewed:** 2026-10-10 آ· **Last updated:** 2026-10-13 آ· **Change:** minor (list all registered interface languages; preserve the original coverage snapshot) آ· **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 
 Per-language status of PdfCraft's interface against Acrobat Pro's. How translations work and how to
 add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../ROADMAP.md).
 
 ## How this was measured
 
+The percentage tables below preserve the **2026-10-10 historical snapshot**; they are
+not current catalog counts. As of 2026-10-13, Arabic has **2,552 distinct translated
+keys**, including the newer window captions. Current entry counts do not use the
+historical 2,143-key denominator.
+
 - **Strings translated** is measured: the catalogs in `crates/ui-egui/src/i18n/<code>.tsv`, counted
   as distinct `(context, English)` keys with a non-empty translation. The denominator is the union
-  of keys across all catalogs, **2,143**. Cross-check: of the 1,151 distinct `tl!("…")` literals in
-  `crates/ui-egui/src`, every full catalog covers 96.5–99.4% (7 literals are in no catalog yet).
+  of keys across all catalogs, **2,143**. Cross-check: of the 1,151 distinct `tl!("â€¦")` literals in
+  `crates/ui-egui/src`, every full catalog covers 96.5â€“99.4% (7 literals are in no catalog yet).
   English is built in.
 - **Not counted:** error details from the engine and the operating system, which are shown in
   English inside a translated frame; there is no translated user documentation or help yet (Acrobat
@@ -28,21 +33,21 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 | Language | Code | UI strings translated | Dialogs / tooltips / help | Script support | Native review | Status | Acrobat ships it | To `full` (h) |
 |---|---|---|---|---|---|---|---|---|
 | English | `en` | built in (100%) | all; README and docs | Latin | yes | **full** | yes | 0 |
-| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work, but **release builds have no Hans face**: many characters show as boxes (#826, #688, #728, #758; Flatpak #689) | no | partial | yes | 6–12 |
-| Spanish | `es` | 2,046 (95.5%) | dialogs and tooltips; no help | Latin | no | partial | yes | 2–4 |
-| Hindi | `hi` | 0 | none | Devanagari not tested (egui shapes Telugu conjuncts, so shaping is likely workable); no Devanagari face in craft-fonts | no | none | no | 10–18 |
-| Arabic | `ar` | 2,143 (100%) | dialogs and tooltips; no help | Letters joined and lines reordered at load, but **layout not mirrored**, wrapped lines break at the wrong end, search/form input still runs left to right; comment/PDF text entry uses a logical bidi editor (`localization.md` §Arabic) | no | partial | yes (Middle East edition) | 25–45 |
-| French | `fr` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | no | partial | yes | 1–2 |
-| Portuguese (Brazil) | `pt-br` | 2,130 (99.4%) | dialogs and tooltips; no help | Latin | community (#288) | partial | yes | 1–2 |
-| Indonesian | `id` | 0 | none | Latin | no | none | no | 3–5 |
-| Japanese | `ja` | 2,123 (99.1%) | dialogs and tooltips; no help | BIZ UDPGothic from craft-fonts; IME patched on macOS, Windows, X11, Wayland; vertical text renders but can't be edited | no | partial | yes | 4–8 |
-| German | `de` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | community, in progress (#828: terminology, clipping) | partial | yes | 2–4 |
-| Korean | `ko` | 0 | none | Hangul IME patched (Microsoft and Apple Korean, `vendor/README.md` winit 3, 6, 9, 10); no Hangul UI face in craft-fonts | no | none | yes | 6–10 |
-| Vietnamese | `vi` | 0 | none | Latin with stacked diacritics; bundled Inter covers them (not tested) | no | none | no | 3–5 |
+| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work, but **release builds have no Hans face**: many characters show as boxes (#826, #688, #728, #758; Flatpak #689) | no | partial | yes | 6â€“12 |
+| Spanish | `es` | 2,046 (95.5%) | dialogs and tooltips; no help | Latin | no | partial | yes | 2â€“4 |
+| Hindi | `hi` | 0 | none | Devanagari not tested (egui shapes Telugu conjuncts, so shaping is likely workable); no Devanagari face in craft-fonts | no | none | no | 10â€“18 |
+| Arabic | `ar` | 2,143 (100%, historical) | dialogs and tooltips; no help | Letters joined and lines reordered at load, but **layout not mirrored**, wrapped lines break at the wrong end, search/form input still runs left to right; comment/PDF text entry uses a logical bidi editor (`localization.md` آ§Arabic) | no | partial | yes (Middle East edition) | 25â€“45 |
+| French | `fr` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | no | partial | yes | 1â€“2 |
+| Portuguese (Brazil) | `pt-br` | 2,130 (99.4%) | dialogs and tooltips; no help | Latin | community (#288) | partial | yes | 1â€“2 |
+| Indonesian | `id` | 0 | none | Latin | no | none | no | 3â€“5 |
+| Japanese | `ja` | 2,123 (99.1%) | dialogs and tooltips; no help | BIZ UDPGothic from craft-fonts; IME patched on macOS, Windows, X11, Wayland; vertical text renders but can't be edited | no | partial | yes | 4â€“8 |
+| German | `de` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | community, in progress (#828: terminology, clipping) | partial | yes | 2â€“4 |
+| Korean | `ko` | 0 | none | Hangul IME patched (Microsoft and Apple Korean, `vendor/README.md` winit 3, 6, 9, 10); no Hangul UI face in craft-fonts | no | none | yes | 6â€“10 |
+| Vietnamese | `vi` | 0 | none | Latin with stacked diacritics; bundled Inter covers them (not tested) | no | none | no | 3â€“5 |
 
-**Localization dimension ≈ 59%**: the mean over the twelve, counting a catalog's percentage but only
+**Localization dimension â‰ˆ 59%**: the mean over the twelve, counting a catalog's percentage but only
 60% for Chinese and Arabic until their script problems are fixed, and 0 for the four missing
-languages. **≈ 60–115 h** to bring all twelve to `full`, of which ≈ 35–60 h is engineering (Hans
+languages. **â‰ˆ 60â€“115 h** to bring all twelve to `full`, of which â‰ˆ 35â€“60 h is engineering (Hans
 face, RTL layout, bidi text) and the rest catalogs and fixes; native-speaker review needs humans.
 
 No language is `full` except English: every catalog leaves engine error details in English, and
@@ -75,6 +80,7 @@ Acrobat languages PdfCraft lacks: Danish, Dutch, Finnish, Norwegian, Swedish, He
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-13 | minor | Clarified the historical coverage snapshot and measured the current Arabic catalog at 2,552 keys after integrating newer window captions. |
 | 2026-10-13 | minor | Arabic reaches 2,546 entries with two contextual review captions. Comment/PDF text fields use logical bidi editing; selection-toolbar content editing is separate from review suggestions. External synthetic typing, cursor, clipboard and edit/save/reopen checks passed; remaining search/form and mirrored-layout limits retained. |
 | 2026-10-13 | minor | Arabic has 2,544 entries: added 213 engine diagnostics, dynamic labels and calendar/certificate captions. External static coverage audit passed; no test additions retained in the repository. RTL limitations and earlier percentage snapshot retained. |
 | 2026-10-12 | minor | Added current counts for Kazakh, Polish, Slovenian, Greek, Turkish and Lithuanian; retained existing language assessments and the original percentage snapshot |

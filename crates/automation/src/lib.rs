@@ -588,7 +588,9 @@ impl Automation {
                 }
                 let block = self.doc(&a)?.text_blocks(page)[k as usize - 1].clone();
                 let width = a.opt_num("width")?;
-                let text = a.opt_str("text")?.map(str::to_owned).unwrap_or_else(|| if width.is_some() { block.text } else { block.editor_text });
+                // An omitted replacement preserves explicit source row breaks, even when
+                // the caller repeats or changes the width. Flattening requires explicit text.
+                let text = a.opt_str("text")?.unwrap_or(&block.editor_text).to_owned();
                 let mut style = pdfcraft_engine::BlockStyle {
                     ranges: parse_style_ranges(a.get("ranges"))?,
                     resource: a.opt_str("font_resource")?.map(str::to_owned),

@@ -85,7 +85,8 @@ fn preview(ui: &mut egui::Ui, kind: ThemeKind, width: f32) -> egui::Response {
 
 /// One theme card: its title, Active when it is what shows now, a preview of the chosen theme
 /// and a radio row per theme.
-fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(ThemeKind, &str)]) -> Option<ThemeKind> {
+fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, current: ThemeKind, themes: &[(ThemeKind, &str)]) -> Option<ThemeKind> {
+    let active = themes.iter().any(|(kind, _)| *kind == current);
     let mut chosen = None;
     egui::Frame::new()
         .fill(t.card)
@@ -101,7 +102,7 @@ fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(The
                 }
             });
             ui.add_space(4.0);
-            let shown = themes.first().map_or(ThemeKind::Light, |(kind, _)| *kind);
+            let shown = themes.iter().find(|(kind, _)| *kind == current).or_else(|| themes.first()).map_or(ThemeKind::Light, |(kind, _)| *kind);
             let response = preview(ui, shown, ui.available_width());
             response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("{} · {title}", tl!("Preview"))));
             if response.clicked() {
@@ -109,7 +110,7 @@ fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(The
             }
             ui.add_space(4.0);
             for (kind, label) in themes {
-                if ui.add(widgets::radio(active && *kind == shown, tl!(label))).clicked() {
+                if ui.add(widgets::radio(*kind == current, tl!(label))).clicked() {
                     chosen = Some(*kind);
                 }
             }
@@ -132,12 +133,11 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
         });
     });
     ui.add_space(4.0);
-    let light_active = app.theme == ThemeKind::Light;
     let mut chosen = None;
     ui.columns(2, |cols| {
         let [light, dark] = cols else { return };
-        let light_choice = card(light, t, tl!("Light theme"), light_active, LIGHT_THEMES);
-        let dark_choice = card(dark, t, tl!("Dark theme"), !light_active, DARK_THEMES);
+        let light_choice = card(light, t, tl!("Light theme"), app.theme, LIGHT_THEMES);
+        let dark_choice = card(dark, t, tl!("Dark theme"), app.theme, DARK_THEMES);
         chosen = light_choice.or(dark_choice);
     });
     if let Some(kind) = chosen {
