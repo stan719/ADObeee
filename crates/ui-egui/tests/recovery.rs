@@ -63,6 +63,7 @@ fn crashed_session(s: &RecoveryStore, bytes: Vec<u8>, password: Option<&str>, pa
 fn harness(s: RecoveryStore) -> Harness<'static, PdfCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
+        app.run_inline = true; // Recovery assertions inspect each completed operation synchronously.
         app.set_option("language", "en").unwrap();
         app.enable_recovery(s);
         app

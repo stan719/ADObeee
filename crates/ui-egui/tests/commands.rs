@@ -184,7 +184,12 @@ fn a_tool_chosen_with_no_document_asks_for_one_and_runs_on_it() {
     h.run_steps(2);
     h.state_mut().run_command("export.text");
     assert!(h.state().toast.as_ref().is_none_or(|t| t.0 != "Open a document first"));
-    h.run_steps(3);
+    // Opening runs on a worker: a fixed frame count can outrun it on a fast harness.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    while !matches!(h.state().dialog, Some(Dialog::Export(_))) && std::time::Instant::now() < deadline {
+        h.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
     assert!(h.state().active.is_some(), "the picked file is open");
     assert!(matches!(h.state().dialog, Some(Dialog::Export(_))), "and the tool runs on it: {:?}", h.state().dialog);
     // Cancelled: nothing opens and nothing runs.
@@ -287,7 +292,11 @@ fn the_open_recent_menu_lists_files_and_opens_one() {
     h.get_by_label("Open Recent ⏵").hover();
     h.run_steps(3);
     h.get_by_label_contains("recent.pdf").click();
-    h.run_steps(4);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    while h.state().views.len() < 2 && std::time::Instant::now() < deadline {
+        h.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
     let app = h.state();
     assert_eq!(app.views.len(), 2, "the recent file opened in a new tab");
     let active = app.active.unwrap();

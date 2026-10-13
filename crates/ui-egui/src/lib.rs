@@ -1939,8 +1939,12 @@ impl PdfCraftApp {
         self.ask_one(pickers::Ask::File(dialog), None, move |app, path| {
             let path = path.to_string_lossy().into_owned();
             let before = app.views.len();
+            let before_token = app.next_open_token;
             app.open_path(&path);
-            if let Some(prompt) = app.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path.as_str())) {
+            if let Some(pending) = app.pending_opens.last_mut().filter(|p| p.token != before_token && p.path.as_deref() == Some(path.as_str())) {
+                // Once live, open_path schedules a worker; carry the tool into its completion.
+                pending.then = Some(command);
+            } else if let Some(prompt) = app.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path.as_str())) {
                 // Encrypted: the tool runs once the password is in.
                 prompt.then = Some(command);
             } else if app.views.len() > before && app.active.is_some() {
