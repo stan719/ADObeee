@@ -1099,6 +1099,38 @@ fn selection_wheel_harness() -> (Harness<'static, PdfCraftApp>, usize, egui::Pos
     (h, view, end)
 }
 
+/// A selection dragged to the bottom edge scrolls on its own (#721).
+///
+/// The wheel half of #721 is #1514. What is left is the drag: reaching the edge while selecting
+/// stopped at the bottom of the window instead of continuing into the rest of the page.
+#[test]
+fn selection_drag_autoscrolls_at_the_viewport_edge() {
+    let (mut h, view, _) = selection_wheel_harness();
+    let viewport = h.state().views[view].viewport_rect();
+    // Inside the bottom edge band, and still well inside the viewport, so the scroll has to come
+    // from the drag rather than from the pointer leaving the window.
+    let edge = egui::pos2(viewport.center().x, viewport.bottom() - 12.0);
+    h.hover_at(edge);
+    h.run_steps(2);
+    let before = h.state().views[view].page_screen_rect(0).unwrap().top();
+    h.run_steps(20);
+    let after = h.state().views[view].page_screen_rect(0).unwrap().top();
+    assert!(after > before + 1.0, "the held drag should scroll at the edge: {before} -> {after}");
+}
+
+/// Away from the edges the same drag must not drift.
+#[test]
+fn selection_drag_does_not_autoscroll_away_from_the_edges() {
+    let (mut h, view, _) = selection_wheel_harness();
+    let viewport = h.state().views[view].viewport_rect();
+    h.hover_at(egui::pos2(viewport.center().x, viewport.center().y));
+    h.run_steps(2);
+    let before = h.state().views[view].page_screen_rect(0).unwrap().top();
+    h.run_steps(20);
+    let after = h.state().views[view].page_screen_rect(0).unwrap().top();
+    assert!((after - before).abs() < 1.0, "the page drifted in the middle of the viewport: {before} -> {after}");
+}
+
 fn selection_wheel_delta(unit: egui::MouseWheelUnit, amount: f32, held: bool, animated: bool) -> f32 {
     let (mut h, view, end) = selection_wheel_harness();
     h.state_mut().animation_effects =

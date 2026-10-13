@@ -2411,6 +2411,29 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
             }
         }
+        // A selection dragged off the top or bottom edge scrolls, so a long selection can be made
+        // without letting go (#721). `selection_drag` marks a drag that began on text, so the
+        // Hand tool's pan and every other drag are left exactly as they were.
+        if view.selection_drag
+            && let Some(p) = ui.input(|i| i.pointer.hover_pos())
+            && viewport.contains(p)
+        {
+            const EDGE: f32 = 40.0;
+            // Linear in the overshoot and capped at the edge's worth of it, so the scroll speeds
+            // up towards the edge but cannot jump when the pointer leaves the window entirely.
+            let speed = |over: f32| (over / EDGE).clamp(0.0, 1.0) * 16.0;
+            let delta = if p.y < viewport.top() + EDGE {
+                speed(viewport.top() + EDGE - p.y)
+            } else if p.y > viewport.bottom() - EDGE {
+                -speed(p.y - (viewport.bottom() - EDGE))
+            } else {
+                0.0
+            };
+            if delta != 0.0 {
+                ui.scroll_with_delta_animation(vec2(0.0, delta), egui::style::ScrollAnimation::none());
+                ui.ctx().request_repaint();
+            }
+        }
         let origin = resp_rect.min - vec2(0.0, y_shift);
         let painter = ui.painter();
         let visible = viewport.translate(resp_rect.min.to_vec2());
