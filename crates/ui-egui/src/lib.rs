@@ -37,6 +37,7 @@ pub use combine_ui::{Columns as CombineColumns, CombineView, Lock as CombineLock
 mod camera_ui;
 mod commands;
 mod comment_props;
+mod comment_toolbar;
 pub mod comments;
 mod comments_panel;
 mod compare_ui;

@@ -3153,7 +3153,12 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     view.viewport_screen = out.inner_rect;
     view.auto_scroll.paint(ui, avail);
     if unobstructed && matches!(tool, QuickTool::Select | QuickTool::ColumnSelect) {
-        selection_actions(ui, avail, view, info, prefs, allowed && !comments_hidden);
+        let action = selection_actions(ui, avail, view, info, prefs, allowed && !comments_hidden);
+        canvas_action = canvas_action.or(action);
+    }
+    if unobstructed && tool == QuickTool::Select && !comments_hidden {
+        let action = crate::comment_toolbar::show(ui.ctx(), avail, view, info, prefs, allowed);
+        canvas_action = canvas_action.or(action);
     }
 
     // Collect all main-page demand, including cached surfaces, for byte admission later.
@@ -3439,22 +3444,30 @@ enum SelectionAction {
     Copy,
 }
 
-/// Actions on an existing text selection, next to the selected words.
-fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info: &DocInfo, prefs: &comments::CommentPrefs, can_comment: bool) {
+/// Actions on an existing text selection, next to the selected words. Returns what the app
+/// should do besides the edit queued on the view (Add comment opens the Comments panel).
+fn selection_actions(
+    ui: &mut egui::Ui,
+    viewport: Rect,
+    view: &mut DocView,
+    info: &DocInfo,
+    prefs: &comments::CommentPrefs,
+    can_comment: bool,
+) -> Option<comments::CanvasAction> {
     if ui.input(|input| input.pointer.is_decidedly_dragging()) {
-        return;
+        return None;
     }
-    let Some(selection) = view.selection else { return };
-    let Some(text) = view.texts.get(&selection.page) else { return };
-    let Some(xf) = view.page_xform(selection.page) else { return };
-    let Some(last) = selection.rects(text).last().copied() else { return };
+    let selection = view.selection?;
+    let text = view.texts.get(&selection.page)?;
+    let xf = view.page_xform(selection.page)?;
+    let last = selection.rects(text).last().copied()?;
     let selected = selection.text(text);
     if selected.is_empty() {
-        return;
+        return None;
     }
     let rect = xf.view_rect(last);
     if !viewport.intersects(rect) {
-        return;
+        return None;
     }
     let x = rect.left().clamp(viewport.left() + 8.0, (viewport.right() - 520.0).max(viewport.left() + 8.0));
     let y = if rect.bottom() + 48.0 < viewport.bottom() { rect.bottom() + 6.0 } else { (rect.top() - 44.0).max(viewport.top() + 6.0) };
@@ -3479,31 +3492,32 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
             });
         });
     });
-    let Some(action) = chosen else { return };
+    let action = chosen?;
     if let SelectionAction::Copy = action {
         ui.ctx().copy_text(selected);
-        return;
+        return None;
     }
-    let Some((page, quads)) = view.selection_quads(info) else { return };
-    let last = quads.last().copied().unwrap_or_default();
-    let at = [last[2].max(last[6]), last[1].max(last[3])];
+    let (page, quads) = view.selection_quads(info)?;
     view.clear_selection();
     match action {
-        SelectionAction::Note | SelectionAction::Replace => {
-            if matches!(action, SelectionAction::Replace) {
-                view.comments.replace = Some(quads);
-            }
-            view.comments.composer = Some(comments::Composer {
-                page,
-                at,
-                kind: if matches!(action, SelectionAction::Replace) { comments::ComposerKind::Replace } else { comments::ComposerKind::Note },
-                text: String::new(),
-                focus: true,
-            });
+        SelectionAction::Replace => {
+            let last = quads.last().copied().unwrap_or_default();
+            let at = [last[2].max(last[6]), last[1].max(last[3])];
+            view.comments.replace = Some(quads);
+            view.comments.composer = Some(comments::Composer { page, at, kind: comments::ComposerKind::Replace, text: String::new(), focus: true });
+            None
+        }
+        // A comment on selected text marks that text, as Acrobat does: a highlight over the
+        // selected words, its card selected in the Comments panel with the note open for
+        // typing (the app does that for every new, empty highlight). A sticky note in the
+        // margin would not say which words the comment is about.
+        SelectionAction::Note => {
+            view.pending_edit = Some(comments::selection_comment(page, quads, prefs, String::new()));
+            Some(comments::CanvasAction::OpenComments)
         }
         SelectionAction::Markup(tool) => {
             // Every markup button carries a markup tool; anything else adds nothing.
-            let Some(kind) = tool.markup() else { return };
+            let kind = tool.markup()?;
             view.pending_edit = Some(Edit::AddAnnotation(pdfcraft_engine::NewAnnotation {
                 page,
                 shape: pdfcraft_engine::Shape::TextMarkup { kind, quads },
@@ -3511,9 +3525,10 @@ fn selection_actions(ui: &mut egui::Ui, viewport: Rect, view: &mut DocView, info
                 contents: String::new(),
                 author: prefs.author.clone(),
             }));
+            None
         }
         // Copied above.
-        SelectionAction::Copy => {}
+        SelectionAction::Copy => None,
     }
 }
 

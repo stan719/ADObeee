@@ -270,15 +270,94 @@ fn selected_text_replace_action_opens_replacement_composer() {
     assert!(h.state().views[0].selected_text().is_none());
 }
 
+/// The span of a highlight's quads in user space: (left, right).
+fn quad_span(a: &Annotation) -> (f32, f32) {
+    let xs = a.quads.iter().flat_map(|q| [q[0], q[2], q[4], q[6]]);
+    xs.fold((f32::MAX, f32::MIN), |(lo, hi), x| (lo.min(x), hi.max(x)))
+}
+
 #[test]
-fn selected_text_comment_action_opens_note_composer() {
+fn commenting_on_selected_text_highlights_it_and_opens_its_card() {
     let mut h = harness(|_| {});
     h.state_mut().views[0].select_text(0, 4, 8);
     h.run_steps(3);
     h.get_by_label("Add comment").click();
+    h.run_steps(3);
+    // The selected words are marked, not a sticky note in the margin.
+    let c = comments(&h);
+    assert_eq!(c.len(), 1, "{c:?}");
+    assert_eq!((c[0].subtype.as_str(), c[0].author.as_deref(), c[0].quads.len()), ("Highlight", Some("Tester"), 1), "{c:?}");
+    // "quick" starts at x ≈ 50 and ends at ≈ 87 in 14 pt Helvetica set at x = 20.
+    let (left, right) = quad_span(&c[0]);
+    assert!(left > 40.0 && right < 100.0 && right - left > 20.0, "the quad covers the selected word: {left}..{right}");
+    assert!(h.state().views[0].comments.composer.is_none(), "no sticky-note composer");
+    assert!(h.state().views[0].selected_text().is_none(), "the selection is consumed");
+    // The card is selected in the Comments panel, ready for the comment.
+    assert_eq!(h.state().right, Some(pdfcraft_ui_egui::RightPanel::Comments));
+    assert_eq!(h.state().views[0].comments.selected, Some((0, 0)));
+    assert_eq!(h.state().views[0].comments.editing, Some((0, 0, String::new())));
+    h.get_by_role(egui::accesskit::Role::MultilineTextInput).click();
     h.run_steps(2);
-    assert!(matches!(h.state().views[0].comments.composer.as_ref().map(|c| &c.kind), Some(pdfcraft_ui_egui::comments::ComposerKind::Note)));
-    assert!(h.state().views[0].selected_text().is_none());
+    h.get_by_role(egui::accesskit::Role::MultilineTextInput).type_text("hi");
+    h.run_steps(2);
+    h.get_by_label("Save").click();
+    h.run_steps(3);
+    let c = comments(&h);
+    assert_eq!((c.len(), c[0].subtype.as_str(), c[0].contents.as_deref()), (1, "Highlight", Some("hi")), "{c:?}");
+    field(&h, "Add a reply");
+}
+
+#[test]
+fn the_panel_comment_box_highlights_the_selected_text() {
+    let mut h = harness(|app| app.set_option("panel", "comments").unwrap());
+    h.state_mut().views[0].select_text(0, 4, 8);
+    h.run_steps(3);
+    field(&h, "Add a comment").click();
+    h.run_steps(2);
+    field(&h, "Add a comment").type_text("hi");
+    h.run_steps(1);
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    let c = comments(&h);
+    assert_eq!(c.len(), 1, "{c:?}");
+    assert_eq!((c[0].subtype.as_str(), c[0].contents.as_deref(), c[0].quads.len()), ("Highlight", Some("hi"), 1), "{c:?}");
+    assert!(h.state().views[0].selected_text().is_none(), "the selection is consumed");
+    assert_eq!(h.state().views[0].comments.selected, Some((0, 0)));
+}
+
+#[test]
+fn a_selected_highlight_shows_reply_colour_and_delete() {
+    let mut h = harness(|_| {});
+    use egui::accesskit::Role;
+    h.state_mut().views[0].select_text(0, 4, 8);
+    assert!(h.state_mut().execute("comment.highlight"));
+    h.run_steps(2);
+    h.state_mut().set_option("quick", "select").unwrap();
+    h.state_mut().set_option("panel", "none").unwrap();
+    h.state_mut().views[0].comments.editing = None;
+    h.run_steps(3);
+    assert_eq!(comments(&h).len(), 1);
+    assert_eq!(h.state().views[0].comments.selected, Some((0, 0)));
+    // Colour: the highlight takes the picked swatch.
+    h.get_by_role_and_label(Role::Button, "Colour").click();
+    h.run_steps(2);
+    h.get_by_label("Blue").click();
+    h.run_steps(3);
+    let c = comments(&h);
+    let blue = c[0].color.expect("a colour");
+    assert!((blue[0] - 0.0).abs() < 0.01 && (blue[2] - 0.84).abs() < 0.01, "the highlight is blue now: {c:?}");
+    // Reply: the Comments panel opens on the card's reply box.
+    h.get_by_role_and_label(Role::Button, "Reply").click();
+    h.run_steps(3);
+    assert_eq!(h.state().right, Some(pdfcraft_ui_egui::RightPanel::Comments));
+    field(&h, "Add a reply");
+    // Delete removes it.
+    h.state_mut().set_option("panel", "none").unwrap();
+    h.run_steps(2);
+    h.get_by_role_and_label(Role::Button, "Delete").click();
+    h.run_steps(3);
+    assert!(comments(&h).is_empty());
+    assert_eq!(h.state().views[0].comments.selected, None);
 }
 
 #[test]

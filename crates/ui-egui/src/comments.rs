@@ -420,6 +420,8 @@ pub struct CommentView {
     pub composer: Option<Composer>,
     /// Reply being typed under the selected card.
     pub reply: String,
+    /// The selected card's reply box should take the keyboard (Reply on the markup toolbar).
+    pub reply_focus: bool,
     /// Inline edit of a card's text in the Comments panel: (page, index, text).
     pub editing: Option<(usize, usize, String)>,
     /// The panel should scroll the selected card into view.
@@ -498,7 +500,7 @@ impl PageCx<'_> {
     }
 
     /// Where a comment is on screen: one rectangle, or one per marked line for text markup.
-    fn screen_rects(&self, a: &Annotation) -> Vec<Rect> {
+    pub(crate) fn screen_rects(&self, a: &Annotation) -> Vec<Rect> {
         if is_markup(&a.subtype) && !a.quads.is_empty() {
             a.quads
                 .iter()
@@ -556,7 +558,7 @@ impl PageCx<'_> {
     }
 }
 
-fn is_markup(subtype: &str) -> bool {
+pub(crate) fn is_markup(subtype: &str) -> bool {
     matches!(subtype, "Highlight" | "Underline" | "StrikeOut" | "Squiggly")
 }
 
@@ -1161,6 +1163,18 @@ fn erase(cx: &PageCx<'_>, path: &[[f64; 2]]) -> Option<Edit> {
     hits.sort_unstable_by(|a, b| b.cmp(a));
     let edits = hits.into_iter().map(|index| Edit::EraseInk { page: cx.page, index, path: path.to_vec(), radius }).collect();
     Some(Edit::Batch { label: "Erase".into(), edits })
+}
+
+/// A comment on selected text: a highlight over the selected words (one quad per line), in the
+/// highlighter's style, holding `contents` as its note (ISO 32000-2 §12.5.6.10).
+pub(crate) fn selection_comment(page: usize, quads: Vec<[f64; 8]>, prefs: &CommentPrefs, contents: String) -> Edit {
+    Edit::AddAnnotation(NewAnnotation {
+        page,
+        shape: Shape::TextMarkup { kind: Markup::Highlight, quads },
+        style: prefs.style(CommentTool::Highlight),
+        contents,
+        author: prefs.author.clone(),
+    })
 }
 
 fn new_comment(cx: &PageCx<'_>, tool: CommentTool, shape: Shape, contents: String) -> Edit {
@@ -1874,6 +1888,17 @@ mod tests {
         // Ordinary comment corners keep their existing independent width/height behavior.
         let free = resized(r, (1, 1), vec2(24.0, 0.0), None);
         assert_eq!(free.size(), vec2(120.0, 32.0));
+    }
+
+    #[test]
+    fn a_comment_on_selected_text_is_a_highlight_over_its_quads() {
+        let prefs = CommentPrefs { author: "Ada".into(), ..CommentPrefs::default() };
+        let quads = vec![[10.0, 30.0, 90.0, 30.0, 10.0, 18.0, 90.0, 18.0], [10.0, 16.0, 40.0, 16.0, 10.0, 4.0, 40.0, 4.0]];
+        let Edit::AddAnnotation(a) = selection_comment(2, quads.clone(), &prefs, "hi".into()) else { panic!("an added comment") };
+        assert_eq!(a.page, 2);
+        assert_eq!(a.shape, Shape::TextMarkup { kind: Markup::Highlight, quads }, "one quad per selected line, not a sticky note");
+        assert_eq!((a.contents.as_str(), a.author.as_str()), ("hi", "Ada"));
+        assert_eq!(a.style, prefs.style(CommentTool::Highlight), "drawn in the highlighter's colour and opacity");
     }
 
     #[test]

@@ -1,8 +1,9 @@
 //! The Comments panel (Acrobat's right-hand comment list; 11-visual-spec §3, audit `a15-*`).
 //!
-//! Header "Comments N" with search; an "Add a comment" box that posts a sticky note on the
-//! current page; cards grouped by page. Selecting a card selects the comment on the page and
-//! opens its reply box and "…" menu (Edit, Set status, Delete). Status replies show as a badge.
+//! Header "Comments N" with search; an "Add a comment" box that highlights the selected text
+//! with the comment (a sticky note on the current page when nothing is selected); cards grouped
+//! by page. Selecting a card selects the comment on the page and opens its reply box and "…"
+//! menu (Edit, Set status, Delete). Status replies show as a badge.
 
 use egui::{Align, Color32, CornerRadius, Layout, Sense, Stroke, vec2};
 use pdfcraft_engine::{Edit, NoteIcon, ReviewState, Shape};
@@ -120,14 +121,19 @@ pub(crate) fn show(
         }
         ui.add_space(6.0);
     }
-    // "Add a comment": a sticky note on the current page, near its top-right corner.
+    // "Add a comment": a highlight over the selected text holding the comment, or with nothing
+    // selected, a sticky note on the current page near its top-right corner.
     if allowed {
         let r = ui.add(
             crate::widgets::line(&mut view.comments.add_box).hint_text(tl!("Add a comment")).desired_width(f32::INFINITY).id_salt("comment-add-box"),
         );
         if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) && !view.comments.add_box.trim().is_empty() {
             let page = view.current.min(info.pages.len().saturating_sub(1));
-            if let Some(p) = info.pages.get(page) {
+            if let Some((page, quads)) = view.selection_quads(info) {
+                view.clear_selection();
+                let text = std::mem::take(&mut view.comments.add_box);
+                edit = Some(crate::comments::selection_comment(page, quads, prefs, text.trim().to_string()));
+            } else if let Some(p) = info.pages.get(page) {
                 let at = p.view_to_user(p.width - 44.0, 24.0);
                 let text = std::mem::take(&mut view.comments.add_box);
                 edit = Some(Edit::AddAnnotation(pdfcraft_engine::NewAnnotation {
@@ -364,6 +370,9 @@ fn card(
                             .desired_width(f32::INFINITY)
                             .id_salt(("comment-reply", key)),
                     );
+                    if std::mem::take(&mut view.comments.reply_focus) {
+                        r.request_focus();
+                    }
                     let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     let ok = !view.comments.reply.trim().is_empty();
                     let post =
