@@ -2362,3 +2362,7 @@ animation effects	Off	Ανενεργά
 	This document is trying to open a local file:	Αυτό το έγγραφο προσπαθεί να ανοίξει ένα τοπικό αρχείο:
 	Move tag earlier	Μετακίνηση ετικέτας νωρίτερα
 	Move tag later	Μετακίνηση ετικέτας αργότερα
+	Side by side	Δίπλα-δίπλα
+	New file only	Μόνο το νέο αρχείο
+	Old file: {name}	Παλιό αρχείο: {name}
+	New file: {name}	Νέο αρχείο: {name}

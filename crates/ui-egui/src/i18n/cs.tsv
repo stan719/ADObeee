@@ -2426,3 +2426,7 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	Side by side	Vedle sebe
+	New file only	Jen nový soubor
+	Old file: {name}	Starý soubor: {name}
+	New file: {name}	Nový soubor: {name}

@@ -2265,3 +2265,7 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Side by side	Рядом
+	New file only	Только новый файл
+	Old file: {name}	Старый файл: {name}
+	New file: {name}	Новый файл: {name}

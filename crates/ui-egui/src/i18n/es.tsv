@@ -2482,3 +2482,7 @@ animation effects	Off	Desactivados
 	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después
+	Side by side	Lado a lado
+	New file only	Solo el archivo nuevo
+	Old file: {name}	Archivo antiguo: {name}
+	New file: {name}	Archivo nuevo: {name}

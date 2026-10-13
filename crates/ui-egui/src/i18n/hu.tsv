@@ -2351,3 +2351,7 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	Side by side	Egymás mellett
+	New file only	Csak az új fájl
+	Old file: {name}	Régi fájl: {name}
+	New file: {name}	Új fájl: {name}

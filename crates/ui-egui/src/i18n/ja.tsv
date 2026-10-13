@@ -2352,3 +2352,7 @@ animation effects	Off	オフ
 	This document is trying to open a local file:	この文書はローカルファイルを開こうとしています：
 	Move tag earlier	タグを前へ移動
 	Move tag later	タグを後へ移動
+	Side by side	並べて表示
+	New file only	新しいファイルのみ
+	Old file: {name}	古いファイル: {name}
+	New file: {name}	新しいファイル: {name}

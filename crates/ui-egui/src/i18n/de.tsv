@@ -2353,3 +2353,7 @@ animation effects	Off	Aus
 	This document is trying to open a local file:	Dieses Dokument versucht, eine lokale Datei zu öffnen:
 	Move tag earlier	Tag früher verschieben
 	Move tag later	Tag später verschieben
+	Side by side	Nebeneinander
+	New file only	Nur neue Datei
+	Old file: {name}	Alte Datei: {name}
+	New file: {name}	Neue Datei: {name}

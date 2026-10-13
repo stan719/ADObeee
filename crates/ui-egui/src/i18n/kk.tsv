@@ -2350,3 +2350,7 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	Side by side	Қатар
+	New file only	Тек жаңа файл
+	Old file: {name}	Ескі файл: {name}
+	New file: {name}	Жаңа файл: {name}
