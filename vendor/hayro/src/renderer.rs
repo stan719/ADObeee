@@ -30,6 +30,9 @@ const MAX_IMAGE_PIXELS: u64 = 1 << 28;
 /// sources need not fit u16: a 65536-pixel strip can safely shrink to a 16-pixel image.
 /// This resource cap follows the existing CCITT column limit; the filter-work estimate below
 /// additionally bounds tables/scratch before entering the opaque PicScale planner.
+/// PdfCraft patch: below this device-pixels-per-source-pixel scale (shrunk by more than 2:1) an
+/// image that didn't ask for interpolation is still resampled smoothly.
+const MIN_NEAREST_SCALE: f32 = 0.5;
 const MAX_RESAMPLING_SOURCE_SIDE: u32 = 1 << 20;
 const MAX_RESAMPLING_PLAN_BYTES: usize = 128 << 20;
 
@@ -768,13 +771,39 @@ impl Renderer {
             log::warn!("Image has invalid or over-limit source dimensions/data and was skipped");
             return;
         }
-        let interpolate = image_data.interpolate();
+        // PdfCraft patch: `/Interpolate` is only a hint. Picking single source pixels is kept for
+        // an image shrunk by up to 2:1 (#624: screenshots and rasterized text stay crisp), but
+        // beyond that it drops thin strokes, so a scan of text shrunk to the screen came out
+        // broken ("自" read as "白"), where Acrobat, pdfium and poppler average the pixels. Such
+        // an image is resampled and snapped as an interpolated one.
+        let requested_interpolation = image_data.interpolate();
+        let mut interpolate = requested_interpolation || x_scale.min(y_scale) < MIN_NEAREST_SCALE;
+        // The smooth filter has size limits (a source over 2^20 pixels wide, a plan over budget).
+        // An image that only gets it by this rule falls back to picking pixels instead of failing.
+        if interpolate
+            && !requested_interpolation
+            && image_resampling_size(
+                source_width,
+                source_height,
+                channels,
+                data_len,
+                x_scale,
+                y_scale,
+                MAX_IMAGE_PIXELS,
+                true,
+            )
+            .is_none()
+        {
+            interpolate = false;
+        }
         if let Some(a) = &alpha_data {
             if source_byte_len(a.width, a.height, 1, MAX_IMAGE_PIXELS) != Some(a.data.len()) {
                 log::warn!("Image has invalid or over-limit alpha dimensions/data and was skipped");
                 return;
             }
-            if a.width != source_width || a.height != source_height || a.interpolate != interpolate
+            if a.width != source_width
+                || a.height != source_height
+                || a.interpolate != requested_interpolation
             {
                 if let Some(alpha) = alpha_data {
                     self.draw_image_with_alpha_mask(image_data, alpha);

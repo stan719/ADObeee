@@ -4848,6 +4848,24 @@ trailer << /Root 1 0 R >>
         }
     }
 
+    /// A scan of text is usually stored without `/Interpolate` and shrunk 3:1 or more on screen.
+    /// Picking single source pixels dropped the thin strokes of such a page ("自" read as "白").
+    /// Beyond 2:1 the pixels are averaged, as Acrobat, pdfium and poppler do; up to 2:1 they are
+    /// still picked (the tests above), so screenshots stay crisp.
+    #[test]
+    fn non_interpolated_images_shrunk_more_than_two_to_one_are_averaged() {
+        // One-pixel black and white stripes, 12 wide, drawn 4 wide: nearest takes columns
+        // 1, 4, 7 and 10, which alternate white and black; averaging gives mid grey throughout.
+        let stripes: Vec<u8> = (0..24).map(|i| if i % 2 == 0 { 0 } else { 255 }).collect();
+        let page = draw_minified_image("DeviceGray", (12, 2), None, &stripes, None, (4, 1));
+        let grays: Vec<u8> = page.rgba.as_chunks::<4>().0.iter().map(|px| px[0]).collect();
+        assert!(grays.iter().all(|g| (64..=192).contains(g)), "averaged, not picked: {grays:?}");
+        // The same stripes drawn 6 wide (2:1) are still picked, so the columns alternate hard.
+        let page = draw_minified_image("DeviceGray", (12, 2), None, &stripes, None, (6, 1));
+        let grays: Vec<u8> = page.rgba.as_chunks::<4>().0.iter().map(|px| px[0]).collect();
+        assert!(grays.iter().all(|&g| g == 0 || g == 255), "2:1 stays nearest: {grays:?}");
+    }
+
     #[test]
     fn non_interpolated_gray_images_are_not_smoothed_when_minified() {
         let levels = [0u8, 255, 85, 170, 40, 200, 120, 230];
