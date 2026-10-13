@@ -4,6 +4,9 @@
 //! used on a later frame. `pick_override` stands in for the native panel and, like it, answers
 //! on a later frame.
 
+mod support;
+use support::wait_for;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use pdfcraft_render::PageRenderer;
@@ -66,7 +69,7 @@ fn file_open_returns_at_once_and_opens_the_pick_on_the_next_frame() {
     h.state_mut().pick_override = Some(vec![file.to_string_lossy().into_owned()]);
     assert!(h.state_mut().execute("file.open"));
     assert!(h.state().views.is_empty(), "the command must not wait for the picker");
-    h.run_steps(2);
+    wait_for(&mut h, |app| app.views.len() == 1);
     assert_eq!(h.state().views.len(), 1, "the picked file opens on a later frame");
     assert_eq!(pages(h.state(), 0), 2);
     let _ = std::fs::remove_dir_all(&dir);
@@ -628,7 +631,7 @@ fn a_startup_url_does_not_replace_another_documents_password_prompt() {
         assert!(h.state().views.is_empty());
         assert_eq!(h.state().startup_inbox.lock().unwrap().len(), 1, "startup bytes wait for the prompt");
         h.state_mut().submit_password((!cancel).then(|| "test-password".into()));
-        h.run_steps(2);
+        wait_for(&mut h, |app| app.views.len() == if cancel { 1 } else { 2 });
         assert!(h.state().password_prompt.is_none());
         assert!(h.state().startup_inbox.lock().unwrap().is_empty());
         assert_eq!(h.state().active, if cancel { None } else { Some(0) });
@@ -644,11 +647,11 @@ fn unlocking_a_late_startup_url_keeps_it_in_the_background() {
     assert_eq!(h.state().active, Some(0));
     assert_eq!(h.state().password_prompt.as_ref().unwrap().name, "late-encrypted.pdf");
     h.state_mut().submit_password(Some("wrong-password".into()));
-    h.run_steps(2);
+    wait_for(&mut h, |app| app.password_prompt.is_some());
     assert!(h.state().password_prompt.as_ref().unwrap().error.is_some());
     assert_eq!(h.state().active, Some(0));
     h.state_mut().submit_password(Some("test-password".into()));
-    h.run_steps(2);
+    wait_for(&mut h, |app| app.views.len() == 2);
     assert!(h.state().password_prompt.is_none());
     assert_eq!(h.state().active, Some(0));
     assert_eq!(h.state().views.len(), 2);

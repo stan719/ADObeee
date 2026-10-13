@@ -1,5 +1,8 @@
 //! Headless UI tests (egui_kittest + AccessKit). They drive the real app shell without a window.
 
+mod support;
+use support::wait_for;
+
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use pdfcraft_ui_egui::PdfCraftApp;
@@ -681,7 +684,7 @@ fn dropping_a_pdf_on_the_window_opens_it() {
     assert!(h.state().views.is_empty());
     let file: egui::DroppedFileHandle = std::sync::Arc::new(Dropped { path: "dropped.pdf".into(), bytes: FIXTURE.to_vec() });
     h.input_mut().dropped_files.push(file);
-    h.run_steps(3);
+    wait_for(&mut h, |app| app.views.len() == 1);
     assert_eq!(h.state().views.len(), 1, "the dropped PDF opens in a tab");
     h.get_by_label_contains("dropped.pdf");
 }
