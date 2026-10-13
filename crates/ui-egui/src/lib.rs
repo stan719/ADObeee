@@ -1979,6 +1979,9 @@ impl PdfCraftApp {
                 prompt.then = Some(command);
             } else if app.views.len() > before && app.active.is_some() {
                 app.execute(command);
+            } else if let Some(pending) = app.pending_opens.last_mut().filter(|pending| pending.path.as_deref() == Some(path.as_str())) {
+                // The file is still being prepared. Run the tool when that open commits.
+                pending.then = Some(command);
             }
         });
     }
