@@ -2374,3 +2374,6 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+	Crop Image	Обрізати зображення
+	Remove Crop	Прибрати обрізання
+	Trim the picture with its handles; Enter or Done applies	Обріжте зображення за маркери; Enter або «Готово» застосовує

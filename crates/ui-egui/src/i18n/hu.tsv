@@ -2351,3 +2351,6 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	Crop Image	Kép körülvágása
+	Remove Crop	Körülvágás eltávolítása
+	Trim the picture with its handles; Enter or Done applies	Vágja körül a képet a fogantyúival; Enter vagy Kész alkalmazza

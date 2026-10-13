@@ -2373,3 +2373,6 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	Crop Image	قص الصورة
+	Remove Crop	إزالة القص
+	Trim the picture with its handles; Enter or Done applies	قص الصورة بمقابضها؛ يطبّق Enter أو تم

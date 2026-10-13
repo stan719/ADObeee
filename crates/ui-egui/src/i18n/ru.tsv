@@ -2265,3 +2265,6 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Crop Image	Обрезать изображение
+	Remove Crop	Убрать обрезку
+	Trim the picture with its handles; Enter or Done applies	Обрежьте изображение за маркеры; Enter или «Готово» применяет
