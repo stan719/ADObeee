@@ -1098,7 +1098,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                             widgets::artcraft_mark(ui, 40.0);
                             ui.vertical(|ui| {
                                 ui.label(egui::RichText::new("PdfCraft").font(theme::semibold(20.0)));
-                                ui.label(crate::i18n::fmt(tl!("Version {v}"), &[("v", env!("CARGO_PKG_VERSION"))]));
+                                ui.label(crate::i18n::fmt(tl!("Version {v}"), &[("v", &pdfcraft_engine::build_info::version())]));
                             });
                         });
                         ui.add_space(6.0);
@@ -1333,7 +1333,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
         app.run_compare();
     }
     if a11y_now {
-        app.a11y_skipped.clear();
+        if let Some((_, id)) = app.active_ids() {
+            app.a11y_skipped.retain(|(doc, _)| *doc != id);
+        }
         app.run_accessibility_check();
     }
 }
