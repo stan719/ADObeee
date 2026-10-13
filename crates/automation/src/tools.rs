@@ -986,6 +986,12 @@ pub fn tools() -> Vec<ToolDef> {
         t("doc_export_office", "Export to Word, PowerPoint, HTML or RTF", "Export a PDF ▸ Word (.docx), PowerPoint (.pptx, one slide per page), HTML (.html, one file with images inline) or RTF (.rtf), chosen by path's extension: text, headings, bold and italic. Word uses borderless inferred tables and positioned editable shapes on pages with artwork, rotated or large text; each source page retains its size. Font matching and vector graphics remain limited.")
             .cmd("export.docx")
             .with(schema(json!({ "doc": doc(), "path": { "type": "string" } }), &["doc", "path"])),
+        t("doc_export_postscript", "Export to PostScript or EPS", "Export a PDF ▸ PostScript (.ps, every page or the ones in pages) or EPS (.eps, exactly one page), chosen by path's extension: each page redrawn as a DSC-structured PostScript program, text as vector outlines, images, shadings and annotations where they fall. warnings lists what PostScript cannot reproduce (transparency, blend modes); the same notes appear in the file as %%PdfCraftNote comments.")
+            .cmd("export.ps")
+            .with(schema(
+                json!({ "doc": doc(), "path": { "type": "string" }, "pages": pages("to export (default: all)") }),
+                &["doc", "path"],
+            )),
         t("pdfa_verify", "Verify PDF/A", "Standards ▸ Verify PDF/A compliance: the PDF/A-2b or 3b rules the document breaks (ISO 19005 clause, message, page, whether Save as PDF/A can fix it), plus what it declares.")
             .ro()
             .cmd("standards.pdfa")

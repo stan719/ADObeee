@@ -1,5 +1,7 @@
 # Where PdfCraft falls short of Acrobat Pro
 
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** patch (gap 8: PS/EPS export moved from missing to partial — Layer A with the Ghostscript oracle) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** patch (gap 2: hayro patch counts after the native-gradient backport) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1398 stamps read upright on rotated pages; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1317, #1327, #1302, #1315 and #1340; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (#1316: replacing a line keeps a neighbouring line whose glyph box overlaps; gap 3 remains) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -155,12 +157,19 @@ update the numbers.
 ### 8. Office export weak, Office import absent
 
 - **Missing:** Word export that keeps layout; Excel and PowerPoint export; creating PDFs from Office,
-  HTML, web pages and PostScript; SVG/XML/EPS/PS/JPEG 2000 export.
+- **Missing:** Word export that keeps layout; Excel and PowerPoint export; creating PDFs from Office,
+  HTML, web pages and PostScript; SVG/XML/JPEG 2000 export. PostScript/EPS *export* is partially
+  done (Layer A, #1561): geometry, images, shadings, Type 1 text and annotations redraw as a
+  DSC-structured program whose Ghostscript-rasterized output matches PdfCraft's own render within a
+  mean per-channel delta of 2/255 — transparency is unflattened and embedded TrueType vectorized
+  (gs resolves Type 42 codes through the font's own cmap), both recorded as warnings; tiling
+  patterns fall back to flat gray.
 - **Evidence:** `create.export-docx` partial; the synthetic invoice regression for
   [#773](https://github.com/storytold/pdfcraft/issues/773) now covers absent inferred borders,
   floating watermark text and per-page section sizes. Exact font matching, vector rules and
   broader layout fidelity remain incomplete;
-  `create.export-xlsx`, `create.export-pptx`, `create.from-office`, `create.from-html` planned.
+  `create.export-xlsx`, `create.export-pptx`, `create.from-office`, `create.from-html` planned;
+  `create.export-ps`/`create.export-eps` partial (the `crates/ps-export/tests/oracle.rs` corpus).
 - **Impact:** "Export PDF" and "Create PDF" are two of Acrobat's most used tools.
 - **Gate:** lossy or missing sub-cases of the convert-and-share workflow (partial, not blocking).
   First beta items: Create PDF from Office (LibreOffice sidecar, 10–20 h) and a Word export that

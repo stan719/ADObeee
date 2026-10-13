@@ -738,6 +738,7 @@ impl Automation {
             "pdfa_verify" => self.pdfa_verify(&a)?,
             "print_readiness" => self.print_readiness(&a)?,
             "doc_export_office" => self.doc_export_office(&a)?,
+            "doc_export_postscript" => self.doc_export_postscript(&a)?,
             "pdfa_convert" => self.pdfa_convert(&a)?,
             "action_run" => self.action_run(&a)?,
             "doc_compare_report" => self.doc_compare_report(&a)?,

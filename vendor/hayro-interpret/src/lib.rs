@@ -55,7 +55,7 @@ pub mod util;
 pub use cache::CacheKey;
 pub use context::*;
 pub use device::*;
-pub use function::Function;
+pub use function::{CalcOp, Function, ParsedFunction};
 pub use hayro_cmap;
 pub use hayro_syntax;
 pub use interpret::*;

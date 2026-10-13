@@ -640,6 +640,30 @@ impl Automation {
         Ok(json!({ "path": path.to_string_lossy(), "bytes": bytes.len(), "format": format.extension() }))
     }
 
+    /// Export a PDF ▸ PostScript (.ps) or EPS (.eps). The page selection is normalized the way
+    /// the exporter does (sorted, deduplicated) so the reported page count is what the file holds.
+    pub(crate) fn doc_export_postscript(&self, a: &Args) -> Result<Value> {
+        use pdfcraft_engine::export::{PsFormat, postscript};
+        let path = self.resolve(a.str("path")?, true)?;
+        let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
+        let format = match ext.to_ascii_lowercase().as_str() {
+            "ps" => PsFormat::Ps,
+            "eps" => PsFormat::Eps,
+            other => return Err(ToolError::InvalidArgs(format!("unsupported extension {other:?} (ps or eps)"))),
+        };
+        let doc = self.doc_to_copy(a)?;
+        let mut pages = match a.opt_ints("pages")? {
+            Some(_) => self.pages(a, "pages")?,
+            None => (0..doc.info.pages.len()).collect(),
+        };
+        pages.sort_unstable();
+        pages.dedup();
+        let out = postscript(&doc.export_source(), &pages, format).map_err(ps_failed)?;
+        write_atomic(&path, &out.bytes)?;
+        let warnings: Vec<Value> = out.warnings.iter().map(|w| json!({ "page": w.page, "text": w.text })).collect();
+        Ok(json!({ "path": path.to_string_lossy(), "pages": pages.len(), "warnings": warnings }))
+    }
+
     fn pdfa_level(&self, a: &Args) -> Result<pdfcraft_engine::pdfa::Level> {
         let l = a.opt_str("level")?.unwrap_or("2b");
         pdfcraft_engine::pdfa::Level::from_id(l).ok_or_else(|| ToolError::InvalidArgs(format!("unknown PDF/A level {l:?} (2b or 3b)")))
@@ -926,6 +950,26 @@ impl Automation {
             self.session.set_javascript(on);
         }
         Ok(json!({ "enabled": self.session.javascript() }))
+    }
+}
+
+/// A PostScript export refusal in words an agent can act on: what was wrong, and what is allowed.
+fn ps_failed(e: pdfcraft_engine::export::PsExportError) -> ToolError {
+    use pdfcraft_engine::export::PsExportError;
+    match e {
+        PsExportError::UnreadableDocument(reason) => failed(format!("the document could not be exported: {reason}")),
+        PsExportError::InvalidPages { requested, page_count } => {
+            let bad: Vec<String> = requested.iter().filter(|p| **p >= page_count).map(|p| (p + 1).to_string()).collect();
+            failed(format!(
+                "page{} {} not in the document, which has {page_count} page{}",
+                if bad.len() == 1 { "" } else { "s" },
+                bad.join(", "),
+                if page_count == 1 { "" } else { "s" }
+            ))
+        }
+        PsExportError::EpsNeedsExactlyOnePage { requested } => {
+            failed(format!("an .eps file takes exactly one page, not {requested}: pass pages with one page number, or export .ps for several pages"))
+        }
     }
 }
 

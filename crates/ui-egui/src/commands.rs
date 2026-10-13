@@ -519,6 +519,7 @@ impl PdfCraftApp {
             "export.pptx" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Pptx),
             "export.html" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Html),
             "export.rtf" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Rtf),
+            "export.ps" => self.export_postscript_dialog(),
             "form.prepare" => {
                 self.left = crate::LeftPanel::Tool("form");
                 self.reveal_tools();
