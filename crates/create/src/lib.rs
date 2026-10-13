@@ -389,9 +389,78 @@ fn rgba_image(rgba: &[u8], (w, h): (u32, u32), dpi: (f64, f64)) -> Embedded {
     Embedded { dict: d, data: colour, filtered: false, smask, icc: None, px: (w, h), dpi }
 }
 
+/// How far from 0 / 255 a BMP palette channel may be and still count as black / white.
+const BMP_GRAY_TOLERANCE: u8 = 16;
+
+/// An uncompressed 1-bit BMP whose two palette entries are black and white (either order, small
+/// tolerance) stays a 1-bit DeviceGray image: 0 = black, rows top-down, packed MSB first and
+/// byte-aligned, like the bilevel TIFF path. Anything else (other palettes, compression, odd or
+/// truncated headers, short pixel arrays) returns `None` and takes the general decoder, which
+/// also produces the usual error for a broken file.
+fn bmp_one_bit(bytes: &[u8]) -> Option<Embedded> {
+    let u16_at = |at: usize| bytes.get(at..at.checked_add(2)?).and_then(|b| Some(u16::from_le_bytes(b.try_into().ok()?)));
+    let u32_at = |at: usize| bytes.get(at..at.checked_add(4)?).and_then(|b| Some(u32::from_le_bytes(b.try_into().ok()?)));
+    if bytes.get(..2)? != b"BM" {
+        return None;
+    }
+    let pixel_at = usize::try_from(u32_at(10)?).ok()?;
+    let header = usize::try_from(u32_at(14)?).ok()?;
+    // BITMAPINFOHEADER or one of its larger successors (the OS/2 12-byte header is left alone).
+    if !(40..=124).contains(&header) || u16_at(26)? != 1 || u16_at(28)? != 1 || u32_at(30)? != 0 {
+        return None;
+    }
+    let width = usize::try_from(u32_at(18)? as i32).ok().filter(|w| *w > 0)?;
+    let raw_height = u32_at(22)? as i32;
+    let top_down = raw_height < 0;
+    let rows = usize::try_from(raw_height.unsigned_abs()).ok().filter(|h| *h > 0)?;
+    let colours = u32_at(46)?;
+    if colours != 0 && colours != 2 {
+        return None;
+    }
+    let palette_at = 14usize.checked_add(header)?;
+    // `Some(true)` for (near) white, `Some(false)` for (near) black, `None` for any other colour.
+    let entry = |i: usize| -> Option<bool> {
+        let b = bytes.get(palette_at.checked_add(i * 4)?..)?.get(..3)?;
+        if b.iter().all(|c| *c <= BMP_GRAY_TOLERANCE) {
+            Some(false)
+        } else if b.iter().all(|c| *c >= 255 - BMP_GRAY_TOLERANCE) {
+            Some(true)
+        } else {
+            None
+        }
+    };
+    let (first, second) = (entry(0)?, entry(1)?);
+    if first == second || pixel_at < palette_at.checked_add(8)? {
+        return None;
+    }
+    // The pixel array must be there in full, so every buffer below is bounded by the file's size.
+    let stride = width.div_ceil(32).checked_mul(4)?;
+    let pixels = bytes.get(pixel_at..)?.get(..stride.checked_mul(rows)?)?;
+    let packed = width.div_ceil(8);
+    let mut data = Vec::new();
+    data.try_reserve_exact(packed.checked_mul(rows)?).ok()?;
+    // Palette [white, black]: index 1 is black, so flip the bits to get 0 = black.
+    let flip = if first { 0xFF } else { 0x00 };
+    for r in 0..rows {
+        let src = if top_down { r } else { rows - 1 - r };
+        let row = pixels.get(src * stride..)?.get(..packed)?;
+        data.extend(row.iter().map(|b| b ^ flip));
+    }
+    let mut d = Dict::new();
+    d.set(b"ColorSpace".to_vec(), Object::name("DeviceGray"));
+    d.set(b"BitsPerComponent".to_vec(), Object::Int(1));
+    let px = (u32::try_from(width).ok()?, u32::try_from(rows).ok()?);
+    Some(Embedded { dict: d, data, filtered: false, smask: None, icc: None, px, dpi: (72.0, 72.0) })
+}
+
 /// BMP and GIF (the first frame), through the `image` decoders. Their resolution is not read:
 /// 72 dpi, as for images without one.
 fn decoded(name: &str, bytes: &[u8], format: image::ImageFormat) -> Result<Embedded, CreateError> {
+    if format == image::ImageFormat::Bmp
+        && let Some(one_bit) = bmp_one_bit(bytes)
+    {
+        return Ok(one_bit);
+    }
     let img = image::load_from_memory_with_format(bytes, format).map_err(|e| CreateError::Image(name.into(), e.to_string()))?;
     let rgba = img.to_rgba8();
     Ok(rgba_image(rgba.as_raw(), rgba.dimensions(), (72.0, 72.0)))

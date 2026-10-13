@@ -2482,3 +2482,22 @@ animation effects	Off	Desactivados
 	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después
+	Scanning page {n}…	Escaneando página {n}…
+	Scanning page {n} of {t}…	Escaneando página {n} de {t}…
+	All pages asks the driver for the whole stack.	«Todas las páginas» pide al controlador toda la pila.
+	A page count stops the feeder after that many sheets. Cancel ends the transfer early; pages already received stay in the document.	Un recuento de páginas detiene el alimentador tras esas hojas. Cancelar termina la transferencia antes; las páginas ya recibidas permanecen en el documento.
+	Created Scan.pdf	Se creó Scan.pdf
+	Inserted scanned pages	Se insertaron las páginas escaneadas
+	Created {n} scanned files	Se crearon {n} archivos escaneados
+# Machine-drafted rows for native-speaker review (WIA interruption kinds and the Scanner menu label, 2026-10-12).
+	Scanner	Escáner
+	From scanner…	Desde el escáner…
+# Machine-drafted row for native-speaker review (scanner details check, 2026-10-12).
+	Checking the scanner…	Comprobando el escáner…
+# Machine-drafted rows for native-speaker review (scanner connection tag, 2026-10-13).
+	USB	USB
+	Network	Red
+	The same printer is also available over USB.	La misma impresora también está disponible por USB.
+	The same printer is also available over the network.	La misma impresora también está disponible por la red.
+# Machine-drafted row for native-speaker review (scanner dialog without a backend, 2026-10-13).
+	Scanning needs Windows (WIA) in this version.	El escaneo requiere Windows (WIA) en esta versión.

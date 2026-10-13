@@ -3959,6 +3959,7 @@ dependencies = [
  "pdfcraft-automation",
  "pdfcraft-cos",
  "pdfcraft-engine",
+ "pdfcraft-platform",
  "pdfcraft-render",
  "rustix 1.1.5",
  "serde_json",
@@ -4176,6 +4177,8 @@ version = "0.7.1"
 dependencies = [
  "async-channel",
  "futures-lite",
+ "pdfcraft-scan",
+ "pdfcraft-wia",
  "zbus",
 ]
 
@@ -4228,6 +4231,15 @@ dependencies = [
  "pdfcraft-fonts",
  "serde",
  "skrifa 0.44.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pdfcraft-scan"
+version = "0.7.1"
+dependencies = [
+ "image",
+ "log",
  "thiserror 2.0.21",
 ]
 
@@ -4317,6 +4329,16 @@ dependencies = [
  "pdfcraft-ui-egui",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "pdfcraft-wia"
+version = "0.7.1"
+dependencies = [
+ "log",
+ "pdfcraft-scan",
+ "windows",
+ "windows-core",
 ]
 
 [[package]]
