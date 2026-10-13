@@ -5442,6 +5442,11 @@ fn architectural_and_iso_papers_through_tools() {
             assert!((aw - ew).abs() < 0.02 && (ah - eh).abs() < 0.02, "{name} {orientation}: {aw} x {ah}");
         }
     }
+    let out = ok(&mut a, "doc_print", json!({"doc": doc, "pages": "1", "paper": "page", "layout": "actual", "path": "plot.pdf"}));
+    assert_eq!(out["sheets"], 1);
+    let bytes = std::fs::read(dir.join("plot.pdf")).unwrap();
+    let saved = pdfcraft_cos::Document::open(std::sync::Arc::new(bytes)).unwrap();
+    assert_eq!(pdfcraft_model::pages(&saved)[0].display_size(&saved), (200.0, 300.0));
     let before = std::fs::read(dir.join("plot.pdf")).unwrap();
     let bad = a.call("doc_print", &json!({"doc": doc, "paper": "ARCH Z", "path": "plot.pdf"}));
     assert!(matches!(bad, Err(ToolError::InvalidArgs(m)) if m.contains("ARCH E1") && m.contains("A0")));
