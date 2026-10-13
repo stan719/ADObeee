@@ -24,6 +24,7 @@ mod measure;
 mod printing;
 mod reading;
 mod redact;
+mod scanning;
 mod signing;
 mod text_cache;
 mod tools;
@@ -37,6 +38,7 @@ use pdfcraft_platform::staging::{StagingName, create_staging, staging_suffixes};
 use pdfcraft_render::{PageRenderer, PageText, RenderConfig, RenderRequest, RequestKind};
 use serde_json::{Value, json};
 
+pub use scanning::{list_scan_devices, scan_device_details, scan_error_info_json};
 pub use tools::{ToolDef, tools};
 
 /// One piece of a tool's result.
@@ -57,13 +59,16 @@ pub enum ToolError {
     InvalidArgs(String),
     /// The tool ran and failed (the message is for the agent to read).
     Failed(String),
+    /// Like [`Self::Failed`], with the failure as data (`data`) for a caller that wants fields, not
+    /// prose. Displays as `message`. MCP carries `data` as the result's `structuredContent`.
+    FailedWith { message: String, data: serde_json::Value },
 }
 
 impl std::fmt::Display for ToolError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ToolError::UnknownTool(t) => write!(f, "unknown tool {t:?}"),
-            ToolError::InvalidArgs(m) | ToolError::Failed(m) => f.write_str(m),
+            ToolError::InvalidArgs(m) | ToolError::Failed(m) | ToolError::FailedWith { message: m, .. } => f.write_str(m),
         }
     }
 }
@@ -142,6 +147,10 @@ impl Automation {
 
     pub fn session(&self) -> &Session {
         &self.session
+    }
+
+    pub fn session_mut(&mut self) -> &mut Session {
+        &mut self.session
     }
 
     /// Save `bytes` that a caller writes on the session's behalf, such as `pdfcraft-cli run`
@@ -278,6 +287,8 @@ impl Automation {
             "command_list" => self.command_list(&a)?,
             "command_run" => return self.command_run(&a),
             "command_batch" => self.command_batch(&a)?,
+            "scan_devices" => self.scan_devices(&a)?,
+            "scan_acquire" => self.scan_acquire(&a)?,
             "doc_inspect" => self.doc_inspect(&a)?,
             "render_preview" => return self.render_preview(&a).map(|c| vec![c]),
             "page_number" => {

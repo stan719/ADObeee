@@ -818,3 +818,208 @@ fn cmyk_and_ycck_jpegs_export_in_the_colours_the_page_shows() {
         }
     }
 }
+
+// ---- 1-bit BMP fast path ----
+
+/// A known pattern: pixel (x, y) is black when this is true.
+fn bmp1_black(x: usize, y: usize) -> bool {
+    (x * 3 + y * 5) % 7 < 3
+}
+
+/// A 1-bpp BMP of the pattern. `palette` holds the BGRA entries (index 0 first); a pixel's bit is
+/// set when it is black and `index_one_is_black`, or white and not. `colours_used` and `clip`
+/// (bytes cut from the end) let tests break the file.
+fn bmp1(w: usize, h: usize, top_down: bool, palette: &[[u8; 4]], index_one_is_black: bool, colours_used: u32, clip: usize) -> Vec<u8> {
+    let stride = w.div_ceil(32) * 4;
+    let rows: Vec<Vec<u8>> = (0..h)
+        .map(|y| {
+            let mut row = vec![0u8; stride];
+            for x in 0..w {
+                if bmp1_black(x, y) == index_one_is_black {
+                    row[x / 8] |= 0x80 >> (x % 8);
+                }
+            }
+            row
+        })
+        .collect();
+    let pixels: Vec<u8> = if top_down { rows.concat() } else { rows.iter().rev().flatten().copied().collect() };
+    let pixel_at = 14 + 40 + palette.len() * 4;
+    let mut out = b"BM".to_vec();
+    out.extend_from_slice(&((pixel_at + pixels.len()) as u32).to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&(pixel_at as u32).to_le_bytes());
+    out.extend_from_slice(&40u32.to_le_bytes());
+    out.extend_from_slice(&(w as i32).to_le_bytes());
+    out.extend_from_slice(&(if top_down { -(h as i32) } else { h as i32 }).to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&(pixels.len() as u32).to_le_bytes());
+    out.extend_from_slice(&[0; 8]);
+    out.extend_from_slice(&colours_used.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&palette.concat());
+    out.extend_from_slice(&pixels);
+    out.truncate(out.len() - clip);
+    out
+}
+
+const BLACK_WHITE: [[u8; 4]; 2] = [[0, 0, 0, 0], [255, 255, 255, 0]];
+const WHITE_BLACK: [[u8; 4]; 2] = [[255, 255, 255, 0], [0, 0, 0, 0]];
+
+fn bpc_of(d: &Dict) -> Option<f64> {
+    d.get(b"BitsPerComponent").and_then(|o| o.as_f64())
+}
+
+/// Checks `img` is 1-bit DeviceGray holding the pattern, top-down, 0 = black.
+fn assert_bmp1_pattern(img: &Embedded, w: usize, h: usize, label: &str) {
+    assert_eq!(img.dict.name(b"ColorSpace"), Some(&b"DeviceGray"[..]), "{label}");
+    assert_eq!(bpc_of(&img.dict), Some(1.0), "{label}");
+    assert_eq!(img.px, (w as u32, h as u32), "{label}");
+    let stride = w.div_ceil(8);
+    assert_eq!(img.data.len(), stride * h, "{label}: packed size");
+    for y in 0..h {
+        for x in 0..w {
+            let bit = (img.data[y * stride + x / 8] >> (7 - x % 8)) & 1;
+            assert_eq!(bit == 0, bmp1_black(x, y), "{label}: pixel ({x},{y})");
+        }
+    }
+}
+
+#[test]
+fn one_bit_bmp_stays_one_bit_for_both_palettes_row_orders_and_awkward_widths() {
+    for w in [1, 7, 8, 9, 31, 32, 33] {
+        for top_down in [true, false] {
+            for (palette, one_is_black) in [(BLACK_WHITE, false), (WHITE_BLACK, true)] {
+                for used in [0, 2] {
+                    let bytes = bmp1(w, 6, top_down, &palette, one_is_black, used, 0);
+                    let img = decoded("s.bmp", &bytes, image::ImageFormat::Bmp).unwrap();
+                    assert_bmp1_pattern(&img, w, 6, &format!("w={w} top_down={top_down} one_is_black={one_is_black} used={used}"));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn near_black_and_near_white_palettes_count_as_bilevel() {
+    let palette = [[3, 2, 4, 0], [250, 252, 255, 0]];
+    let img = decoded("s.bmp", &bmp1(13, 4, false, &palette, false, 2, 0), image::ImageFormat::Bmp).unwrap();
+    assert_bmp1_pattern(&img, 13, 4, "near");
+}
+
+#[test]
+fn one_bit_bmp_with_a_colour_palette_takes_the_general_path() {
+    let red_blue = [[0, 0, 255, 0], [255, 0, 0, 0]];
+    let img = decoded("s.bmp", &bmp1(13, 4, false, &red_blue, true, 2, 0), image::ImageFormat::Bmp).unwrap();
+    assert_eq!(img.dict.name(b"ColorSpace"), Some(&b"DeviceRGB"[..]));
+    assert_eq!(bpc_of(&img.dict), Some(8.0));
+    // Index 1 (blue) where the pattern is black, index 0 (red) elsewhere.
+    for y in 0..4 {
+        for x in 0..13 {
+            let at = (y * 13 + x) * 3;
+            let want = if bmp1_black(x, y) { [0, 0, 255] } else { [255, 0, 0] };
+            assert_eq!(img.data[at..at + 3], want, "pixel ({x},{y})");
+        }
+    }
+    // Two grays that are neither black nor white also stay 8-bit.
+    let grays = [[100, 100, 100, 0], [200, 200, 200, 0]];
+    let img = decoded("s.bmp", &bmp1(13, 4, false, &grays, true, 2, 0), image::ImageFormat::Bmp).unwrap();
+    assert_eq!(bpc_of(&img.dict), Some(8.0));
+    assert_eq!(img.data[0], if bmp1_black(0, 0) { 200 } else { 100 });
+}
+
+#[test]
+fn odd_one_bit_bmp_palettes_and_truncation_never_panic() {
+    let any = |bytes: Vec<u8>| {
+        let _ = decoded("s.bmp", &bytes, image::ImageFormat::Bmp);
+    };
+    // One and three palette entries, with biClrUsed matching and not.
+    for entries in [1usize, 3] {
+        for used in [0, entries as u32, 2, 1 << 30, u32::MAX] {
+            any(bmp1(13, 4, false, &[[0, 0, 0, 0], [255, 255, 255, 0], [9, 9, 9, 0]][..entries], false, used, 0));
+        }
+    }
+    // biClrUsed far beyond the file, with the normal two-entry palette.
+    for used in [3, 256, 1 << 30, u32::MAX] {
+        any(bmp1(13, 4, false, &BLACK_WHITE, false, used, 0));
+    }
+    // Truncated pixel arrays: the fast path declines and the general decoder gives the error.
+    for clip in [1, 4, 8, 20] {
+        let bytes = bmp1(13, 4, false, &BLACK_WHITE, false, 2, clip);
+        assert!(bmp_one_bit(&bytes).is_none(), "clip {clip}");
+        assert!(matches!(from_images(&[("s.bmp".into(), bytes)]), Err(CreateError::Image(..))), "clip {clip}");
+    }
+    let full = bmp1(13, 4, false, &BLACK_WHITE, false, 2, 0);
+    for cut in 0..70 {
+        any(full[..cut].to_vec());
+    }
+    // Headers claiming absurd heights over a tiny pixel array.
+    for height in [i32::MIN, i32::MAX, -i32::MAX] {
+        let mut huge = full.clone();
+        huge[22..26].copy_from_slice(&height.to_le_bytes());
+        assert!(bmp_one_bit(&huge).is_none());
+        any(huge);
+    }
+}
+
+#[test]
+fn one_bit_bmp_and_rgb_images_mix_in_one_document() {
+    let doc = from_images(&[
+        ("a.bmp".into(), bmp1(13, 4, false, &BLACK_WHITE, false, 2, 0)),
+        ("b.png".into(), png_bytes(false)),
+        ("c.bmp".into(), bmp1(9, 3, true, &WHITE_BLACK, true, 0, 0)),
+    ])
+    .unwrap();
+    let doc = reopen(&doc);
+    assert_eq!(pages(&doc).len(), 3);
+    assert_eq!(bpc_of(&image_of(&doc, 0)), Some(1.0));
+    assert_eq!(bpc_of(&image_of(&doc, 1)), Some(8.0));
+    assert_eq!(bpc_of(&image_of(&doc, 2)), Some(1.0));
+    assert_eq!(image_of(&doc, 1).name(b"ColorSpace"), Some(&b"DeviceRGB"[..]));
+    assert_eq!(media(&pages(&doc)[0]), [0.0, 0.0, 13.0, 4.0]);
+    assert_eq!(media(&pages(&doc)[2]), [0.0, 0.0, 9.0, 3.0]);
+}
+
+/// The flate-compressed byte count of the first image stream, as `add_image` stores it.
+fn flate_len(img: Embedded) -> usize {
+    let mut doc = Document::new_empty();
+    let r = add_image(&mut doc, img, &mut Vec::new());
+    match &*doc.resolve(&Object::Ref(r)) {
+        Object::Stream(s) => s.raw.len(),
+        _ => 0,
+    }
+}
+
+/// Run with `--nocapture` to see the sizes: the 1-bit page against the old 8-bit expansion.
+#[test]
+fn one_bit_bmp_is_much_smaller_than_the_eight_bit_expansion() {
+    let sizes = |w: usize, h: usize, black: &dyn Fn(usize, usize) -> bool| {
+        let stride = w.div_ceil(32) * 4;
+        let mut pixels = vec![0u8; stride * h];
+        for y in 0..h {
+            for x in 0..w {
+                if !black(x, y) {
+                    pixels[(h - 1 - y) * stride + x / 8] |= 0x80 >> (x % 8);
+                }
+            }
+        }
+        let mut bytes = bmp1(1, 1, false, &BLACK_WHITE, false, 2, 0);
+        bytes.truncate(14 + 40 + 8);
+        bytes[18..22].copy_from_slice(&(w as i32).to_le_bytes());
+        bytes[22..26].copy_from_slice(&(h as i32).to_le_bytes());
+        bytes.extend_from_slice(&pixels);
+        let after = flate_len(decoded("p.bmp", &bytes, image::ImageFormat::Bmp).unwrap());
+        let rgba = image::load_from_memory_with_format(&bytes, image::ImageFormat::Bmp).unwrap().to_rgba8();
+        let before = flate_len(rgba_image(rgba.as_raw(), rgba.dimensions(), (72.0, 72.0)));
+        println!("{w}x{h}: 8-bit gray flate {before} bytes, 1-bit flate {after} bytes");
+        (before, after)
+    };
+    sizes(13, 5, &|x, y| (3..=6).contains(&x) && y < 2);
+    // Text-like: lines of irregular glyph-sized blocks.
+    let (before, after) = sizes(2480, 3508, &|x, y| {
+        let (line, ly) = (y / 60, y % 60);
+        (80..2400).contains(&x) && (1..56).contains(&line) && (20..45).contains(&ly) && ((x / 7) * 31 + line * 17 + (x % 7) * (ly % 3)) % 5 < 3
+    });
+    assert!(after < before, "{after} vs {before}");
+}

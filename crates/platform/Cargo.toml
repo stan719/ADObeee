@@ -9,6 +9,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+pdfcraft-scan = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+# The Windows scan backend. Elsewhere the platform surface uses the unsupported stubs.
+pdfcraft-wia = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Already in the dependency graph through the accessibility integration. The portal watcher

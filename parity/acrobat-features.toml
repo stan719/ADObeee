@@ -6717,11 +6717,14 @@ title = "Scan from TWAIN/WIA/ICA/SANE scanners"
 area = "I"
 tier = "P2"
 milestone = "M14"
-status = "planned"
+status = "partial"
 commands = []
-tools = []
-evidence = []
-notes = ""
+tools = ["scan_devices", "scan_acquire"]
+evidence = [
+  "crates/automation/tests/automation.rs::scan_devices_is_read_only_and_lists_without_feeding_paper",
+  "crates/automation/src/scanning.rs::the_unsupported_backend_reports_windows_only_for_listing_and_acquire",
+]
+notes = "Windows WIA only, through the CLI and the tools; other platforms report unsupported, and TWAIN / ICA / SANE / eSCL are open. pdfcraft-cli scan devices and the scan_devices tool list scanners without feeding paper and, by default, without opening a device; --device or --details read handling status and each source's capabilities. pdfcraft-cli scan --out DIR --yes and scan_acquire pull pages into a folder (default source auto: the feeder when it reports ready, else the glass), with the controls the driver publishes (resolution, color, brightness, contrast, threshold, rotation, format, compression, intent, page size, region, duplex). A failure carries its identity as data; a partial stack keeps the saved pages. Without a duplex bit, --reverse does a two-pass manual duplex. Black-and-white scans are delivered as 1-bit images. No dialog in the app yet."
 
 [[feature]]
 id = "ocr.scan-presets"

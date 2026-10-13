@@ -1,0 +1,15 @@
+[package]
+name = "pdfcraft-scan"
+description = "Scanner settings, errors, page handling and the acquire contract. The Windows WIA backend is the pdfcraft-wia crate; this crate has no platform code and no unsafe."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+log = { workspace = true }
+# Decoders for JPEG, PNG, TIFF and the BMP forms bw.rs does not read itself (software 1-bit).
+image = { version = "0.25", default-features = false, features = ["bmp", "jpeg", "png", "tiff"] }

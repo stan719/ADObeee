@@ -62,6 +62,18 @@ pdfcraft-cli audit  <file.pdf> [--password PW]            find faux redactions (
 pdfcraft-cli batch <files or dirs...> --steps convert,ocr,optimize --out-dir DIR
                       [--recursive] [--root DIR] [--stop-on-error]
                       [--ppi 150] [--quality 60] [--dpi 300] [--language en] [--ocr-all-pages]
+pdfcraft-cli scan   devices [--device TEXT | --details | --dump]
+                      list scanners without opening them; --device opens matches, --details all; --dump every WIA property
+pdfcraft-cli scan   --out DIR --yes [--dpi 200] [--color gray|rgb|bw]
+                      [--source auto|feeder|glass] [--pages 1|all] [--device NAME]
+                      [--brightness N] [--contrast N] [--threshold N]
+                      [--rotation portrait|landscape|180|270]
+                      [--format bmp|jpeg|png|tiff] [--compression none|jpeg|g4|…]
+                      [--intent text|gray|color|…] [--page-size letter|a4|…]
+                      [--deskew on|off] [--dpi-y N] [--orientation N] [--photometric N]
+                      [--invert on|off] [--mirror on|off] [--lamp on|off] [--duplex]
+                      [--reverse]  # 2nd pass: flip stack, scan backs in reverse, interleave
+                      [--left IN] [--top IN] [--width IN] [--height IN]
 pdfcraft-cli tools                                       automation tools and their JSON Schemas
 pdfcraft-cli run    <tool> [key=value …] [--root DIR] [--out image.png]
 pdfcraft-cli run    --script steps.json [--root DIR]      [{\"tool\": \"doc_open\", \"args\": {…}}, …]
@@ -93,6 +105,7 @@ fn main() -> ExitCode {
         Some("check") => check(&args[1..]),
         Some("check-one") => check_one(&args[1..]),
         Some("audit") => audit(&args[1..]),
+        Some("scan") => scan(&args[1..]),
         Some("tools") => tools(),
         Some("run") => run(&args[1..]),
         Some("batch") => batch::run(&args[1..]),
@@ -108,7 +121,11 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(CliError::Stdout(e)) if e.kind() == std::io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(e) => {
-            let _ = writeln!(std::io::stderr().lock(), "pdfcraft-cli: {e}");
+            let mut stderr = std::io::stderr().lock();
+            let _ = writeln!(stderr, "pdfcraft-cli: {e}");
+            if let CliError::Scan { json, .. } = &e {
+                let _ = writeln!(stderr, "{json}");
+            }
             ExitCode::FAILURE
         }
     }
@@ -118,6 +135,11 @@ fn main() -> ExitCode {
 #[derive(Debug)]
 enum CliError {
     Message(String),
+    /// A failed scan: the message, and its identity as one line of JSON for stderr.
+    Scan {
+        message: String,
+        json: String,
+    },
     Stdout(std::io::Error),
 }
 
@@ -136,7 +158,7 @@ impl From<&str> for CliError {
 impl std::fmt::Display for CliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Message(message) => f.write_str(message),
+            Self::Message(message) | Self::Scan { message, .. } => f.write_str(message),
             Self::Stdout(error) => write!(f, "stdout: {error}"),
         }
     }
@@ -897,6 +919,356 @@ fn read_control_file(file: &str) -> Result<serde_json::Value, String> {
     serde_json::from_str(&text).map_err(|e| format!("{file}: {e}"))
 }
 
+const SCAN_OPTIONS: &[OptionSpec] = &[
+    OptionSpec { name: "--out", takes_value: true },
+    OptionSpec { name: "--dpi", takes_value: true },
+    OptionSpec { name: "--color", takes_value: true },
+    OptionSpec { name: "--source", takes_value: true },
+    OptionSpec { name: "--pages", takes_value: true },
+    OptionSpec { name: "--device", takes_value: true },
+    OptionSpec { name: "--brightness", takes_value: true },
+    OptionSpec { name: "--contrast", takes_value: true },
+    OptionSpec { name: "--threshold", takes_value: true },
+    OptionSpec { name: "--rotation", takes_value: true },
+    OptionSpec { name: "--format", takes_value: true },
+    OptionSpec { name: "--compression", takes_value: true },
+    OptionSpec { name: "--intent", takes_value: true },
+    OptionSpec { name: "--page-size", takes_value: true },
+    OptionSpec { name: "--deskew", takes_value: true },
+    OptionSpec { name: "--dpi-y", takes_value: true },
+    OptionSpec { name: "--orientation", takes_value: true },
+    OptionSpec { name: "--photometric", takes_value: true },
+    OptionSpec { name: "--invert", takes_value: true },
+    OptionSpec { name: "--mirror", takes_value: true },
+    OptionSpec { name: "--lamp", takes_value: true },
+    OptionSpec { name: "--left", takes_value: true },
+    OptionSpec { name: "--top", takes_value: true },
+    OptionSpec { name: "--width", takes_value: true },
+    OptionSpec { name: "--height", takes_value: true },
+    OptionSpec { name: "--yes", takes_value: false },
+    OptionSpec { name: "--duplex", takes_value: false },
+    OptionSpec { name: "--reverse", takes_value: false },
+    OptionSpec { name: "--dump", takes_value: false },
+    OptionSpec { name: "--details", takes_value: false },
+];
+
+/// `scan devices` lists scanners without opening any (id, name, port, connection, `details:
+/// "skipped"`). `--device TEXT` opens only the devices whose id, name or port contains TEXT and
+/// returns their capabilities (`details: "loaded"`); `--details` opens all of them. A device that
+/// will not open stays listed with `details: "error"` and the reason; one named in
+/// `PDFCRAFT_SCAN_DENY` is never opened (`details: "denied"`). `scan devices --dump` prints every
+/// WIA property. Anything else
+/// pulls paper, and only with `--yes`. `--reverse` is manual duplex when the feeder has no duplex
+/// bit: fronts are already in `--out`; flip the whole stack (last sheet on top), scan the reverse
+/// sides (they arrive last-sheet-first), and rewrite `--out` interleaved.
+/// Scanning is Windows/WIA only in this version: elsewhere a scan ends with one clear line (the
+/// device commands get the same sentence from the unsupported backend).
+/// This is a run-time answer; the code builds on every platform.
+fn ensure_scanning_supported() -> Result<(), CliError> {
+    if pdfcraft_platform::scan::supported() {
+        return Ok(());
+    }
+    Err(format!("scan: {}", pdfcraft_platform::scan::ScanError::Unsupported).into())
+}
+
+fn scan(args: &[String]) -> Result<(), CliError> {
+    validate_options("scan", args, SCAN_OPTIONS)?;
+    if args.iter().any(|arg| arg == "devices") {
+        let dump = args.iter().any(|arg| arg == "--dump");
+        let details = args.iter().any(|arg| arg == "--details");
+        let filter = option_value(args, "--device")?;
+        let mut unexpected = 0;
+        let mut index = 0;
+        while let Some(arg) = args.get(index) {
+            index += if arg == "--device" { 2 } else { 1 };
+            if !matches!(arg.as_str(), "devices" | "--dump" | "--details" | "--device") {
+                unexpected += 1;
+            }
+        }
+        if unexpected != 0 || (dump && (details || filter.is_some())) {
+            return Err("scan devices takes only the optional --device TEXT, --details, or --dump".into());
+        }
+        return if dump { dump_scanners() } else { list_scanners(filter, details) };
+    }
+    let out = option_value(args, "--out")?.ok_or("scan: --out DIR is required (scan devices lists scanners without feeding paper)")?;
+    if !args.iter().any(|arg| arg == "--yes") {
+        return Err("scan: --yes is required, because this pulls paper".into());
+    }
+    let reverse = args.iter().any(|arg| arg == "--reverse");
+    let duplex = args.iter().any(|arg| arg == "--duplex");
+    if reverse && duplex {
+        return Err("scan: --reverse is manual duplex; do not pass --duplex".into());
+    }
+    let dpi = match option_value(args, "--dpi")? {
+        Some(text) => text.parse::<u32>().map_err(|_| "scan: --dpi is a whole number")?,
+        None => 200,
+    };
+    let color_text = option_value(args, "--color")?.unwrap_or("gray");
+    let color = pdfcraft_platform::scan::Color::parse(color_text).ok_or_else(|| format!("scan: --color is gray, rgb, or bw (got {color_text})"))?;
+    let source_text = option_value(args, "--source")?.unwrap_or("auto");
+    let source =
+        pdfcraft_platform::scan::Source::parse(source_text).ok_or_else(|| format!("scan: --source is auto, feeder, or glass (got {source_text})"))?;
+    let folder = PathBuf::from(out);
+    std::fs::create_dir_all(&folder).map_err(|error| format!("scan: {}: {error}", folder.display()))?;
+    let front_files = if reverse {
+        let files = pdfcraft_platform::scan::listed_page_files(&folder).map_err(|error| format!("scan: {error}"))?;
+        if files.is_empty() {
+            return Err("scan: --reverse needs front pages already in --out (scan the fronts first, flip the stack, then --reverse)".into());
+        }
+        Some(files)
+    } else {
+        None
+    };
+    let pages = if let Some(files) = &front_files {
+        let n = u32::try_from(files.len()).map_err(|_| "scan: too many front pages")?;
+        match option_value(args, "--pages")? {
+            None | Some("all") => n,
+            Some(text) => {
+                let asked = text.parse::<u32>().map_err(|_| "scan: --pages is a whole number, or all")?;
+                if asked != n {
+                    return Err(format!("scan: --reverse expects {n} page(s) to match the fronts in --out (got --pages {asked})").into());
+                }
+                asked
+            }
+        }
+    } else {
+        match option_value(args, "--pages")?.unwrap_or("1") {
+            "all" => 0,
+            text => text.parse::<u32>().map_err(|_| "scan: --pages is a whole number, or all")?,
+        }
+    };
+    let rotation = match option_value(args, "--rotation")? {
+        None => None,
+        Some(text) => Some(
+            pdfcraft_platform::scan::Rotation::parse(text)
+                .ok_or_else(|| format!("scan: --rotation is portrait, landscape, 180, or 270 (got {text})"))?,
+        ),
+    };
+    let intent = match option_value(args, "--intent")? {
+        None => None,
+        Some(text) => Some(
+            pdfcraft_platform::scan::Intent::parse(text)
+                .ok_or_else(|| format!("scan: --intent is none, color, gray, text, preview, quality, or size (got {text})"))?,
+        ),
+    };
+    let page_size = match option_value(args, "--page-size")? {
+        None => None,
+        Some(text) => Some(
+            pdfcraft_platform::scan::PageSize::parse(text)
+                .ok_or_else(|| format!("scan: --page-size is a4, letter, legal, auto, custom, or business-card (got {text})"))?,
+        ),
+    };
+    let auto_deskew = optional_on_off(args, "--deskew")?;
+    let dpi_y = match option_value(args, "--dpi-y")? {
+        Some(text) => Some(text.parse::<u32>().map_err(|_| "scan: --dpi-y is a whole number")?),
+        None => None,
+    };
+    let settings = pdfcraft_platform::scan::ScanSettings {
+        device: option_value(args, "--device")?.unwrap_or("").to_string(),
+        source,
+        dpi,
+        dpi_y,
+        color,
+        pages,
+        brightness: optional_i32(args, "--brightness")?,
+        contrast: optional_i32(args, "--contrast")?,
+        threshold: optional_i32(args, "--threshold")?,
+        rotation,
+        region: region_from_args(args)?,
+        format: option_value(args, "--format")?.map(str::to_string),
+        compression: option_value(args, "--compression")?.map(str::to_string),
+        intent,
+        page_size,
+        auto_deskew,
+        orientation: optional_i32(args, "--orientation")?,
+        photometric: optional_i32(args, "--photometric")?,
+        invert: optional_on_off(args, "--invert")?,
+        mirror: optional_on_off(args, "--mirror")?,
+        lamp: optional_on_off(args, "--lamp")?,
+        duplex,
+        cancel: None,
+        progress: None,
+    };
+    settings.checked().map_err(|error| format!("scan: {error}"))?;
+    ensure_scanning_supported()?;
+    let acquired = match pdfcraft_platform::scan::acquire(&settings) {
+        Ok(acquired) => acquired,
+        Err(error) => {
+            if let pdfcraft_platform::scan::ScanError::Incomplete { acquired, .. } = &error {
+                let _ = save_scan_pages(&folder, &acquired.pages);
+            }
+            return Err(scan_failure(&error, &settings));
+        }
+    };
+    let saved = if let Some(front_files) = front_files {
+        save_reverse_pass(&folder, &front_files, &acquired.pages)?
+    } else {
+        save_scan_pages(&folder, &acquired.pages)?
+    };
+    let result = serde_json::json!({
+        "source": acquired.source.name(),
+        "requested_source": settings.source.name(),
+        "reverse": reverse,
+        "count": saved.len(),
+        "pages": saved,
+    });
+    let line = serde_json::to_string(&result).map_err(|error| format!("scan: {error}"))?;
+    stdout_line(format_args!("{line}"))
+}
+
+/// A failed acquire: the same `scan: <sentence>` line as always, plus one JSON line on stderr
+/// (`{"scan_error": {kind, phase, hresult, code_name, retryable, resumable, message}}`) so a caller
+/// reads fields instead of the sentence.
+fn scan_failure(error: &pdfcraft_platform::scan::ScanError, settings: &pdfcraft_platform::scan::ScanSettings) -> CliError {
+    let info = pdfcraft_platform::scan::ScanErrorInfo::from_acquire(error, settings);
+    let json = serde_json::json!({ "scan_error": pdfcraft_automation::scan_error_info_json(&info) }).to_string();
+    CliError::Scan { message: format!("scan: {error}"), json }
+}
+
+fn save_scan_pages(folder: &Path, pages: &[pdfcraft_platform::scan::Page]) -> Result<Vec<serde_json::Value>, CliError> {
+    // Optional disk sink — acquire itself only returned in-memory pages.
+    let paths = pdfcraft_platform::scan::write_pages(folder, pages).map_err(|error| format!("scan: {error}"))?;
+    Ok(paths.iter().zip(pages).map(|(path, page)| page_json(path, page)).collect())
+}
+
+/// Fronts already on disk; `backs` just scanned after the stack was flipped (last sheet first).
+/// Reverse the backs and rewrite `folder` as interleaved faces.
+fn save_reverse_pass(folder: &Path, front_files: &[PathBuf], backs: &[pdfcraft_platform::scan::Page]) -> Result<Vec<serde_json::Value>, CliError> {
+    let mut front_bytes = Vec::with_capacity(front_files.len());
+    for path in front_files {
+        front_bytes.push(std::fs::read(path).map_err(|error| format!("scan: {}: {error}", path.display()))?);
+    }
+    let back_bytes: Vec<Vec<u8>> = backs.iter().map(|page| page.bytes.clone()).collect();
+    let interleaved = pdfcraft_platform::scan::interleave_manual_duplex(front_bytes, back_bytes).map_err(|error| format!("scan: {error}"))?;
+    let staging = folder.join(".reverse-pass-staging");
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging).map_err(|error| format!("scan: {}: {error}", staging.display()))?;
+    }
+    std::fs::create_dir_all(&staging).map_err(|error| format!("scan: {}: {error}", staging.display()))?;
+    let mut staged = Vec::new();
+    for (index, bytes) in interleaved.iter().enumerate() {
+        let format = pdfcraft_platform::scan::image_format(bytes);
+        let path = pdfcraft_platform::scan::page_path(&staging, index + 1, format);
+        std::fs::write(&path, bytes).map_err(|error| format!("scan: {}: {error}", path.display()))?;
+        staged.push(path);
+    }
+    for path in front_files {
+        std::fs::remove_file(path).map_err(|error| format!("scan: {}: {error}", path.display()))?;
+    }
+    let dpi = backs.first().map(|page| page.dpi).unwrap_or(0);
+    let mut saved = Vec::new();
+    for (index, staged_path) in staged.into_iter().enumerate() {
+        let format = staged_path.extension().and_then(|ext| ext.to_str()).unwrap_or("bin");
+        let final_path = pdfcraft_platform::scan::page_path(folder, index + 1, format);
+        std::fs::rename(&staged_path, &final_path).map_err(|error| format!("scan: {}: {error}", final_path.display()))?;
+        let (width, height) = pdfcraft_platform::scan::bmp_size(&interleaved[index]).unwrap_or((0, 0));
+        saved.push(serde_json::json!({
+            "path": final_path.display().to_string(),
+            "format": format,
+            "width": width,
+            "height": height,
+            "dpi": dpi,
+            "bytes": interleaved[index].len(),
+            "side": if index % 2 == 0 { "front" } else { "back" },
+        }));
+    }
+    let _ = std::fs::remove_dir_all(&staging);
+    Ok(saved)
+}
+
+fn page_json(path: &Path, page: &pdfcraft_platform::scan::Page) -> serde_json::Value {
+    serde_json::json!({
+        "path": path.display().to_string(),
+        "format": page.format,
+        "width": page.width,
+        "height": page.height,
+        "dpi": page.dpi,
+        "bytes": page.bytes.len(),
+        "thresholded": page.thresholded,
+    })
+}
+
+fn list_scanners(filter: Option<&str>, details: bool) -> Result<(), CliError> {
+    let listing = pdfcraft_automation::list_scan_devices(filter, details).map_err(|error| format!("scan: {error}"))?;
+    let line = serde_json::to_string(&listing).map_err(|error| format!("scan: {error}"))?;
+    stdout_line(format_args!("{line}"))
+}
+
+fn dump_scanners() -> Result<(), CliError> {
+    let found = pdfcraft_platform::scan::dump_devices().map_err(|error| format!("scan: {error}"))?;
+    let devices: Vec<serde_json::Value> = found
+        .iter()
+        .map(|device| {
+            serde_json::json!({
+                "id": device.id,
+                "name": device.name,
+                "items": device.items.iter().map(|item| serde_json::json!({
+                    "kind": item.kind,
+                    "name": item.name,
+                    "properties": item.properties.iter().map(|prop| serde_json::json!({
+                        "id": prop.id,
+                        "name": prop.name,
+                        "vt": prop.vt,
+                        "flags": prop.flags,
+                        "access": prop.access,
+                        "value": prop.value,
+                    })).collect::<Vec<_>>(),
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
+    let line = serde_json::to_string(&serde_json::json!({ "count": devices.len(), "devices": devices })).map_err(|error| format!("scan: {error}"))?;
+    stdout_line(format_args!("{line}"))
+}
+
+fn region_from_args(args: &[String]) -> Result<Option<pdfcraft_platform::scan::Region>, CliError> {
+    let left = option_value(args, "--left")?;
+    let top = option_value(args, "--top")?;
+    let width = option_value(args, "--width")?;
+    let height = option_value(args, "--height")?;
+    if left.is_none() && top.is_none() && width.is_none() && height.is_none() {
+        return Ok(None);
+    }
+    let inches = |name: &str, text: Option<&str>| -> Result<f64, CliError> {
+        let text = text.ok_or_else(|| format!("scan: {name} is required with a region"))?;
+        text.parse::<f64>().map_err(|_| format!("scan: {name} is a number of inches").into())
+    };
+    pdfcraft_platform::scan::region_from_inches(
+        inches("--left", left)?,
+        inches("--top", top)?,
+        inches("--width", width)?,
+        inches("--height", height)?,
+    )
+    .map(Some)
+    .map_err(|error| format!("scan: {error}").into())
+}
+
+fn optional_i32(args: &[String], name: &str) -> Result<Option<i32>, CliError> {
+    match option_value(args, name)? {
+        None => Ok(None),
+        Some(text) => text.parse().map(Some).map_err(|_| format!("scan: {name} is a whole number").into()),
+    }
+}
+
+fn optional_on_off(args: &[String], name: &str) -> Result<Option<bool>, CliError> {
+    match option_value(args, name)? {
+        None => Ok(None),
+        Some("on" | "true" | "1" | "yes") => Ok(Some(true)),
+        Some("off" | "false" | "0" | "no") => Ok(Some(false)),
+        Some(other) => Err(format!("scan: {name} is on or off (got {other})").into()),
+    }
+}
+
+fn option_value<'a>(args: &'a [String], name: &str) -> Result<Option<&'a str>, CliError> {
+    let Some(index) = args.iter().position(|arg| arg == name) else {
+        return Ok(None);
+    };
+    match args.get(index + 1).map(String::as_str) {
+        Some(value) if !value.starts_with("--") => Ok(Some(value)),
+        _ => Err(format!("scan: {name} needs a value").into()),
+    }
+}
+
 /// Why user `me` can't trust a control file with this owner and mode, if they can't.
 #[cfg(any(test, unix))]
 fn control_file_problem(owner: u32, mode: u32, me: u32) -> Option<String> {
@@ -920,6 +1292,24 @@ mod tests {
     use super::control_file_problem;
 
     #[test]
+    fn a_failed_scan_adds_its_identity_as_one_json_line_and_keeps_the_sentence() {
+        use pdfcraft_platform::scan::{ScanError, ScanSettings};
+        let settings = ScanSettings { pages: 2, ..ScanSettings::default() };
+        let error = ScanError::from_hresult(0x8021_0020, "");
+        let super::CliError::Scan { message, json } = super::scan_failure(&error, &settings) else {
+            panic!("a scan failure is a Scan error");
+        };
+        assert_eq!(message, format!("scan: {error}"));
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let info = &value["scan_error"];
+        assert_eq!(info["kind"], "multi_feed");
+        assert_eq!(info["phase"], "before_first_page");
+        assert_eq!(info["hresult"], "0x80210020");
+        assert_eq!(info["code_name"], "WIA_ERROR_MULTI_FEED");
+        assert_eq!((info["retryable"].clone(), info["resumable"].clone()), (serde_json::json!(true), serde_json::json!(false)));
+    }
+
+    #[test]
     fn a_control_file_must_be_yours_and_private() {
         // Regular file type bits (0o100000) don't matter, only the owner and the permission bits.
         assert_eq!(control_file_problem(1000, 0o100600, 1000), None);
@@ -934,5 +1324,81 @@ mod tests {
             assert!(open.contains("other users"), "{mode:o}: {open}");
         }
         assert!(control_file_problem(1000, 0o100644, 1000).unwrap_or_default().contains("mode 644"));
+    }
+
+    #[test]
+    fn scanning_reports_one_line_where_there_is_no_backend() {
+        let answer = super::ensure_scanning_supported();
+        if pdfcraft_platform::scan::supported() {
+            assert!(answer.is_ok());
+        } else {
+            assert_eq!(answer.unwrap_err().to_string(), "scan: scanning is only supported on Windows (WIA) in this version");
+        }
+    }
+
+    #[test]
+    fn scan_refuses_to_pull_paper_without_confirmation() {
+        let missing = super::scan(&["--out".into(), "pages".into()]).unwrap_err();
+        assert!(missing.to_string().contains("--yes"), "{missing}");
+        let color = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--color".into(), "purple".into()]).unwrap_err();
+        assert!(color.to_string().contains("color"), "{color}");
+        let turn = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--rotation".into(), "sideways".into()]).unwrap_err();
+        assert!(turn.to_string().contains("rotation"), "{turn}");
+        let region = super::scan(&[
+            "--out".into(),
+            "pages".into(),
+            "--yes".into(),
+            "--left".into(),
+            "0".into(),
+            "--top".into(),
+            "0".into(),
+            "--width".into(),
+            "0".into(),
+            "--height".into(),
+            "1".into(),
+        ])
+        .unwrap_err();
+        assert!(region.to_string().contains("width"), "{region}");
+    }
+
+    #[test]
+    fn scan_refuses_unknown_source_intent_page_size_and_deskew() {
+        let source = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--source".into(), "tray".into()]).unwrap_err();
+        assert!(source.to_string().contains("source"), "{source}");
+        let intent = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--intent".into(), "photo".into()]).unwrap_err();
+        assert!(intent.to_string().contains("intent"), "{intent}");
+        let page = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--page-size".into(), "tabloid".into()]).unwrap_err();
+        assert!(page.to_string().contains("page-size"), "{page}");
+        let deskew = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--deskew".into(), "maybe".into()]).unwrap_err();
+        assert!(deskew.to_string().contains("deskew"), "{deskew}");
+        let dpi_y = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--dpi-y".into(), "x".into()]).unwrap_err();
+        assert!(dpi_y.to_string().contains("dpi-y"), "{dpi_y}");
+    }
+
+    #[test]
+    fn scan_devices_takes_only_its_own_flags() {
+        for args in
+            [vec!["devices", "--yes"], vec!["devices", "stray"], vec!["devices", "--dump", "--details"], vec!["devices", "--dump", "--device", "x"]]
+        {
+            let args: Vec<String> = args.into_iter().map(String::from).collect();
+            let error = super::scan(&args).unwrap_err();
+            assert!(error.to_string().contains("scan devices") || error.to_string().contains("unknown option"), "{args:?}: {error}");
+        }
+        let missing = super::scan(&["devices".into(), "--device".into()]).unwrap_err();
+        assert!(missing.to_string().contains("--device"), "{missing}");
+        let empty = super::scan(&["devices".into(), "--device".into(), " ".into()]).unwrap_err();
+        assert!(empty.to_string().contains("empty"), "{empty}");
+    }
+
+    #[test]
+    fn scan_reverse_needs_fronts_and_refuses_hardware_duplex() {
+        let duplex = super::scan(&["--out".into(), "pages".into(), "--yes".into(), "--reverse".into(), "--duplex".into()]).unwrap_err();
+        assert!(duplex.to_string().contains("--reverse"), "{duplex}");
+        let dir = std::env::temp_dir().join(format!("pdfcraft-scan-reverse-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(std::fs::create_dir_all(&dir).is_ok());
+        let missing = super::scan(&["--out".into(), dir.to_string_lossy().into_owned(), "--yes".into(), "--reverse".into()]).unwrap_err();
+        assert!(missing.to_string().contains("front"), "{missing}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
