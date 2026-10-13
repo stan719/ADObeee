@@ -1669,7 +1669,7 @@ fn files_dropped_before_the_pointer_is_known_wait_for_it() {
 
 #[test]
 fn files_dropped_outside_the_page_grid_still_open_as_documents() {
-    let mut h = harness(2, |_| {});
+    let mut h = harness(2, |app| app.run_inline = true);
     drop_files(&mut h, vec![Dropped("other.pdf", fixture(1))]);
     h.run_steps(3);
     assert_eq!(h.state().views.len(), 2);
@@ -1896,6 +1896,7 @@ fn protected_with(algorithm: pdfcraft_cos::Algorithm, user: &str, owner: &str, p
 fn password_prompt_opens_and_security_tab_reports_the_details() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
+        app.run_inline = true; // This test inspects each password retry synchronously.
         app.set_option("language", "en").unwrap();
         app.open_bytes("secret.pdf", None, protected("pw", "owner", -1)).unwrap();
         app
