@@ -325,14 +325,7 @@ impl Control {
             }
             "ui.drag" => self.drag(p),
             "ui.move" => {
-                let point = |key: &str| -> Result<f32, String> {
-                    p.get(key)
-                        .and_then(Value::as_f64)
-                        .map(|n| n as f32)
-                        .filter(|n| n.is_finite())
-                        .ok_or_else(|| format!("ui.move: {key} must be a finite coordinate in points"))
-                };
-                let pos = egui::pos2(point("x")?, point("y")?);
+                let pos = egui::pos2(finite_coord("ui.move", "x", p.get("x"))?, finite_coord("ui.move", "y", p.get("y"))?);
                 Ok(Handled::AfterFrames(self.inject(vec![vec![egui::Event::PointerMoved(pos)]]), json!({ "moved": [pos.x, pos.y] })))
             }
             "ui.type" => {
@@ -396,10 +389,8 @@ impl Control {
     /// Press at `from`, move to `to` in `steps` frames, release (drawing, selecting text, moving).
     fn drag(&mut self, p: &Value) -> Result<Handled, String> {
         let point = |k: &str| -> Result<egui::Pos2, String> {
-            match p.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()).as_deref() {
-                Some([x, y]) => Some(egui::pos2(*x as f32, *y as f32))
-                    .filter(|pos| pos.is_finite())
-                    .ok_or_else(|| format!("ui.drag: {k} must be [x, y], finite coordinates in points")),
+            match p.get(k).and_then(Value::as_array) {
+                Some(a) if a.len() == 2 => Ok(egui::pos2(finite_coord("ui.drag", k, a.first())?, finite_coord("ui.drag", k, a.get(1))?)),
                 _ => Err(format!("ui.drag: {k} must be [x, y] in points")),
             }
         };
@@ -421,15 +412,12 @@ impl Control {
     }
 
     fn click(&mut self, p: &Value) -> Result<Handled, String> {
-        if let (Some(x), Some(y)) = (p.get("x").and_then(Value::as_f64), p.get("y").and_then(Value::as_f64)) {
-            let point = |key: &str, n: f64| {
-                Some(n as f32).filter(|n| n.is_finite()).ok_or_else(|| format!("ui.click: {key} must be a finite coordinate in points"))
-            };
-            let pos = egui::pos2(point("x", x)?, point("y", y)?);
+        if p.get("x").is_some() || p.get("y").is_some() {
+            let pos = egui::pos2(finite_coord("ui.click", "x", p.get("x"))?, finite_coord("ui.click", "y", p.get("y"))?);
             let which = pointer_button(p, "ui.click")?;
             let button = |pressed| egui::Event::PointerButton { pos, button: which, pressed, modifiers: egui::Modifiers::NONE };
             let frames = self.inject(vec![vec![egui::Event::PointerMoved(pos)], vec![button(true)], vec![button(false)]]);
-            return Ok(Handled::AfterFrames(frames, json!({ "clicked": [x, y] })));
+            return Ok(Handled::AfterFrames(frames, json!({ "clicked": [pos.x, pos.y] })));
         }
         let s = self.shared.lock().map_err(|_| "control state poisoned")?;
         let id = match (p.get("id"), p.get("label").and_then(Value::as_str)) {
@@ -558,6 +546,14 @@ fn only_params(p: &Value, method: &str, allowed: &[&str]) -> Result<(), String> 
         return Err(format!("{method}: unknown parameter {key:?}"));
     }
     Ok(())
+}
+
+/// A JSON number that stays finite as an `f32` pointer coordinate.
+fn finite_coord(method: &str, key: &str, value: Option<&Value>) -> Result<f32, String> {
+    match value.and_then(Value::as_f64) {
+        Some(n) if n.is_finite() && (n as f32).is_finite() => Ok(n as f32),
+        _ => Err(format!("{method}: {key} must be a finite coordinate in points")),
+    }
 }
 
 fn pointer_button(p: &Value, method: &str) -> Result<egui::PointerButton, String> {

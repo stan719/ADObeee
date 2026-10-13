@@ -8,6 +8,17 @@ use egui_kittest::kittest::Queryable;
 use pdfcraft_engine::commands::COMMANDS;
 use pdfcraft_ui_egui::{Dialog, PdfCraftApp};
 
+/// Step until `ready`, yielding so a background open can finish. A few frames are not enough.
+fn until(h: &mut Harness<'_, PdfCraftApp>, ready: impl Fn(&PdfCraftApp) -> bool) -> bool {
+    (0..50).any(|_| {
+        h.step();
+        ready(h.state()) || {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            false
+        }
+    })
+}
+
 fn fixture(n: usize) -> Vec<u8> {
     let mut objs: Vec<String> = vec!["<< /Type /Catalog /Pages 2 0 R >>".into()];
     let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
@@ -184,8 +195,7 @@ fn a_tool_chosen_with_no_document_asks_for_one_and_runs_on_it() {
     h.run_steps(2);
     h.state_mut().run_command("export.text");
     assert!(h.state().toast.as_ref().is_none_or(|t| t.0 != "Open a document first"));
-    h.run_steps(3);
-    assert!(h.state().active.is_some(), "the picked file is open");
+    assert!(until(&mut h, |app| app.active.is_some()), "the picked file is open");
     assert!(matches!(h.state().dialog, Some(Dialog::Export(_))), "and the tool runs on it: {:?}", h.state().dialog);
     // Cancelled: nothing opens and nothing runs.
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
@@ -287,9 +297,8 @@ fn the_open_recent_menu_lists_files_and_opens_one() {
     h.get_by_label("Open Recent ⏵").hover();
     h.run_steps(3);
     h.get_by_label_contains("recent.pdf").click();
-    h.run_steps(4);
+    assert!(until(&mut h, |app| app.views.len() == 2), "the recent file opened in a new tab");
     let app = h.state();
-    assert_eq!(app.views.len(), 2, "the recent file opened in a new tab");
     let active = app.active.unwrap();
     assert_eq!(app.session.get(app.views[active].id).and_then(|d| d.path.as_deref()), Some(path.as_str()), "the active tab is the recent file");
 }

@@ -969,6 +969,27 @@ fn inspect_and_click_by_label_and_id() {
 }
 
 #[test]
+fn click_and_drag_reject_coordinates_that_do_not_stay_finite() {
+    let (mut h, c) = harness();
+    for (method, params) in [
+        ("ui.click", json!({ "x": 1e39, "y": -1e39 })),
+        ("ui.click", json!({ "x": 10.0, "y": 1e39 })),
+        ("ui.drag", json!({ "from": [1e39, -1e39], "to": [40.0, 40.0], "steps": 1 })),
+        ("ui.drag", json!({ "from": [40.0, 40.0], "to": [1e39, 1.0], "steps": 1 })),
+        ("ui.move", json!({ "x": 1e39, "y": 10.0 })),
+    ] {
+        let err = call(&mut h, &c, method, params).unwrap_err();
+        assert!(err.contains("finite"), "{method}: {err}");
+    }
+    h.run_steps(3);
+    ok(&mut h, &c, "ui.inspect", json!({}));
+    ok(&mut h, &c, "ui.click", json!({ "label": "Read" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["mode"], "Read");
+    ok(&mut h, &c, "ui.drag", json!({ "from": [20.0, 20.0], "to": [40.0, 40.0], "steps": 1 }));
+    ok(&mut h, &c, "ui.move", json!({ "x": 12.0, "y": 12.0 }));
+}
+
+#[test]
 fn cover_page_command_needs_two_page_view() {
     // Agents see the cover toggle as disabled, and get an error, until two-page view.
     let (mut h, c) = harness();
