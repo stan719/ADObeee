@@ -961,6 +961,42 @@ pub fn tools() -> Vec<ToolDef> {
                 "anchor_generation": { "type": "integer", "minimum": 0, "maximum": 65535 },
                 "placement": { "type": "string", "enum": ["before", "after"] },
             }), &["doc", "object", "generation", "anchor", "anchor_generation", "placement"])),
+        t("read_aloud", "Read out loud", "Read PDF content out loud using platform text-to-speech. Action can be 'page' (read current or specified page), 'document' (read to end of document), 'pause', 'resume', 'stop', 'toggle' (activate or deactivate), or 'speak_text' (speak provided text directly). Returns spoken chunks and playback status.")
+            .ro()
+            .cmd("a11y.read_aloud.page")
+            .with(schema(
+                json!({
+                    "doc": doc(),
+                    "action": { "type": "string", "enum": ["page", "document", "pause", "resume", "stop", "toggle", "speak_text"], "description": "Default 'page'." },
+                    "page": { "type": "integer", "minimum": 1, "description": "1-based page number (default 1)." },
+                    "text": { "type": "string", "description": "Text to speak directly when action is 'speak_text'." },
+                    "voice": { "type": "string", "description": "Voice name or identifier." },
+                    "rate": { "type": "number", "minimum": 0.5, "maximum": 3.0, "description": "Speed multiplier (default 1.0)." },
+                    "pitch": { "type": "number", "minimum": 0.5, "maximum": 2.0, "description": "Pitch multiplier (default 1.0)." },
+                    "volume": { "type": "number", "minimum": 0.0, "maximum": 1.0, "description": "Volume from 0.0 to 1.0 (default 1.0)." }
+                }),
+                &["doc"],
+            )),
+        t("read_aloud_status", "Read out loud status", "Get current speech playback status (idle, speaking, paused), active text, and playback options.")
+            .ro()
+            .cmd("a11y.read_aloud.toggle")
+            .with(schema(json!({ "doc": doc() }), &["doc"])),
+        t("read_aloud_voices", "List text-to-speech voices", "List available text-to-speech voices on the host operating system with language and gender metadata.")
+            .ro()
+            .cmd("a11y.read_aloud.options")
+            .with(schema(json!({}), &[])),
+        t("read_aloud_options", "Read out loud options", "Get or configure speech synthesis options (voice, speed rate, pitch, volume).")
+            .ro()
+            .cmd("a11y.read_aloud.options")
+            .with(schema(
+                json!({
+                    "voice": { "type": "string" },
+                    "rate": { "type": "number", "minimum": 0.5, "maximum": 3.0 },
+                    "pitch": { "type": "number", "minimum": 0.5, "maximum": 2.0 },
+                    "volume": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+                }),
+                &[],
+            )),
         t("form_merge_data", "Merge data files into spreadsheet", "Collect the field values of form data files (FDF, XFDF) or filled-in PDF forms into one CSV file at path: a column per field name, a row per file. Returns the row and column counts.")
             .cmd("form.merge_data")
             .with(schema(json!({ "paths": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "path": { "type": "string" } }), &["paths", "path"])),

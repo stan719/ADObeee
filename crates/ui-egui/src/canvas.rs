@@ -2746,6 +2746,19 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             view.signature_drag.prepare(ui.ctx(), doc, preview_target, scale);
             view.signature_drag.paint(painter, &pcx, &view.comments, view.pending_edit.as_ref());
 
+            // Read Out Loud: highlight the chunk / text box currently being spoken
+            if app.read_aloud.is_active() && app.read_aloud.current_page == i {
+                if let Some(chunk) = app.read_aloud.current_chunk() {
+                    if let Some(rect) = chunk.rect {
+                        let fill = Color32::from_rgba_unmultiplied(0x3A, 0x7B, 0xF0, 45);
+                        let stroke = Stroke::new(1.5, Color32::from_rgba_unmultiplied(0x3A, 0x7B, 0xF0, 160));
+                        let srect = xf.user_rect(info, i, [rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32]);
+                        painter.rect_filled(srect.expand(3.0), CornerRadius::same(3), fill);
+                        painter.rect_stroke(srect.expand(3.0), CornerRadius::same(3), stroke, egui::StrokeKind::Outside);
+                    }
+                }
+            }
+
             // Text layer: find matches, selection, I-beam and drag-to-select.
             let to_screen = |g: [f32; 4]| xf.view_rect(g);
             if let Some(text) = view.texts.get(&i).cloned() {

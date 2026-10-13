@@ -401,6 +401,50 @@ impl PdfCraftApp {
             "a11y.alt_text" => self.start_alt_text(),
             "a11y.tags" => self.choose_right_panel(Some(RightPanel::Tags)),
             "a11y.reading_options" => self.dialog = Some(Dialog::Properties(crate::PropsTab::Advanced)),
+            "a11y.read_aloud.toggle" => {
+                if self.read_aloud.is_active() {
+                    self.read_aloud.deactivate();
+                    self.notify_tr("Read Out Loud deactivated");
+                } else {
+                    self.read_aloud.activate();
+                    if let Some(i) = self.active {
+                        if let Some(doc) = self.session.get(self.views[i].id) {
+                            let page = self.views[i].current;
+                            self.read_aloud.start_document(doc, page);
+                        }
+                    }
+                    self.notify_tr("Read Out Loud activated");
+                }
+            }
+            "a11y.read_aloud.page" => {
+                if let Some(i) = self.active {
+                    if let Some(doc) = self.session.get(self.views[i].id) {
+                        let page = self.views[i].current;
+                        self.read_aloud.start_page(doc, page);
+                    }
+                }
+            }
+            "a11y.read_aloud.document" => {
+                if let Some(i) = self.active {
+                    if let Some(doc) = self.session.get(self.views[i].id) {
+                        let page = self.views[i].current;
+                        self.read_aloud.start_document(doc, page);
+                    }
+                }
+            }
+            "a11y.read_aloud.pause" => {
+                if self.read_aloud.paused {
+                    self.read_aloud.resume();
+                } else if self.read_aloud.speaking {
+                    self.read_aloud.pause();
+                }
+            }
+            "a11y.read_aloud.stop" => {
+                self.read_aloud.stop();
+            }
+            "a11y.read_aloud.options" => {
+                self.dialog = Some(Dialog::ReadAloudOptions);
+            }
             "export.all_images" => self.dialog = Some(Dialog::Export(crate::export_ui::ExportKind::AllImages)),
             "edit.text" => {
                 self.quick_tool = crate::QuickTool::AddText;

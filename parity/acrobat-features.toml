@@ -9053,11 +9053,11 @@ title = "Read out loud (platform TTS)"
 area = "M"
 tier = "P2"
 milestone = "M12"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["a11y.read_aloud.toggle", "a11y.read_aloud.page", "a11y.read_aloud.document", "a11y.read_aloud.pause", "a11y.read_aloud.stop"]
+tools = ["a11y_read_aloud", "a11y_read_aloud_status", "a11y_read_aloud_voices"]
+evidence = ["crates/automation/tests/automation.rs::read_aloud_page_and_document", "crates/automation/tests/automation.rs::read_aloud_playback_controls"]
+notes = "View ▸ Read Out Loud: Activate/Deactivate, Read this page only, Read to end of document, Pause/Resume, Stop; floating playback control bar; cross-platform speech synthesis (Windows SAPI, macOS say, Linux spd-say/espeak)"
 
 [[feature]]
 id = "a11y.read-aloud-options"
@@ -9065,11 +9065,11 @@ title = "Read-aloud voice, pitch and speed"
 area = "M"
 tier = "P2"
 milestone = "M12"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["a11y.read_aloud.options"]
+tools = ["a11y_read_aloud_options", "a11y_read_aloud_voices"]
+evidence = ["crates/automation/tests/automation.rs::read_aloud_options_and_voices"]
+notes = "Reading preferences dialog: voice selection, reading speed (rate), pitch, and volume controls"
 
 [[feature]]
 id = "a11y.replace-page-colors"

@@ -5630,6 +5630,92 @@ fn private_crops_with_nested_state_resize_save_reopen_through_tools() {
 }
 
 #[test]
+fn read_aloud_page_and_document() {
+    let dir = workdir("read_aloud_page");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+
+    pdfcraft_platform::tts::set_mock(true);
+    pdfcraft_platform::tts::clear_mock_spoken();
+
+    // Read single page
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "page", "page": 1 }));
+    assert_eq!(res["action"], "page");
+    assert_eq!(res["page"], 1);
+    assert_eq!(res["status"], "speaking");
+
+    let spoken = pdfcraft_platform::tts::take_mock_spoken();
+    assert!(!spoken.is_empty());
+    assert!(spoken.iter().any(|s| s.contains("Page 1")));
+
+    // Read to end of document
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "document", "page": 2 }));
+    assert_eq!(res["action"], "document");
+    assert_eq!(res["from_page"], 2);
+    assert_eq!(res["status"], "speaking");
+
+    let spoken = pdfcraft_platform::tts::take_mock_spoken();
+    assert!(!spoken.is_empty());
+    assert!(spoken.iter().any(|s| s.contains("Page 2") || s.contains("Page 3")));
+
+    pdfcraft_platform::tts::set_mock(false);
+}
+
+#[test]
+fn read_aloud_playback_controls() {
+    let dir = workdir("read_aloud_ctrl");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+
+    pdfcraft_platform::tts::set_mock(true);
+    pdfcraft_platform::tts::clear_mock_spoken();
+
+    // Speak custom text
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "speak_text", "text": "Testing playback controls" }));
+    assert_eq!(res["status"], "speaking");
+
+    let st = ok(&mut a, "read_aloud_status", json!({ "doc": doc }));
+    assert_eq!(st["status"], "speaking");
+
+    // Pause
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "pause" }));
+    assert_eq!(res["status"], "paused");
+
+    let st = ok(&mut a, "read_aloud_status", json!({ "doc": doc }));
+    assert_eq!(st["status"], "paused");
+
+    // Resume
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "resume" }));
+    assert_eq!(res["status"], "speaking");
+
+    // Stop
+    let res = ok(&mut a, "read_aloud", json!({ "doc": doc, "action": "stop" }));
+    assert_eq!(res["status"], "idle");
+
+    let st = ok(&mut a, "read_aloud_status", json!({ "doc": doc }));
+    assert_eq!(st["status"], "idle");
+
+    pdfcraft_platform::tts::set_mock(false);
+}
+
+#[test]
+fn read_aloud_options_and_voices() {
+    let dir = workdir("read_aloud_opts");
+    let mut a = auto(&dir);
+
+    pdfcraft_platform::tts::set_mock(true);
+
+    let voices = ok(&mut a, "read_aloud_voices", json!({}));
+    assert!(voices["count"].as_u64().unwrap() >= 1);
+    assert!(!voices["voices"].as_array().unwrap().is_empty());
+
+    let opts = ok(&mut a, "read_aloud_options", json!({ "voice": "custom-voice", "rate": 1.25, "pitch": 1.1, "volume": 0.85 }));
+    assert_eq!(opts["voice"], "custom-voice");
+    assert_eq!(opts["rate"], 1.25);
+    assert_eq!(opts["pitch"], 1.1);
+    assert_eq!(opts["volume"], 0.85);
+
+    pdfcraft_platform::tts::set_mock(false);
 fn absolute_gotor_consent_does_not_bypass_validation_or_passwords() {
     let (base, root) = sandbox("gotor-absolute-consent");
     std::fs::create_dir_all(root.join("folder.pdf")).unwrap();

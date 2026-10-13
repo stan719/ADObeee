@@ -127,5 +127,10 @@ real_name = "Jeremy Yao"
 display_name = "Jeremy Yao"
 sync_github_name = false
 
+[people.Victor476]
+real_name = "Victor Angelo"
+display_name = "Victor Angelo"
+sync_github_name = true
+
 [people.webdevtodayjason]
 display_name = "Jason Brashear"

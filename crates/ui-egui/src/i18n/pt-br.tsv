@@ -2353,6 +2353,30 @@ animation effects	Off	Desativados
 	The linked PDF opened, but its named destination was not applied.	O PDF vinculado foi aberto, mas seu destino nomeado não foi aplicado.
 	The linked PDF opened, but its page destination was out of range.	O PDF vinculado foi aberto, mas sua página de destino está fora do intervalo.
 	Local cross-PDF links require the desktop app	Links locais entre PDFs exigem o aplicativo para desktop
+
+# Read Out Loud
+	Read Out Loud	Ler em voz alta
+	Activate Read Out Loud	Ativar leitura em voz alta
+	Deactivate Read Out Loud	Desativar leitura em voz alta
+	Read this page only	Ler somente esta página
+	Read to end of document	Ler até o final do documento
+	Pause / resume reading	Pausar / retomar leitura
+	Pause reading	Pausar leitura
+	Resume reading	Retomar leitura
+	Stop reading	Parar leitura
+	Reading Preferences	Preferências de leitura
+	Reading preferences…	Preferências de leitura…
+	Reading options…	Opções de leitura…
+	Reading page {page}…	Lendo página {page}…
+	Paused (page {page})	Pausado (página {page})
+	Read Out Loud ready	Leitura em voz alta pronta
+	Voice and Speech	Voz e fala
+	Voice:	Voz:
+	Speed:	Velocidade:
+	Pitch:	Tom:
+	Volume:	Volume:
+	Test voice	Testar voz
+	System default	Padrão do sistema
 	Minimize	Minimizar
 	Maximize	Maximizar
 	Restore	Restaurar

@@ -79,6 +79,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
             Dialog::Print => 820.0,
             Dialog::FieldProps | Dialog::BulkFieldProps => 600.0,
             Dialog::About => 780.0,
+            Dialog::Preferences => 600.0,
             _ => 520.0,
         });
         match dialog {
@@ -919,6 +920,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 let (start, cancel) = crate::a11y_ui::options_body(ui, app, &t);
                 a11y_now = start;
                 close = start || cancel;
+                return;
+            }
+            Dialog::ReadAloudOptions => {
+                ui.set_width(460.0);
+                let (ok, cancel) = crate::a11y_ui::read_aloud_options_body(ui, app, &t);
+                close = ok || cancel;
                 return;
             }
             Dialog::Export(kind) => {

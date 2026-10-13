@@ -336,6 +336,8 @@ pub enum Dialog {
     AuditSpace,
     /// Signatures ▸ Show certificate.
     CertificateViewer,
+    /// View ▸ Read Out Loud ▸ Reading options…
+    ReadAloudOptions,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -634,6 +636,8 @@ pub struct PdfCraftApp {
     pub sig_expanded: Vec<String>,
     /// Accessibility Checker: options, the last check, and rules skipped by hand.
     pub a11y_options: a11y_ui::A11yOptions,
+    /// View ▸ Read Out Loud: playback state and speech controller.
+    pub read_aloud: a11y_ui::ReadAloudController,
     /// Scan & OCR: the Recognize Text choices, the running job, and (tests) run it inline.
     pub ocr_draft: ocr_ui::OcrDraft,
     pub ocr_run: Option<ocr_ui::OcrRun>,
@@ -953,6 +957,7 @@ impl PdfCraftApp {
             digital_ids: Vec::new(),
             sig_expanded: Vec::new(),
             a11y_options: a11y_ui::A11yOptions::default(),
+            read_aloud: a11y_ui::ReadAloudController::default(),
             ocr_draft: ocr_ui::OcrDraft::default(),
             ocr_run: None,
             ocr_batch: None,
@@ -2939,6 +2944,7 @@ impl eframe::App for PdfCraftApp {
             // Notices too: a refused field value or a failed save must be seen in full screen.
             self.show_progress(&ctx);
             widgets::toast(self, &ctx);
+            crate::a11y_ui::read_aloud_floating_bar(self, &ctx);
             self.finish_render_frame(&ctx);
             return;
         }
@@ -2979,6 +2985,7 @@ impl eframe::App for PdfCraftApp {
         dialogs::show(self, &ctx);
         self.show_progress(&ctx);
         widgets::toast(self, &ctx);
+        crate::a11y_ui::read_aloud_floating_bar(self, &ctx);
         self.finish_render_frame(&ctx);
     }
 }

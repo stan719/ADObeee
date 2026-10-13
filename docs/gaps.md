@@ -44,7 +44,7 @@ update the numbers.
 | 17 | Certificate security and other protect gaps | feature, spec | 15–30 | [pdf-spec-parity.md](pdf-spec-parity.md) |
 | 18 | Print production tools absent | feature | 25–45 | [target-app-parity.md](target-app-parity.md) |
 | 19 | Preferences mostly missing | UI/UX | 15–25 | [ui-parity.md](ui-parity.md) |
-| 20 | Scanners, GPU page rendering, pen pressure, Read Out Loud | hardware | 25–50 | [hardware-parity.md](hardware-parity.md) |
+| 20 | Scanners, GPU page rendering, pen pressure | hardware | 20–45 | [hardware-parity.md](hardware-parity.md) |
 | 21 | Compare: no side-by-side view or filters | feature | 10–20 | [target-app-parity.md](target-app-parity.md) |
 | 22 | PDF 2.0 extras, linearization, Arlington validation | spec | 20–35 | [pdf-spec-parity.md](pdf-spec-parity.md) |
 | 23 | Local AI provider (summarize, ask, alt text, redaction suggestions) | AI | 20–40 | [target-app-parity.md](target-app-parity.md) |
@@ -286,11 +286,11 @@ update the numbers.
   Documents and view, Identity, Fill & Sign, JavaScript.
 - **Estimate:** 15–25 h. **Doc:** [ui-parity.md](ui-parity.md).
 
-### 20. Scanners, GPU page rendering, pen pressure, Read Out Loud
+### 20. Scanners, GPU page rendering, pen pressure
 
 - **Missing:** TWAIN/WIA/ICA/SANE scanning; GPU-accelerated page rendering (pages are rasterized on
-  the CPU and uploaded); pressure-sensitive ink; platform text-to-speech.
-- **Estimate:** 25–50 h; scanners need hardware. **Doc:** [hardware-parity.md](hardware-parity.md).
+  the CPU and uploaded); pressure-sensitive ink. (Read Out Loud / TTS shipped with platform speech backends).
+- **Estimate:** 20–45 h; scanners need hardware. **Doc:** [hardware-parity.md](hardware-parity.md).
 
 ### 21. Compare: no side-by-side view or filters
 

@@ -263,47 +263,50 @@ fn reading_mode_label(mode: &str) -> &'static str {
 /// Preferences: interface language and size, appearance, identity and JavaScript. Returns `true` to close.
 pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool {
     ui.label(egui::RichText::new(tl!("Preferences")).font(theme::semibold(18.0)));
-    ui.horizontal(|ui| {
-        ui.label(tl!("Interface language"));
-        let selected = crate::i18n::Lang::from_code(&app.language).map_or(tl!("Auto"), crate::i18n::Lang::name);
-        let before = app.language.clone();
-        egui::ComboBox::from_id_salt("interface-language").selected_text(selected).show_ui(ui, |ui| {
-            if ui.selectable_value(&mut app.language, crate::i18n::AUTO.to_string(), tl!("Auto")).clicked() {
-                ui.close();
-            }
-            for language in crate::i18n::Lang::all() {
-                if ui.selectable_value(&mut app.language, language.code().to_string(), language.name()).clicked() {
+    ui.add_space(8.0);
+    let max_h = (ui.ctx().content_rect().height() * 0.75).clamp(280.0, 520.0);
+    egui::ScrollArea::vertical().max_height(max_h).auto_shrink([false, false]).show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(tl!("Interface language"));
+            let selected = crate::i18n::Lang::from_code(&app.language).map_or(tl!("Auto"), crate::i18n::Lang::name);
+            let before = app.language.clone();
+            egui::ComboBox::from_id_salt("interface-language").selected_text(selected).show_ui(ui, |ui| {
+                if ui.selectable_value(&mut app.language, crate::i18n::AUTO.to_string(), tl!("Auto")).clicked() {
                     ui.close();
                 }
+                for language in crate::i18n::Lang::all() {
+                    if ui.selectable_value(&mut app.language, language.code().to_string(), language.name()).clicked() {
+                        ui.close();
+                    }
+                }
+            });
+            // Relabel the rest of this dialog in the new language right away, not next frame.
+            if app.language != before {
+                crate::i18n::set_current(crate::i18n::Lang::from_pref(&app.language));
             }
         });
-        // Relabel the rest of this dialog in the new language right away, not next frame.
-        if app.language != before {
-            crate::i18n::set_current(crate::i18n::Lang::from_pref(&app.language));
-        }
-    });
-    ui.horizontal(|ui| {
-        use crate::ui_scale;
-        ui.label(tl!("Interface size"));
-        // Auto shows the size it draws at: the display's scale times the system's text scale.
-        let native = ui.ctx().native_pixels_per_point().unwrap_or(1.0);
-        let auto_percent = ui_scale::percent(ui_scale::drawn(None, app.system_text_scale, native));
-        let auto = crate::i18n::fmt(tl!("Auto ({percent}%)"), &[("percent", &auto_percent.to_string())]);
-        let selected = app.ui_scale.map_or_else(|| auto.clone(), |f| format!("{}%", ui_scale::percent(f)));
-        egui::ComboBox::from_id_salt("interface-size").selected_text(selected).show_ui(ui, |ui| {
-            if ui.selectable_value(&mut app.ui_scale, None, auto).clicked() {
-                ui.close();
-            }
-            for p in ui_scale::PRESETS {
-                let factor = f32::from(p) / 100.0;
-                if ui.selectable_label(app.ui_scale.is_some_and(|f| ui_scale::percent(f) == u32::from(p)), format!("{p}%")).clicked() {
-                    app.ui_scale = Some(factor);
+        ui.horizontal(|ui| {
+            use crate::ui_scale;
+            ui.label(tl!("Interface size"));
+            // Auto shows the size it draws at: the display's scale times the system's text scale.
+            let native = ui.ctx().native_pixels_per_point().unwrap_or(1.0);
+            let auto_percent = ui_scale::percent(ui_scale::drawn(None, app.system_text_scale, native));
+            let auto = crate::i18n::fmt(tl!("Auto ({percent}%)"), &[("percent", &auto_percent.to_string())]);
+            let selected = app.ui_scale.map_or_else(|| auto.clone(), |f| format!("{}%", ui_scale::percent(f)));
+            egui::ComboBox::from_id_salt("interface-size").selected_text(selected).show_ui(ui, |ui| {
+                if ui.selectable_value(&mut app.ui_scale, None, auto).clicked() {
                     ui.close();
                 }
-            }
+                for p in ui_scale::PRESETS {
+                    let factor = f32::from(p) / 100.0;
+                    if ui.selectable_label(app.ui_scale.is_some_and(|f| ui_scale::percent(f) == u32::from(p)), format!("{p}%")).clicked() {
+                        app.ui_scale = Some(factor);
+                        ui.close();
+                    }
+                }
+            });
         });
-    });
-    ui.label(
+        ui.label(
         egui::RichText::new(tl!("Auto follows the system's text size. Pages always render at the display's full resolution."))
             .small()
             .color(t.text_muted),
@@ -488,6 +491,7 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
                 .small()
                 .color(t.text_muted),
         );
+    });
     });
     ui.add_space(10.0);
     buttons(ui, tl!("OK"), &[]).is_some()

@@ -5,3 +5,6 @@
 
 pub mod desktop_theme;
 pub mod staging;
+pub mod tts;
+
+pub use tts::{SpeechOptions, SpeechStatus, TtsError, Voice};

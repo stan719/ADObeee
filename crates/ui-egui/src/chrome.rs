@@ -276,6 +276,43 @@ fn appearance_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     }
 }
 
+/// Acrobat-style Read Out Loud submenu in the View menu.
+fn read_out_loud_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    let ctx = ui.ctx().clone();
+    let key = |cmd| crate::commands::command_shortcut_label(&ctx, cmd);
+    let active = app.read_aloud.is_active();
+    let toggle_label = if active { tl!("Deactivate Read Out Loud") } else { tl!("Activate Read Out Loud") };
+    if widgets::menu_item(ui, toggle_label, &key("a11y.read_aloud.toggle")).clicked() {
+        app.execute("a11y.read_aloud.toggle");
+        ui.close();
+    }
+    ui.separator();
+    ui.add_enabled_ui(active && app.active.is_some(), |ui| {
+        if widgets::menu_item(ui, tl!("Read this page only"), &key("a11y.read_aloud.page")).clicked() {
+            app.execute("a11y.read_aloud.page");
+            ui.close();
+        }
+        if widgets::menu_item(ui, tl!("Read to end of document"), &key("a11y.read_aloud.document")).clicked() {
+            app.execute("a11y.read_aloud.document");
+            ui.close();
+        }
+        let pause_label = if app.read_aloud.paused { tl!("Resume reading") } else { tl!("Pause reading") };
+        if widgets::menu_item(ui, pause_label, &key("a11y.read_aloud.pause")).clicked() {
+            app.execute("a11y.read_aloud.pause");
+            ui.close();
+        }
+        if widgets::menu_item(ui, tl!("Stop reading"), &key("a11y.read_aloud.stop")).clicked() {
+            app.execute("a11y.read_aloud.stop");
+            ui.close();
+        }
+    });
+    ui.separator();
+    if ui.button(tl!("Reading preferences…")).clicked() {
+        app.execute("a11y.read_aloud.options");
+        ui.close();
+    }
+}
+
 /// A tab's chrome around its name: the icon on the left, the close button on the right.
 const TAB_CHROME: f32 = 64.0;
 /// The narrowest a tab shrinks to before the strip scrolls: room for most of a name.
@@ -435,6 +472,10 @@ pub fn mode_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         if icons::button(ui, "save", 32.0, false, &tip).clicked() {
                             app.run_command("file.save");
                         }
+                        let tip = crate::commands::command_tip(ui.ctx(), tl!("Read Out Loud ({key})"), "a11y.read_aloud.toggle");
+                        if icons::button(ui, "mic", 32.0, app.read_aloud.is_active(), &tip).clicked() {
+                            app.run_command("a11y.read_aloud.toggle");
+                        }
                         let tip = crate::commands::command_tip(ui.ctx(), tl!("Document properties ({key})"), "file.properties");
                         if icons::button(ui, "info", 32.0, false, &tip).clicked() {
                             app.dialog = Some(Dialog::Properties(PropsTab::Description));
@@ -457,6 +498,7 @@ fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
         ui.menu_button(tl!("File"), |ui| crate::commands::registry_menu(app, ui, "File"));
         ui.menu_button(tl!("Edit"), |ui| crate::commands::registry_menu(app, ui, "Edit"));
         ui.menu_button(tl!("Pages"), |ui| crate::commands::registry_menu(app, ui, "Pages"));
+        ui.menu_button(tl!("Read Out Loud"), |ui| read_out_loud_menu(app, ui));
         ui.menu_button(tl!("View"), |ui| {
             if let Some(i) = app.active {
                 let v = &mut app.views[i];
@@ -530,6 +572,7 @@ fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 }
             });
         });
+
         ui.menu_button(tl!("Help"), |ui| crate::commands::registry_menu(app, ui, "Help"));
     });
 }

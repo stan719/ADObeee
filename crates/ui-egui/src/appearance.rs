@@ -5,7 +5,6 @@ use egui::{Rect, RichText, pos2, vec2};
 
 use crate::PdfCraftApp;
 use crate::theme::{self, ThemeKind, ThemePreference, Tokens};
-use crate::widgets;
 
 /// The themes each card offers. One of each today; a new theme is one more row here.
 pub const LIGHT_THEMES: &[(ThemeKind, &str)] = &[(ThemeKind::Light, "Light gray")];
@@ -83,30 +82,40 @@ fn preview(ui: &mut egui::Ui, kind: ThemeKind, width: f32) {
 }
 
 /// One theme card: its title, Active when it is what shows now, a preview of the chosen theme
-/// and a radio row per theme.
-fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(ThemeKind, &str)]) {
-    egui::Frame::new()
+/// and a radio row per theme. Returns true if clicked.
+fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(ThemeKind, &str)]) -> bool {
+    let mut clicked = false;
+    let resp = egui::Frame::new()
         .fill(t.card)
         .stroke(egui::Stroke::new(1.0, if active { t.accent } else { t.border }))
         .corner_radius(6.0)
         .inner_margin(egui::Margin::same(8))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            let header = ui.horizontal(|ui| {
                 ui.label(RichText::new(title).font(theme::semibold(12.5)).color(t.text));
                 if active {
                     ui.label(RichText::new(tl!("Active")).color(t.accent_text).small());
                 }
             });
+            if header.response.interact(egui::Sense::click()).clicked() {
+                clicked = true;
+            }
             ui.add_space(4.0);
             let shown = themes.first().map_or(ThemeKind::Light, |(kind, _)| *kind);
             preview(ui, shown, ui.available_width());
             ui.add_space(4.0);
-            for (kind, label) in themes {
-                // One theme per card today, so it is always the chosen one.
-                let _ = ui.add(widgets::radio(*kind == shown, tl!(label)));
+            for (_kind, label) in themes {
+                // Radio button reflects whether this card's theme is active.
+                if ui.radio(active, tl!(label)).clicked() {
+                    clicked = true;
+                }
             }
         });
+    if resp.response.interact(egui::Sense::click()).clicked() {
+        clicked = true;
+    }
+    clicked
 }
 
 /// The Appearance section of Preferences.
@@ -127,8 +136,12 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
     let light_active = app.theme == ThemeKind::Light;
     ui.columns(2, |cols| {
         let [light, dark] = cols else { return };
-        card(light, t, tl!("Light theme"), light_active, LIGHT_THEMES);
-        card(dark, t, tl!("Dark theme"), !light_active, DARK_THEMES);
+        if card(light, t, tl!("Light theme"), light_active, LIGHT_THEMES) {
+            app.execute("view.theme.light");
+        }
+        if card(dark, t, tl!("Dark theme"), !light_active, DARK_THEMES) {
+            app.execute("view.theme.dark");
+        }
     });
 }
 

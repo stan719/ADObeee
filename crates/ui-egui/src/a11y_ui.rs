@@ -640,3 +640,469 @@ impl PdfCraftApp {
         }
     }
 }
+
+/// State and playback controller for Acrobat-style Read Out Loud.
+#[derive(Clone, Debug, Default)]
+pub struct ReadAloudController {
+    pub active: bool,
+    pub speaking: bool,
+    pub paused: bool,
+    pub doc_id: Option<DocId>,
+    pub current_page: usize,
+    pub chunk_index: usize,
+    pub chunks: Vec<pdfcraft_engine::ReadAloudChunk>,
+    pub options: pdfcraft_platform::SpeechOptions,
+    pub to_end: bool,
+    pub chunk_started_at: Option<std::time::Instant>,
+    pub paused_word_idx: usize,
+    pub resume_word_offset: usize,
+}
+
+impl ReadAloudController {
+    pub fn activate(&mut self) {
+        self.active = true;
+    }
+
+    pub fn deactivate(&mut self) {
+        self.active = false;
+        self.speaking = false;
+        self.paused = false;
+        self.chunks.clear();
+        self.chunk_index = 0;
+        self.paused_word_idx = 0;
+        self.resume_word_offset = 0;
+        let _ = pdfcraft_platform::tts::stop();
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    pub fn current_chunk(&self) -> Option<&pdfcraft_engine::ReadAloudChunk> {
+        if self.speaking || self.paused { self.chunks.get(self.chunk_index) } else { None }
+    }
+
+    pub fn play_current_chunk(&mut self) {
+        if let Some(chunk) = self.chunks.get(self.chunk_index) {
+            self.speaking = true;
+            self.paused = false;
+            self.resume_word_offset = 0;
+            self.chunk_started_at = Some(std::time::Instant::now());
+            let _ = pdfcraft_platform::tts::speak(&chunk.text, &self.options);
+        } else {
+            self.speaking = false;
+        }
+    }
+
+    pub fn start_page(&mut self, doc: &pdfcraft_engine::Document, page: usize) {
+        self.active = true;
+        self.paused = false;
+        self.to_end = false;
+        self.doc_id = Some(doc.id);
+        self.current_page = page;
+        self.chunks = doc.read_aloud_page(page);
+        self.chunk_index = 0;
+        self.paused_word_idx = 0;
+        self.resume_word_offset = 0;
+        self.play_current_chunk();
+    }
+
+    pub fn start_document(&mut self, doc: &pdfcraft_engine::Document, from_page: usize) {
+        self.active = true;
+        self.paused = false;
+        self.to_end = true;
+        self.doc_id = Some(doc.id);
+        self.current_page = from_page;
+        self.chunks = doc.read_aloud_page(from_page);
+        self.chunk_index = 0;
+        self.paused_word_idx = 0;
+        self.resume_word_offset = 0;
+        self.play_current_chunk();
+    }
+
+    pub fn pause(&mut self) {
+        if self.speaking {
+            if let Some(chunk) = self.chunks.get(self.chunk_index) {
+                let words: Vec<&str> = chunk.text.split_whitespace().collect();
+                let chars_per_sec = 13.5 * self.options.rate.clamp(0.4, 3.0);
+                let elapsed = self.chunk_started_at.map(|t| t.elapsed().as_secs_f32()).unwrap_or(0.0);
+                let target_chars = (elapsed * chars_per_sec) as usize;
+                let mut cumulative = 0;
+                let mut idx = 0;
+                let words_subset = if self.resume_word_offset < words.len() { &words[self.resume_word_offset..] } else { &[] };
+                for (i, w) in words_subset.iter().enumerate() {
+                    idx = i;
+                    cumulative += w.chars().count() + 1;
+                    if cumulative > target_chars {
+                        break;
+                    }
+                }
+                self.paused_word_idx = (self.resume_word_offset + idx).min(words.len().saturating_sub(1));
+            }
+            self.paused = true;
+            self.speaking = false;
+            let _ = pdfcraft_platform::tts::stop();
+        }
+    }
+
+    pub fn resume(&mut self) {
+        if self.paused {
+            if let Some(chunk) = self.chunks.get(self.chunk_index) {
+                let words: Vec<&str> = chunk.text.split_whitespace().collect();
+                if self.paused_word_idx < words.len() {
+                    let remaining = words[self.paused_word_idx..].join(" ");
+                    if !remaining.trim().is_empty() {
+                        self.speaking = true;
+                        self.paused = false;
+                        self.resume_word_offset = self.paused_word_idx;
+                        self.chunk_started_at = Some(std::time::Instant::now());
+                        let _ = pdfcraft_platform::tts::speak(&remaining, &self.options);
+                        return;
+                    }
+                }
+            }
+            self.play_current_chunk();
+        }
+    }
+
+    pub fn toggle_pause(&mut self) {
+        if self.speaking {
+            self.pause();
+        } else if self.paused {
+            self.resume();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        self.speaking = false;
+        self.paused = false;
+        self.chunks.clear();
+        self.chunk_index = 0;
+        self.paused_word_idx = 0;
+        self.resume_word_offset = 0;
+        let _ = pdfcraft_platform::tts::stop();
+    }
+}
+
+/// Floating playback control bar shown when Read Out Loud is active.
+pub fn read_aloud_floating_bar(app: &mut PdfCraftApp, ctx: &egui::Context) {
+    if !app.read_aloud.active {
+        return;
+    }
+
+    // Advance chunk or page when speech finishes
+    if app.read_aloud.speaking {
+        ctx.request_repaint_after(std::time::Duration::from_millis(30));
+        let status = pdfcraft_platform::tts::status();
+        if status == pdfcraft_platform::SpeechStatus::Idle {
+            if app.read_aloud.chunk_index + 1 < app.read_aloud.chunks.len() {
+                app.read_aloud.chunk_index += 1;
+                app.read_aloud.paused_word_idx = 0;
+                app.read_aloud.resume_word_offset = 0;
+                app.read_aloud.play_current_chunk();
+            } else if app.read_aloud.to_end {
+                let total_pages = app.active.and_then(|i| app.session.get(app.views[i].id)).map_or(0, |d| d.info.pages.len());
+                let next_page = app.read_aloud.current_page + 1;
+                if next_page < total_pages {
+                    if let Some(i) = app.active {
+                        app.views[i].current = next_page;
+                        app.views[i].goto = Some((next_page, 0.0));
+                        if let Some(doc) = app.session.get(app.views[i].id) {
+                            app.read_aloud.current_page = next_page;
+                            app.read_aloud.chunks = doc.read_aloud_page(next_page);
+                            app.read_aloud.chunk_index = 0;
+                            app.read_aloud.paused_word_idx = 0;
+                            app.read_aloud.resume_word_offset = 0;
+                            app.read_aloud.play_current_chunk();
+                        }
+                    }
+                } else {
+                    app.read_aloud.speaking = false;
+                    app.read_aloud.chunks.clear();
+                }
+            } else {
+                app.read_aloud.speaking = false;
+            }
+        }
+    } else if !app.read_aloud.paused {
+        if let Some(i) = app.active {
+            app.read_aloud.current_page = app.views[i].current;
+        }
+    }
+    let t = Tokens::get(ctx);
+    let screen = ctx.content_rect();
+    egui::Area::new(egui::Id::new("read_aloud_floating_player"))
+        .order(egui::Order::Foreground)
+        .pivot(egui::Align2::CENTER_BOTTOM)
+        .fixed_pos(screen.center_bottom() - egui::vec2(0.0, 24.0))
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .fill(t.card)
+                .stroke(egui::Stroke::new(1.0, t.border))
+                .corner_radius(egui::CornerRadius::same(16))
+                .shadow(egui::epaint::Shadow { offset: [0, 4], blur: 16, spread: 0, color: egui::Color32::from_black_alpha(60) })
+                .inner_margin(egui::Margin::symmetric(14, 8))
+                .show(ui, |ui| {
+                    let vdivider = |ui: &mut egui::Ui| {
+                        ui.add_space(2.0);
+                        let (rect, _) = ui.allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover());
+                        ui.painter().vline(rect.center().x, rect.y_range(), egui::Stroke::new(1.0, t.divider));
+                        ui.add_space(2.0);
+                    };
+
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 6.0;
+                            ui.add(icons::image("mic", 18.0, t.accent));
+                            let page_display = app.read_aloud.current_page + 1;
+                            let label_text = if app.read_aloud.speaking {
+                                crate::i18n::fmt(tl!("Reading page {page}…"), &[("page", &page_display.to_string())])
+                            } else if app.read_aloud.paused {
+                                crate::i18n::fmt(tl!("Paused (page {page})"), &[("page", &page_display.to_string())])
+                            } else {
+                                tl!("Read Out Loud ready").to_string()
+                            };
+                            ui.label(egui::RichText::new(label_text).font(theme::semibold(12.5)));
+
+                            vdivider(ui);
+
+                            if app.read_aloud.speaking {
+                                if icons::button(ui, "circle-dot", 24.0, false, tl!("Pause")).clicked() {
+                                    app.execute("a11y.read_aloud.pause");
+                                }
+                            } else if app.read_aloud.paused {
+                                if icons::button(ui, "book-open", 24.0, false, tl!("Resume")).clicked() {
+                                    app.execute("a11y.read_aloud.pause");
+                                }
+                            } else {
+                                if icons::button(ui, "file-text", 24.0, false, tl!("Read this page only")).clicked() {
+                                    app.execute("a11y.read_aloud.page");
+                                }
+                                if icons::button(ui, "book-open", 24.0, false, tl!("Read to end of document")).clicked() {
+                                    app.execute("a11y.read_aloud.document");
+                                }
+                            }
+
+                            let total_pages = app.active.and_then(|i| app.session.get(app.views[i].id)).map_or(0, |d| d.info.pages.len());
+                            let has_prev = app.read_aloud.current_page > 0;
+                            let has_next = app.read_aloud.current_page + 1 < total_pages;
+
+                            if icons::button(ui, "chevron-left", 24.0, false, tl!("Previous page")).clicked() && has_prev {
+                                let prev = app.read_aloud.current_page - 1;
+                                if let Some(i) = app.active {
+                                    app.views[i].current = prev;
+                                    app.views[i].goto = Some((prev, 0.0));
+                                    app.read_aloud.current_page = prev;
+                                    if app.read_aloud.speaking {
+                                        if let Some(doc) = app.session.get(app.views[i].id) {
+                                            app.read_aloud.start_page(doc, prev);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if icons::button(ui, "chevron-right", 24.0, false, tl!("Next page")).clicked() && has_next {
+                                let next = app.read_aloud.current_page + 1;
+                                if let Some(i) = app.active {
+                                    app.views[i].current = next;
+                                    app.views[i].goto = Some((next, 0.0));
+                                    app.read_aloud.current_page = next;
+                                    if app.read_aloud.speaking {
+                                        if let Some(doc) = app.session.get(app.views[i].id) {
+                                            app.read_aloud.start_page(doc, next);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if icons::button(ui, "square", 24.0, false, tl!("Stop")).clicked() {
+                                app.execute("a11y.read_aloud.stop");
+                            }
+
+                            vdivider(ui);
+
+                            let voices = pdfcraft_platform::tts::list_voices();
+                            let current_voice = app.read_aloud.options.voice.as_deref().unwrap_or(tl!("System default"));
+                            egui::ComboBox::from_id_salt("read_aloud_bar_voice").selected_text(current_voice).width(160.0).show_ui(ui, |ui| {
+                                if ui.selectable_label(app.read_aloud.options.voice.is_none(), tl!("System default")).clicked() {
+                                    app.read_aloud.options.voice = None;
+                                }
+                                for v in &voices {
+                                    let selected = app.read_aloud.options.voice.as_deref() == Some(&v.name)
+                                        || app.read_aloud.options.voice.as_deref() == Some(&v.id);
+                                    let label = if let Some(gender) = &v.gender {
+                                        format!("{} ({}, {})", v.name, v.language, gender)
+                                    } else {
+                                        format!("{} ({})", v.name, v.language)
+                                    };
+                                    if ui.selectable_label(selected, label).clicked() {
+                                        app.read_aloud.options.voice = Some(v.name.clone());
+                                    }
+                                }
+                            });
+
+                            if icons::button(ui, "sliders-horizontal", 24.0, false, tl!("Reading options…")).clicked() {
+                                app.execute("a11y.read_aloud.options");
+                            }
+
+                            if icons::button(ui, "x", 24.0, false, tl!("Deactivate Read Out Loud")).clicked() {
+                                app.execute("a11y.read_aloud.toggle");
+                            }
+                        });
+
+                        // Active sentence with real-time word highlighting (single compact line sliding window)
+                        if let Some(chunk) = app.read_aloud.current_chunk() {
+                            ui.add_space(3.0);
+                            egui::Frame::new()
+                                .fill(t.hover)
+                                .corner_radius(egui::CornerRadius::same(6))
+                                .inner_margin(egui::Margin::symmetric(10, 4))
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.spacing_mut().item_spacing.x = 4.0;
+                                        let words: Vec<&str> = chunk.text.split_whitespace().collect();
+                                        if words.is_empty() {
+                                            return;
+                                        }
+                                        let elapsed = app.read_aloud.chunk_started_at.map(|t| t.elapsed().as_secs_f32()).unwrap_or(0.0);
+                                        let active_idx = if app.read_aloud.speaking {
+                                            // Speech rate in characters per second (~13.5 chars/sec for natural Portuguese/English speech at 1.0x rate)
+                                            let chars_per_sec = 13.5 * app.read_aloud.options.rate.clamp(0.4, 3.0);
+                                            let target_chars = (elapsed * chars_per_sec) as usize;
+                                            let mut cumulative = 0;
+                                            let mut idx = 0;
+                                            let words_subset = if app.read_aloud.resume_word_offset < words.len() {
+                                                &words[app.read_aloud.resume_word_offset..]
+                                            } else {
+                                                &[]
+                                            };
+                                            for (i, w) in words_subset.iter().enumerate() {
+                                                idx = i;
+                                                cumulative += w.chars().count() + 1;
+                                                if cumulative > target_chars {
+                                                    break;
+                                                }
+                                            }
+                                            (app.read_aloud.resume_word_offset + idx).min(words.len().saturating_sub(1))
+                                        } else {
+                                            app.read_aloud.paused_word_idx.min(words.len().saturating_sub(1))
+                                        };
+
+                                        let window_radius = 3;
+                                        let start_idx = active_idx.saturating_sub(window_radius);
+                                        let end_idx = (active_idx + window_radius + 1).min(words.len());
+
+                                        if start_idx > 0 {
+                                            ui.label(egui::RichText::new("…").font(theme::regular(12.0)).color(t.text_faint));
+                                        }
+
+                                        for w_i in start_idx..end_idx {
+                                            if let Some(&w) = words.get(w_i) {
+                                                if w_i == active_idx && app.read_aloud.speaking {
+                                                    ui.label(
+                                                        egui::RichText::new(w)
+                                                            .font(theme::semibold(12.5))
+                                                            .color(t.accent_text)
+                                                            .background_color(t.accent),
+                                                    );
+                                                } else if w_i == active_idx && app.read_aloud.paused {
+                                                    ui.label(egui::RichText::new(w).font(theme::semibold(12.5)).color(t.accent).underline());
+                                                } else if w_i < active_idx {
+                                                    ui.label(egui::RichText::new(w).font(theme::regular(12.0)).color(t.text));
+                                                } else {
+                                                    ui.label(egui::RichText::new(w).font(theme::regular(12.0)).color(t.text_faint));
+                                                }
+                                            }
+                                        }
+
+                                        if end_idx < words.len() {
+                                            ui.label(egui::RichText::new("…").font(theme::regular(12.0)).color(t.text_faint));
+                                        }
+                                    });
+                                });
+                        }
+                    });
+                });
+        });
+}
+
+/// Reading options dialog body: voice, speed, pitch, volume.
+pub fn read_aloud_options_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (bool, bool) {
+    ui.label(egui::RichText::new(tl!("Reading Preferences")).font(theme::semibold(18.0)));
+    ui.add_space(8.0);
+
+    let voices = pdfcraft_platform::tts::list_voices();
+    let opts = &mut app.read_aloud.options;
+
+    let group = |ui: &mut egui::Ui, title: &str, body: &mut dyn FnMut(&mut egui::Ui)| {
+        ui.label(egui::RichText::new(tl!(title)).font(theme::semibold(13.0)));
+        egui::Frame::new().fill(t.hover).corner_radius(egui::CornerRadius::same(6)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            body(ui);
+        });
+        ui.add_space(8.0);
+    };
+
+    group(ui, "Voice and Speech", &mut |ui| {
+        ui.horizontal(|ui| {
+            ui.label(tl!("Voice:"));
+            let current_name = opts.voice.as_deref().unwrap_or(tl!("System default"));
+            egui::ComboBox::from_id_salt("read_aloud_voice").selected_text(current_name).width(280.0).show_ui(ui, |ui| {
+                if ui.selectable_label(opts.voice.is_none(), tl!("System default")).clicked() {
+                    opts.voice = None;
+                }
+                for v in &voices {
+                    let selected = opts.voice.as_deref() == Some(&v.name) || opts.voice.as_deref() == Some(&v.id);
+                    let label = if let Some(gender) = &v.gender {
+                        format!("{} ({}, {})", v.name, v.language, gender)
+                    } else {
+                        format!("{} ({})", v.name, v.language)
+                    };
+                    if ui.selectable_label(selected, label).clicked() {
+                        opts.voice = Some(v.name.clone());
+                    }
+                }
+            });
+        });
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.label(tl!("Speed:"));
+            ui.add(egui::Slider::new(&mut opts.rate, 0.5..=2.5).step_by(0.1).text("x"));
+        });
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.label(tl!("Pitch:"));
+            ui.add(egui::Slider::new(&mut opts.pitch, 0.5..=1.5).step_by(0.05));
+        });
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.label(tl!("Volume:"));
+            let mut vol_pct = (opts.volume * 100.0).round();
+            if ui.add(egui::Slider::new(&mut vol_pct, 0.0..=100.0).step_by(5.0).text("%")).changed() {
+                opts.volume = (vol_pct / 100.0) as f32;
+            }
+        });
+    });
+
+    let (mut ok, mut cancel) = (false, false);
+    ui.horizontal(|ui| {
+        if ui.button(tl!("Test voice")).clicked() {
+            let test_phrase = if opts.voice.as_deref().is_some_and(|v| v.contains("Maria") || v.contains("Portuguese") || v.contains("Brasil")) {
+                "Teste de voz do PdfCraft."
+            } else {
+                "PdfCraft reading test."
+            };
+            let _ = pdfcraft_platform::tts::speak(test_phrase, opts);
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if widgets::pill_button(ui, tl!("OK"), true).clicked() {
+                ok = true;
+            }
+            if widgets::pill_button(ui, tl!("Cancel"), false).clicked() {
+                cancel = true;
+            }
+        });
+    });
+
+    (ok, cancel)
+}

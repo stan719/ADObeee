@@ -756,6 +756,10 @@ impl Automation {
             "accessibility_tags" => self.accessibility_tags(&a)?,
             "accessibility_set_tag_property" => self.accessibility_set_tag_property(&a)?,
             "accessibility_move_tag" => self.accessibility_move_tag(&a)?,
+            "read_aloud" => self.read_aloud(&a)?,
+            "read_aloud_status" => self.read_aloud_status(&a)?,
+            "read_aloud_voices" => self.read_aloud_voices(&a)?,
+            "read_aloud_options" => self.read_aloud_options(&a)?,
             "sign_id_create" => self.sign_id_create(&a)?,
             "sign_document" => self.sign_document(&a)?,
             "sign_keychain_ids" => {
