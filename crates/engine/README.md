@@ -71,6 +71,14 @@ triggering validation, so signature status banners appear only after details hav
 timestamps: signed-file rewrite guards do not depend on whether validation has run. Edits and
 trust-store changes invalidate cached validation results.
 
+Native frontends may snapshot `Session::open_context()` and call its `prepare_open` on a
+worker. Preparation owns its input and does not register a document or consume an ID. The
+owning thread calls `Session::commit_open` exactly once to register the prepared document.
+The regular `Session::open` composes both steps synchronously, as before, for CLI and MCP
+callers. Preparation reports password errors without registering a partial document. Before
+committing asynchronously, a host checks `OpenContext::is_current` and reprepares if JavaScript
+or certificate-trust preferences changed in the meantime.
+
 ## Modules
 
 | Module | What it holds |

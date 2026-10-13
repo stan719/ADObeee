@@ -23,12 +23,10 @@ impl crate::PdfCraftApp {
                         self.active = Some(index);
                         self.closed_tabs.pop();
                     } else {
-                        let tabs = self.views.len();
-                        self.open_path(&path);
-                        // open_path reports errors through notifications, not a Result.
-                        // Keep the entry until an actual document tab has been opened.
-                        if self.views.len() > tabs {
-                            self.closed_tabs.pop();
+                        let pending = self.pending_opens.iter().any(|p| p.path.as_deref() == Some(path.as_str()))
+                            || self.password_prompt.as_ref().is_some_and(|p| p.path.as_deref() == Some(path.as_str()));
+                        if !pending {
+                            self.open_path_with(&path, true, Some(crate::OpenDestination::Reopened(path.clone())), None);
                         }
                     }
                 }

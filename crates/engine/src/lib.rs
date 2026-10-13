@@ -2688,6 +2688,41 @@ pub struct Session {
     date_language: Option<String>,
 }
 
+/// Immutable session state needed while a document is prepared away from its owning thread.
+#[derive(Clone)]
+pub struct OpenContext {
+    now: Option<i64>,
+    js_off: bool,
+    trust: Arc<TrustStore>,
+}
+
+/// A fully prepared document that has not yet been registered in a session.
+pub struct PreparedDocument {
+    document: Document,
+}
+
+impl OpenContext {
+    /// Whether the session still uses this snapshot's JavaScript and certificate-trust policy.
+    /// Hosts should reprepare an outstanding open when this returns false. Clock time is an
+    /// intentional per-open snapshot and does not make every result stale.
+    pub fn is_current(&self, session: &Session) -> bool {
+        self.js_off == session.js_off && Arc::ptr_eq(&self.trust, &session.trust)
+    }
+
+    /// Prepare a document without mutating the session that supplied this context.
+    pub fn prepare_open(
+        &self,
+        name: impl Into<String>,
+        path: Option<String>,
+        bytes: Arc<Vec<u8>>,
+        password: Option<&str>,
+    ) -> Result<PreparedDocument, OpenError> {
+        let name = name.into();
+        guard(|| Session::prepare_open_unguarded(self, name, path, bytes, password))
+            .unwrap_or_else(|m| Err(OpenError::Invalid(format!("reading it failed unexpectedly ({m})"))))
+    }
+}
+
 /// Lay a dynamic XFA form out (pages and fields) and give its widgets appearances.
 fn xfa_layout(doc: &mut pdfcraft_cos::Document) -> Result<XfaLayout, String> {
     let mut report = pdfcraft_xfa::render_into(doc).map_err(|e| e.to_string())?;
@@ -3008,13 +3043,45 @@ impl Session {
         self.open(name, None, bytes, password.as_deref()).map_err(|e| e.to_string())
     }
 
-    pub fn open(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>, password: Option<&str>) -> Result<DocId, OpenError> {
-        let name = name.into();
-        guard(|| self.open_unguarded(name, path, bytes, password))
-            .unwrap_or_else(|m| Err(OpenError::Invalid(format!("reading it failed unexpectedly ({m})"))))
+    /// Snapshot the session state that affects open-time scripts, dates and signature trust.
+    pub fn open_context(&self) -> OpenContext {
+        OpenContext { now: self.now(), js_off: self.js_off, trust: self.trust.clone() }
     }
 
-    fn open_unguarded(&mut self, name: String, path: Option<String>, bytes: Arc<Vec<u8>>, password: Option<&str>) -> Result<DocId, OpenError> {
+    /// Prepare a document without adding it to this session.
+    pub fn prepare_open(
+        &self,
+        name: impl Into<String>,
+        path: Option<String>,
+        bytes: Arc<Vec<u8>>,
+        password: Option<&str>,
+    ) -> Result<PreparedDocument, OpenError> {
+        self.open_context().prepare_open(name, path, bytes, password)
+    }
+
+    /// Register a prepared document. This is the only open step that mutates the session.
+    pub fn commit_open(&mut self, prepared: PreparedDocument) -> DocId {
+        self.next_id += 1;
+        let id = DocId(self.next_id);
+        let mut document = prepared.document;
+        document.id = id;
+        self.docs.push(document);
+        id
+    }
+
+    /// Synchronous convenience API used by the CLI and automation.
+    pub fn open(&mut self, name: impl Into<String>, path: Option<String>, bytes: Arc<Vec<u8>>, password: Option<&str>) -> Result<DocId, OpenError> {
+        let prepared = self.prepare_open(name, path, bytes, password)?;
+        Ok(self.commit_open(prepared))
+    }
+
+    fn prepare_open_unguarded(
+        context: &OpenContext,
+        name: String,
+        path: Option<String>,
+        bytes: Arc<Vec<u8>>,
+        password: Option<&str>,
+    ) -> Result<PreparedDocument, OpenError> {
         let cos = std::panic::catch_unwind(|| pdfcraft_cos::Document::open_with_password(bytes.clone(), password));
         let inspect_open = |password| match &cos {
             Ok(Ok(source)) => inspect_with_cos(bytes.clone(), password, source),
@@ -3037,7 +3104,7 @@ impl Session {
         // A dynamic XFA form is a shell around an XML template; lay the template out into real
         // pages and fields so the rest of the engine works on it. The original bytes stay: the
         // laid-out form is one appended revision.
-        let opts = SaveOptions { mod_date: self.now().map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };
+        let opts = SaveOptions { mod_date: context.now.map(pdfcraft_cos::pdf_date), ..SaveOptions::default() };
         // Write `work` as one more revision and reopen it: what the document then is.
         let rebase = |work: &pdfcraft_cos::Document| -> Result<(Arc<Vec<u8>>, DocInfo, pdfcraft_cos::Document), String> {
             let new_bytes = write_incremental(work, &opts).map(Arc::new).map_err(|e| e.to_string())?;
@@ -3106,7 +3173,7 @@ impl Session {
             _ => None,
         };
         let (bytes, info, cos) = match (&xfa, cos) {
-            (Some(_), Ok(Ok(cos))) if !self.js_off => match xfa_template.clone() {
+            (Some(_), Ok(Ok(cos))) if !context.js_off => match xfa_template.clone() {
                 Some(tpl) => {
                     let mut work = cos.clone();
                     let pages = info.pages.len();
@@ -3149,24 +3216,22 @@ impl Session {
         };
         // XFA notes survive the document being re-read after edits.
         let xfa_warnings: Vec<String> = if info.xfa.is_some() { info.warnings.clone() } else { Vec::new() };
-        let id = self.push_document(name, path, bytes, info, cos, render_password, password, xfa)?;
-        if let Some(d) = self.docs.iter_mut().find(|d| d.id == id) {
-            // A script that ran away on open turns the form's scripts off for this document.
-            d.xfa_template = if ran_away { None } else { xfa_template };
-            d.js_output.append(script_output);
-            if ran_away {
-                d.xfa_scripts_off = true;
-                d.js_output.errors.push(XFA_SCRIPTS_OFF.into());
-            }
-            note_warnings(&mut d.xfa_warnings, &xfa_warnings);
+        let mut document = Self::build_document(&context.trust, name, path, bytes, info, cos, render_password, password, xfa);
+        // A script that ran away on open turns the form's scripts off for this document.
+        document.xfa_template = if ran_away { None } else { xfa_template };
+        document.js_output.append(script_output);
+        if ran_away {
+            document.xfa_scripts_off = true;
+            document.js_output.errors.push(XFA_SCRIPTS_OFF.into());
         }
-        Ok(id)
+        note_warnings(&mut document.xfa_warnings, &xfa_warnings);
+        Ok(PreparedDocument { document })
     }
 
-    /// The last step of opening: build the document record and register it.
+    /// Build a document record without registering it in a session.
     #[allow(clippy::too_many_arguments)]
-    fn push_document(
-        &mut self,
+    fn build_document(
+        trust: &Arc<TrustStore>,
         name: String,
         path: Option<String>,
         bytes: Arc<Vec<u8>>,
@@ -3175,7 +3240,7 @@ impl Session {
         render_password: Option<String>,
         password: Option<&str>,
         xfa: Option<XfaLayout>,
-    ) -> Result<DocId, OpenError> {
+    ) -> Document {
         let config = RenderConfig { password: render_password.as_deref().map(Arc::from), ..Default::default() };
         let (mut editor, read_only_reason) = match cos {
             Ok(Ok(cos)) => {
@@ -3217,10 +3282,8 @@ impl Session {
             e.cos.note_repair(line);
         }
         let sig_cache = Arc::new(pdfcraft_sign::DigestCache::default());
-        self.next_id += 1;
-        let id = DocId(self.next_id);
-        self.docs.push(Document {
-            id,
+        Document {
+            id: DocId(0),
             name,
             path,
             bytes,
@@ -3237,7 +3300,7 @@ impl Session {
             links: OnceLock::new(),
             validated_signatures: OnceLock::new(),
             signature_presence: OnceLock::new(),
-            trust: self.trust.clone(),
+            trust: trust.clone(),
             sig_cache,
             editor,
             config,
@@ -3248,8 +3311,7 @@ impl Session {
             fonts_stale: false,
             xfa_warnings: Vec::new(),
             edit_notices: Vec::new(),
-        });
-        Ok(id)
+        }
     }
 
     fn doc_mut(&mut self, id: DocId) -> Result<&mut Document, EditError> {

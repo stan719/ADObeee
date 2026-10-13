@@ -358,6 +358,7 @@ fn app_creator<'a>(
                 &[("folder", &w.folder.display().to_string()), ("error", &w.error)],
             );
         }
+        app.enable_background_open(&cc.egui_ctx);
         if create_images {
             if let Err(e) = app.begin_image_import_paths(&files) {
                 app.notify(e);
@@ -370,11 +371,7 @@ fn app_creator<'a>(
                 app.open_path(&f);
             }
         }
-        for (k, v) in options {
-            if let Err(e) = app.set_option(&k, &v) {
-                log::warn!("--{k} {v}: {e}");
-            }
-        }
+        app.set_startup_options(options);
         Ok(Box::new(app))
     })
 }
