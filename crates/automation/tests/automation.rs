@@ -5679,3 +5679,192 @@ fn absolute_gotor_consent_does_not_bypass_validation_or_passwords() {
     assert_eq!(opened["document"]["encrypted"], true);
     assert_eq!(opened["destination_applied"], true);
 }
+
+#[test]
+fn form_submit_posts_current_values_and_skips_no_export_fields() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let dir = workdir("submit-form");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    for (name, y) in [("Full Name", 20), ("Private", 60), ("Optional", 100)] {
+        ok(&mut a, "form_add_field", json!({ "doc": doc, "page": 1, "type": "text", "rect": [20, y, 180, y + 22], "name": name }));
+    }
+    ok(&mut a, "form_set_props", json!({ "doc": doc, "field": "Full Name", "required": true }));
+    ok(&mut a, "form_set_props", json!({ "doc": doc, "field": "Private", "flags": { "no_export": true } }));
+    assert_eq!(ok(&mut a, "form_fields", json!({ "doc": doc }))["fields"][1]["no_export"], true);
+    assert!(matches!(a.call("form_submit", &json!({ "doc": doc, "url": "http://example.org/submit" })), Err(ToolError::InvalidArgs(_))));
+    assert!(
+        matches!(a.call("form_submit", &json!({ "doc": doc, "url": "http://127.0.0.1:1/submit" })), Err(ToolError::Failed(m)) if m.contains("required field"))
+    );
+    ok(&mut a, "form_fill", json!({ "doc": doc, "values": { "Full Name": "Zoë & Co", "Private": "do-not-send" } }));
+
+    let server = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/submit", server.local_addr().unwrap());
+    let worker = std::thread::spawn(move || {
+        let (mut socket, _) = server.accept().unwrap();
+        socket.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+        let mut data = Vec::new();
+        let mut chunk = [0u8; 4096];
+        loop {
+            let n = socket.read(&mut chunk).unwrap();
+            assert!(n > 0);
+            data.extend_from_slice(&chunk[..n]);
+            let Some(end) = data.windows(4).position(|w| w == b"\r\n\r\n") else { continue };
+            let headers = String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();
+            let length: usize = headers.lines().find_map(|line| line.strip_prefix("content-length: ")).unwrap().parse().unwrap();
+            if data.len() >= end + 4 + length {
+                socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                return (headers, data[end + 4..end + 4 + length].to_vec());
+            }
+        }
+    });
+    let result = ok(&mut a, "form_submit", json!({ "doc": doc, "url": url }));
+    assert_eq!(result["status"], 200);
+    assert_eq!(result["values"], 1);
+    let (headers, body) = worker.join().unwrap();
+    assert!(headers.starts_with("post /submit http/1.1"), "{headers}");
+    assert!(headers.contains("content-type: application/x-www-form-urlencoded; charset=utf-8"), "{headers}");
+    assert_eq!(body, b"Full+Name=Zo%C3%AB+%26+Co");
+}
+
+#[test]
+fn form_submit_pdf_posts_unsaved_current_document() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let dir = workdir("submit-pdf");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "form_add_field", json!({ "doc": doc, "page": 1, "type": "text", "rect": [20, 20, 180, 42], "name": "Name" }));
+    ok(&mut a, "form_fill", json!({ "doc": doc, "values": { "Name": "Ada & Co" } }));
+    let before = std::fs::read(dir.join("a.pdf")).unwrap();
+    let server = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/submit", server.local_addr().unwrap());
+    let worker = std::thread::spawn(move || {
+        let (mut socket, _) = server.accept().unwrap();
+        socket.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+        let mut data = Vec::new();
+        let mut chunk = [0u8; 4096];
+        loop {
+            let n = socket.read(&mut chunk).unwrap();
+            assert!(n > 0);
+            data.extend_from_slice(&chunk[..n]);
+            let Some(end) = data.windows(4).position(|w| w == b"\r\n\r\n") else { continue };
+            let headers = String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();
+            let length: usize = headers.lines().find_map(|line| line.strip_prefix("content-length: ")).unwrap().parse().unwrap();
+            if data.len() >= end + 4 + length {
+                socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                return (headers, data[end + 4..end + 4 + length].to_vec());
+            }
+        }
+    });
+    let result = ok(&mut a, "form_submit", json!({ "doc": doc, "url": url, "format": "pdf" }));
+    assert_eq!(result["status"], 200);
+    assert_eq!(result["format"], "pdf");
+    let (headers, body) = worker.join().unwrap();
+    assert!(headers.starts_with("post /submit http/1.1"), "{headers}");
+    assert!(headers.contains("content-type: application/pdf"), "{headers}");
+    assert!(body.starts_with(b"%PDF-"));
+    assert!(body.len() > before.len());
+    assert_eq!(std::fs::read(dir.join("a.pdf")).unwrap(), before, "submitting must not save the source");
+    let submitted = pdfcraft_cos::Document::open(std::sync::Arc::new(body)).unwrap();
+    assert_eq!(pdfcraft_forms::fields(&submitted).iter().find(|f| f.name == "Name").unwrap().value, ["Ada & Co"]);
+}
+
+#[test]
+fn form_submit_fdf_and_xfdf_select_current_exportable_fields() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let dir = workdir("submit-data-formats");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    for (name, y) in [("Name", 20), ("Private", 60), ("Optional", 100), ("Extra", 140)] {
+        ok(&mut a, "form_add_field", json!({ "doc": doc, "page": 1, "type": "text", "rect": [20, y, 180, y + 22], "name": name }));
+    }
+    ok(&mut a, "form_set_props", json!({ "doc": doc, "field": "Private", "flags": { "no_export": true } }));
+    ok(&mut a, "form_fill", json!({ "doc": doc, "values": { "Name": "Ada & Co", "Private": "secret", "Extra": "other" } }));
+    for (format, mime, selection) in [
+        ("html", "application/x-www-form-urlencoded; charset=utf-8", json!({ "fields": ["Extra"], "exclude": true })),
+        ("fdf", "application/vnd.fdf", json!({ "fields": ["Name", "Optional", "Private"], "include_empty": true })),
+        ("xfdf", "application/vnd.adobe.xfdf", json!({ "fields": ["Extra"], "exclude": true })),
+    ] {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/submit", server.local_addr().unwrap());
+        let worker = std::thread::spawn(move || {
+            let (mut socket, _) = server.accept().unwrap();
+            socket.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+            let mut data = Vec::new();
+            let mut chunk = [0u8; 4096];
+            loop {
+                let n = socket.read(&mut chunk).unwrap();
+                assert!(n > 0);
+                data.extend_from_slice(&chunk[..n]);
+                let Some(end) = data.windows(4).position(|w| w == b"\r\n\r\n") else { continue };
+                let headers = String::from_utf8_lossy(&data[..end]).to_ascii_lowercase();
+                let length: usize = headers.lines().find_map(|line| line.strip_prefix("content-length: ")).unwrap().parse().unwrap();
+                if data.len() >= end + 4 + length {
+                    socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                    return (headers, data[end + 4..end + 4 + length].to_vec());
+                }
+            }
+        });
+        let mut args = json!({ "doc": doc, "url": url, "format": format });
+        args.as_object_mut().unwrap().extend(selection.as_object().unwrap().clone());
+        let result = ok(&mut a, "form_submit", args);
+        assert_eq!(result["status"], 200);
+        assert_eq!(result["format"], format);
+        let (headers, body) = worker.join().unwrap();
+        assert!(headers.starts_with("post /submit http/1.1"), "{headers}");
+        assert!(headers.contains(&format!("content-type: {mime}")), "{headers}");
+        if format == "html" {
+            assert_eq!(body, b"Name=Ada+%26+Co");
+            assert_eq!(result["values"], 1);
+        } else {
+            let values = pdfcraft_xfdf::data_values(&body).unwrap();
+            assert_eq!(values, [("Name".into(), vec!["Ada & Co".into()])]);
+        }
+        assert!(!String::from_utf8_lossy(&body).contains("Private"));
+        assert!(!String::from_utf8_lossy(&body).contains("secret"));
+        assert!(!String::from_utf8_lossy(&body).contains("Extra"));
+        if format == "fdf" {
+            assert!(String::from_utf8_lossy(&body).contains("Optional"), "empty selected field name must travel");
+            assert_eq!(result["fields"], 2);
+        } else if format == "xfdf" {
+            assert_eq!(result["fields"], 1);
+        }
+    }
+}
+
+#[test]
+fn form_submit_get_uses_selected_current_values_in_the_url() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let dir = workdir("submit-get");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "form_add_field", json!({ "doc": doc, "page": 1, "type": "text", "rect": [20, 20, 180, 42], "name": "Name" }));
+    ok(&mut a, "form_add_field", json!({ "doc": doc, "page": 1, "type": "text", "rect": [20, 60, 180, 82], "name": "Private" }));
+    ok(&mut a, "form_set_props", json!({ "doc": doc, "field": "Private", "flags": { "no_export": true } }));
+    ok(&mut a, "form_fill", json!({ "doc": doc, "values": { "Name": "Ada & Co", "Private": "secret" } }));
+    let server = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/submit?ticket=7", server.local_addr().unwrap());
+    let worker = std::thread::spawn(move || {
+        let (mut stream, _) = server.accept().unwrap();
+        let mut request = [0u8; 4096];
+        let n = stream.read(&mut request).unwrap();
+        stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        String::from_utf8_lossy(&request[..n]).into_owned()
+    });
+    let result = ok(&mut a, "form_submit", json!({ "doc": doc, "url": url, "format": "html", "method": "get", "fields": ["Name"] }));
+    assert_eq!(result["status"], 200);
+    assert_eq!(result["method"], "get");
+    assert_eq!(result["values"], 1);
+    let request = worker.join().unwrap();
+    assert!(request.starts_with("GET /submit?ticket=7&Name=Ada+%26+Co HTTP/1.1\r\n"), "{request}");
+    assert!(!request.contains("Private") && !request.contains("secret"));
+    assert!(a.call("form_submit", &json!({ "doc": doc, "url": "https://forms.example", "format": "fdf", "method": "get" })).is_err());
+}

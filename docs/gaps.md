@@ -249,11 +249,14 @@ update the numbers.
 ### 15. Forms: JavaScript object model, actions, submit, XFA depth
 
 - **Missing:** the wider Acrobat JavaScript object model (annotations, layers, dialogs), document
-  actions, the Actions tab triggers that run JavaScript, form submission, the debugger, barcode
-  fields, rich-text values; XFA flattening and complete dynamic-form fidelity.
-- **Evidence:** `form.js-host` partial, `form.document-actions`, `form.submit-form`,
-  `edit.action-javascript`, `form.js-debugger`, `form.xfa-flatten` planned; XFA layout, FormCalc
-  and data partial.
+  actions, JavaScript `submitForm`, email and browser form transport, desktop selected-field
+  authoring, the debugger, barcode fields and rich-text values; XFA flattening and complete
+  dynamic-form fidelity.
+- **Evidence:** Native buttons and the explicit tool submit HTML by POST or GET, FDF/XFDF by
+  POST, or the entire current PDF by POST after a desktop review. Selected values honor NoExport;
+  local-server tests check the submitted bytes. `form.js-host` and `form.submit-form` are partial;
+  `form.document-actions`, `edit.action-javascript`, `form.js-debugger` and `form.xfa-flatten`
+  remain planned; XFA layout, FormCalc and data remain partial.
 - **Estimate:** 40–75 h. **Doc:** [pdf-spec-parity.md](pdf-spec-parity.md).
 
 ### 16. UI precision gaps

@@ -2352,3 +2352,10 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	Comments to send	Жіберуге арналған түсініктемелер
+	Entire PDF document to send: {bytes} bytes	Жіберуге арналған толық PDF құжаты: {bytes} байт
+	Form values to send: {count}	Жіберуге арналған пішін мәндері: {count}
+	Only send if you trust this document and destination. GET puts form values in the URL.	Құжат пен мақсат орнына сенсеңіз ғана жіберіңіз. GET пішін мәндерін URL-ге қояды.
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Құжат пен мақсат орнына сенсеңіз ғана жіберіңіз. Толық PDF құжат осы компьютерден шығады.
+	Only send if you trust this document and destination. The form values leave this computer.	Құжат пен мақсат орнына сенсеңіз ғана жіберіңіз. Пішін мәндері осы компьютерден шығады.
+	Submit PDF document	PDF құжатын жіберу
