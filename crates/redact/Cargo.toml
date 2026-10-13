@@ -17,5 +17,7 @@ pdfcraft-forms = { workspace = true }
 pdfcraft-edit = { workspace = true }
 pdfcraft-annot = { workspace = true }
 thiserror = { workspace = true }
+# JPEG decoding and encoding, so scanned pages keep their picture; already in the tree.
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 [dev-dependencies]
