@@ -5672,3 +5672,23 @@ fn absolute_gotor_consent_does_not_bypass_validation_or_passwords() {
     assert_eq!(opened["document"]["encrypted"], true);
     assert_eq!(opened["destination_applied"], true);
 }
+
+/// `doc_print` prints as image: pictures at `dpi`, grey with `grayscale`; a resolution outside
+/// 72–600 is refused.
+#[test]
+fn doc_print_as_image() {
+    let dir = workdir("print-image");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let r = ok(&mut a, "doc_print", json!({ "doc": doc, "pages": "1", "as_image": true, "dpi": 150, "grayscale": true, "path": "image.pdf" }));
+    assert_eq!(r["sheets"], 1);
+    let bytes = std::fs::read(dir.join("image.pdf")).unwrap();
+    let out = pdfcraft_cos::Document::open(std::sync::Arc::new(bytes)).unwrap();
+    let pictures =
+        out.scan_objects().filter(|(_, o)| matches!(&**o, pdfcraft_cos::Object::Stream(st) if st.dict.name(b"Subtype") == Some(b"Image"))).count();
+    assert_eq!(pictures, 1);
+    match a.call("doc_print", &json!({ "doc": doc, "as_image": true, "dpi": 20, "path": "x.pdf" })) {
+        Err(ToolError::InvalidArgs(m)) => assert!(m.contains("dpi"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+}

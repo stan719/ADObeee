@@ -2265,3 +2265,6 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Print as image	Печать как изображение
+	Resolution:	Разрешение:
+	Use it when a printer skips text, shading or transparency. The print is no longer searchable text; with Print in grayscale, the pictures are grey.	Используйте, когда принтер пропускает текст, заливки или прозрачность. Отпечаток больше не текст с поиском; при печати в оттенках серого изображения серые.
