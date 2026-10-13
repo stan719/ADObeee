@@ -98,6 +98,15 @@ impl PartialEq for SourceIdentity {
 
 impl Eq for SourceIdentity {}
 
+/// How an encrypted document is opened.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Credential<'a> {
+    /// The standard handler: the user or owner password (`None` tries the empty one).
+    Password(Option<&'a str>),
+    /// Public-key security: what one of the envelopes held for this person.
+    Certificate { seed: [u8; 20], permissions: i32 },
+}
+
 #[derive(Clone)]
 pub struct Document {
     data: Arc<Vec<u8>>,
@@ -262,11 +271,22 @@ impl Document {
         Self::open_with_stream_limit(data, password, crate::object::MAX_DECODED)
     }
 
+    /// Open with a password or, for public-key security (§7.6.5), with the seed and
+    /// permissions one of the document's envelopes gave up. A public-key document opened with
+    /// a password fails with [`CosError::NeedsCertificate`], which carries the envelopes.
+    pub fn open_with_credential(data: Arc<Vec<u8>>, credential: &Credential<'_>) -> Result<Self, CosError> {
+        Self::open_inner(data, credential, crate::object::MAX_DECODED)
+    }
+
     /// Open with a tighter decompression bound for object and cross-reference streams.
     /// Inspection can use this without changing the editing reader's default limit. Such a
     /// document is read-only: objects in a larger object stream read as missing, so the
     /// writers refuse to save it ([`CosError::ReadOnlyLimit`]).
     pub fn open_with_stream_limit(data: Arc<Vec<u8>>, password: Option<&str>, stream_limit: usize) -> Result<Self, CosError> {
+        Self::open_inner(data, &Credential::Password(password), stream_limit)
+    }
+
+    fn open_inner(data: Arc<Vec<u8>>, credential: &Credential<'_>, stream_limit: usize) -> Result<Self, CosError> {
         // Viewers accept files whose header is missing or damaged as long as the body looks
         // like PDF; so do we (a note goes to the repair log).
         let header = find(&data, b"%PDF-", 0, 1024);
@@ -316,7 +336,7 @@ impl Document {
                 // Authenticate before checking the catalog: it may sit in an encrypted object
                 // stream, which reads as garbage until the key is known.
                 if let Some(enc) = doc.trailer.get(b"Encrypt").cloned() {
-                    doc.authenticate(&enc, password)?;
+                    doc.authenticate(&enc, credential)?;
                     authenticated = true;
                 }
                 doc.root_is_catalog()
@@ -337,7 +357,7 @@ impl Document {
         if (!ok || !authenticated)
             && let Some(enc) = doc.trailer.get(b"Encrypt").cloned()
         {
-            doc.authenticate(&enc, password)?;
+            doc.authenticate(&enc, credential)?;
         }
         let max = doc.entries.keys().next_back().copied().unwrap_or(0);
         let size = doc.trailer.int(b"Size").unwrap_or(0).max(0) as u32;
@@ -345,7 +365,7 @@ impl Document {
         Ok(doc)
     }
 
-    fn authenticate(&mut self, enc: &Object, password: Option<&str>) -> Result<(), CosError> {
+    fn authenticate(&mut self, enc: &Object, credential: &Credential<'_>) -> Result<(), CosError> {
         // Authentication can change how the same input is decoded.
         self.source_identity = Arc::new(());
         let (num, dict) = match enc {
@@ -363,11 +383,21 @@ impl Document {
         };
         let params = crate::security::encrypt_dict(self, &dict);
         let id0 = self.first_id();
-        let handler = pdfcraft_crypt::SecurityHandler::open(params, &id0, password).map_err(|e| match e {
-            pdfcraft_crypt::CryptError::WrongPassword if password.is_none() => CosError::NeedsPassword,
-            pdfcraft_crypt::CryptError::WrongPassword => CosError::WrongPassword,
-            other => CosError::Security(other.to_string()),
-        })?;
+        let handler = match credential {
+            Credential::Password(password) => {
+                if params.filter == pdfcraft_crypt::PUBSEC_FILTER {
+                    return Err(CosError::NeedsCertificate(params.recipients));
+                }
+                pdfcraft_crypt::SecurityHandler::open(params, &id0, *password).map_err(|e| match e {
+                    pdfcraft_crypt::CryptError::WrongPassword if password.is_none() => CosError::NeedsPassword,
+                    pdfcraft_crypt::CryptError::WrongPassword => CosError::WrongPassword,
+                    other => CosError::Security(other.to_string()),
+                })?
+            }
+            Credential::Certificate { seed, permissions } => {
+                pdfcraft_crypt::SecurityHandler::open_public_key(params, seed, *permissions).map_err(|e| CosError::Security(e.to_string()))?
+            }
+        };
         self.security = Some(Arc::new(handler));
         self.encrypt_num = num;
         // Objects read while locating the catalog were read before decryption was possible.
@@ -499,6 +529,43 @@ impl Document {
 
     /// Remove password protection (requires the document to be open — any authenticated
     /// password; callers should require the owner password, §7.6.4). Applied by a full save.
+    /// Protect the document for the holders of certificates (§7.6.5): the envelopes in
+    /// `params` were made for them by pdfcraft-sign. Takes effect on the next save, a full
+    /// rewrite; this document stays readable (authenticated as owner).
+    pub fn set_public_key_encryption(&mut self, params: &pdfcraft_crypt::PublicKeyEncryption) -> Result<(), CosError> {
+        let h = pdfcraft_crypt::create_public_key(params).map_err(|e| CosError::Security(e.to_string()))?;
+        let d = h.dict();
+        let hex = |b: &[u8]| Object::String(crate::PdfString { bytes: b.to_vec(), hex: true });
+        let mut cf = Dict::new();
+        let mut filter = Dict::new();
+        filter.set(b"Type".to_vec(), Object::name("CryptFilter"));
+        filter.set(b"CFM".to_vec(), Object::name(if d.v >= 5 { "AESV3" } else { "AESV2" }));
+        filter.set(b"AuthEvent".to_vec(), Object::name("DocOpen"));
+        filter.set(b"Length".to_vec(), Object::Int(if d.v >= 5 { 32 } else { 16 }));
+        filter.set(b"Recipients".to_vec(), Object::Array(d.recipients.iter().map(|r| hex(r)).collect()));
+        if !d.encrypt_metadata {
+            filter.set(b"EncryptMetadata".to_vec(), Object::Bool(false));
+        }
+        cf.set(pdfcraft_crypt::PUBSEC_CF.to_vec(), Object::Dict(filter));
+        let mut e = Dict::new();
+        e.set(b"Filter".to_vec(), Object::Name(d.filter.clone()));
+        e.set(b"SubFilter".to_vec(), Object::Name(d.sub_filter.clone()));
+        e.set(b"V".to_vec(), Object::Int(d.v));
+        e.set(b"Length".to_vec(), Object::Int(d.length_bits));
+        e.set(b"CF".to_vec(), Object::Dict(cf));
+        e.set(b"StmF".to_vec(), Object::Name(d.stm_f.clone()));
+        e.set(b"StrF".to_vec(), Object::Name(d.str_f.clone()));
+        if let Some(Object::Ref(old)) = self.trailer.get(b"Encrypt").cloned() {
+            self.free(old);
+        }
+        let r = self.add(e);
+        self.trailer.set(b"Encrypt".to_vec(), Object::Ref(r));
+        self.out_security = Some(Arc::new(h));
+        self.out_encrypt_num = Some(r.num);
+        self.encryption_changed = true;
+        Ok(())
+    }
+
     pub fn remove_encryption(&mut self) {
         if let Some(Object::Ref(r)) = self.trailer.get(b"Encrypt").cloned() {
             self.free(r);
