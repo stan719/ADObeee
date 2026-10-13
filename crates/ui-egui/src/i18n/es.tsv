@@ -2473,5 +2473,11 @@ address	Formal	Formal (usted)
 address	Informal	Informal (tú)
 address	Choose a form of address	Elegir la forma de tratamiento
 address	This can be changed later in Preferences.	Esta opción se puede cambiar en Preferencias.
+
+# Absolute local GoToR confirmation (#1364).
+	Allow	Permitir
+	Only allow this if you trust the source document.	Permite esta acción solo si confías en el documento de origen.
+	Open this local PDF?	¿Abrir este PDF local?
+	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después

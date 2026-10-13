@@ -2352,5 +2352,11 @@ address	Formal	Formale (Lei)
 address	Informal	Informale (tu)
 address	Choose a form of address	Scegliere la forma di cortesia
 address	This can be changed later in Preferences.	Questa scelta può essere modificata nelle preferenze.
+
+# Absolute local GoToR confirmation (#1364).
+	Allow	Consenti
+	Only allow this if you trust the source document.	Consenti questa operazione solo se ti fidi del documento di origine.
+	Open this local PDF?	Aprire questo PDF locale?
+	This document is trying to open a local file:	Questo documento sta tentando di aprire un file locale:
 	Move tag earlier	Sposta tag prima
 	Move tag later	Sposta tag dopo
