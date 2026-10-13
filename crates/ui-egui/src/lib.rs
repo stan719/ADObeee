@@ -549,6 +549,8 @@ pub struct PdfCraftApp {
     pub palette_query: String,
     pub all_tools_expanded: bool,
     pub recent: Vec<RecentFile>,
+    /// The active view's page display last frame, to spot the reader changing it.
+    display_seen: Option<(DocId, canvas::PageLayout, bool)>,
     /// Preferences: reopen the files that were open when PdfCraft last closed (#442).
     pub reopen_last_session: bool,
     /// The files open when PdfCraft last closed, read from the settings for
@@ -904,6 +906,7 @@ impl PdfCraftApp {
             palette_query: String::new(),
             all_tools_expanded: false,
             recent: Vec::new(),
+            display_seen: None,
             reopen_last_session: false,
             last_session: Default::default(),
             quit_session: None,
@@ -1908,6 +1911,20 @@ impl PdfCraftApp {
         }
     }
 
+    /// A page display the reader picks on a document (single or two-up, continuous or not) becomes
+    /// the default for every document and for the next session.
+    fn remember_display_choice(&mut self) {
+        let Some(view) = self.active.and_then(|i| self.views.get(i)) else { return };
+        let now = (view.id, view.layout, view.continuous);
+        if let Some((id, layout, continuous)) = self.display_seen
+            && id == now.0
+            && (layout, continuous) != (now.1, now.2)
+        {
+            (self.view_defaults.layout, self.view_defaults.continuous) = (now.1, now.2);
+        }
+        self.display_seen = Some(now);
+    }
+
     /// Enable the Linux desktop portal in a native window. Headless contexts keep
     /// their supplied input and never connect to the user's session bus.
     #[cfg(target_os = "linux")]
@@ -2747,6 +2764,7 @@ impl eframe::App for PdfCraftApp {
     }
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.remember_display_choice();
         self.ctx = Some(ctx.clone());
         self.dialog_epoch();
         // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.

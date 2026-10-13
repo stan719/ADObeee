@@ -1100,3 +1100,15 @@ fn sidebar_collapse_and_resize_preserves_scroll_position() {
     let rel_y_reopened = rect_reopened.min.y - vp_reopened.min.y;
     assert!((rel_y_reopened - rel_y_before).abs() < 1.0, "page 2 scroll position preserved on reopen: before {rel_y_before}, after {rel_y_reopened}");
 }
+
+/// A page display the reader picks becomes the default for the next documents.
+#[test]
+fn a_page_display_the_reader_picks_becomes_the_default() {
+    use pdfcraft_ui_egui::canvas::PageLayout;
+    let mut h = harness_stepping(1.0 / 60.0, &[]);
+    assert!(h.state().view_defaults.continuous);
+    h.state_mut().views[0].set_display(PageLayout::TwoUp, false);
+    h.run_steps(3);
+    let defaults = h.state().view_defaults;
+    assert_eq!((defaults.layout, defaults.continuous), (PageLayout::TwoUp, false));
+}
