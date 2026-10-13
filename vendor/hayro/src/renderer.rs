@@ -116,8 +116,8 @@ fn resampling_scratch_byte_len(
 
 /// PdfCraft patch: validate output, crossed intermediate and filter-work bounds before planning.
 /// Source width × target height also bounds PicScale's smaller single-threaded four-row scratch.
-/// Nearest-neighbour (`!interpolate`) has none of those: it copies source pixels into the target,
-/// so only the source and target buffers are bounded.
+/// Area averaging (`!interpolate`) has none of those: it streams source rows into the target and
+/// keeps only target-sized sums, so only the source and target buffers are bounded.
 fn resampling_byte_len(
     source: (u32, u32),
     target: (u32, u32),
@@ -149,7 +149,7 @@ fn resampling_byte_len(
 /// PdfCraft patch: image dimensions selected before allocating resampling buffers.
 /// Exported for PdfCraft's small, metadata-only regression tests. `None` rejects invalid
 /// sources/scales or an over-budget target/intermediate; the caller may retain a valid source.
-/// `interpolate` selects the Catmull-Rom limits; nearest-neighbour (`false`) skips them.
+/// `interpolate` selects the Catmull-Rom limits; area averaging (`false`) skips them.
 #[doc(hidden)]
 pub fn image_resampling_size(
     width: u32,
@@ -193,18 +193,123 @@ fn image_buffer(len: usize) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// PdfCraft patch (#624): the source index that PicScale's nearest-neighbour plan copies for
-/// destination `index` of `dst` samples taken from `src`. It is the same fixed-point centre
-/// sampling as `ResampleNearestPlan`, so these are the samples a nearest resize would copy.
-fn nearest_source_index(src: u32, dst: u32, index: u32) -> usize {
-    let step = (u64::from(src) << 32) / u64::from(dst);
-    ((u64::from(index) * step + (step >> 1)) >> 32) as usize
+/// PdfCraft patch: a zeroed buffer of `len` elements, or `None` if it cannot be allocated.
+fn zeroed_buffer<T: Copy + Default>(len: usize) -> Option<Vec<T>> {
+    let mut out = Vec::new();
+    out.try_reserve_exact(len).ok()?;
+    out.resize(len, T::default());
+    Some(out)
 }
 
-/// PdfCraft patch (#624): nearest-resizes a colour image and its same-sized soft mask straight
-/// into premultiplied RGBA of `target` size. Colour and mask come from the same source pixel, so
-/// this equals a nearest resize of the expanded RGBA followed by premultiplying each pixel.
-fn nearest_premultiplied_rgba(
+/// PdfCraft patch: most samples (width × channels) of one row [`area_average`] sums, as `u64`
+/// column sums: 256 MB. Only absurdly wide strips reach it, and they fall back to the source.
+const MAX_AREA_COLUMNS: usize = 1 << 25;
+
+/// PdfCraft patch: resizes an `N`-channel image to `target` by exact area averaging (a box
+/// filter): each target pixel is the mean of the source area it covers, weighted by coverage.
+/// Images that don't ask for `/Interpolate` use it. Nearest-neighbour kept one sample in N, so a
+/// shrunk 1-bit scan lost thin strokes (staff lines, serifs) and its edges turned jagged.
+/// Averaging never blends anything outside a target pixel's own area, so whole-ratio shrinks of
+/// blocks aligned to the target grid stay exact, flat colours (#624).
+///
+/// `add_row(y, weight, columns)` adds `weight ×` source row `y` (`source.0 × N` samples) into
+/// `columns`. Rows are visited in order, each source row once per target row it overlaps. The
+/// source rows of one target row are summed down the columns first (a plain multiply-add over
+/// contiguous samples), and only then walked across once per *target* row: walking every source
+/// row across cost about 4× as much on a 10718 × 13701 scan. Memory is one row of column sums
+/// and one target row of sums besides the output. Coordinates are integers in units where a
+/// source pixel is `target` long and a target pixel `source` long, so every overlap is exact.
+fn area_average<const N: usize>(
+    source: (u32, u32),
+    target: (u32, u32),
+    mut add_row: impl FnMut(usize, u64, &mut [u64]) -> Option<()>,
+) -> Option<Vec<u8>> {
+    let ((sw, sh), (tw, th)) = (source, target);
+    // Each target pixel's weights sum to `sw × sh`, so sums stay below 255 × MAX_IMAGE_PIXELS
+    // and `total` is never zero.
+    let total = u64::from(sw).checked_mul(u64::from(sh))?;
+    if total == 0 || total > MAX_IMAGE_PIXELS || tw == 0 || th == 0 {
+        return None;
+    }
+    let out_len = image_byte_len(tw, th, N, MAX_IMAGE_PIXELS)?;
+    let columns_len = (sw as usize).checked_mul(N)?;
+    if columns_len > MAX_AREA_COLUMNS {
+        return None;
+    }
+    let sums_len = (tw as usize).checked_mul(N)?;
+    let mut out = image_buffer(out_len)?;
+    let mut columns = zeroed_buffer::<u64>(columns_len)?;
+    let mut sums = zeroed_buffer::<u64>(sums_len)?;
+    let (sh, th) = (u64::from(sh), u64::from(th));
+    let (mut pos, mut sy, mut ty) = (0u64, 0u64, 0u64);
+    while sy < sh && ty < th {
+        let (source_end, target_end) = ((sy + 1) * th, (ty + 1) * sh);
+        let end = source_end.min(target_end);
+        // `sy < sh ≤ u32::MAX`, so it fits usize.
+        add_row(sy as usize, end - pos, &mut columns)?;
+        pos = end;
+        if end == target_end {
+            area_average_row::<N>(&columns, sw, tw, &mut sums);
+            // A mean of samples, so at most 255.
+            out.extend(
+                sums.iter()
+                    .map(|sum| ((sum + total / 2) / total).min(255) as u8),
+            );
+            columns.fill(0);
+            ty += 1;
+        }
+        if end == source_end {
+            sy += 1;
+        }
+    }
+    (out.len() == out_len).then_some(out)
+}
+
+/// PdfCraft patch: [`area_average`] across one row: `sums` (`tw × N`) receives each target
+/// column's `columns` weighted by how much of it each source column covers (summing to `sw`).
+fn area_average_row<const N: usize>(columns: &[u64], sw: u32, tw: u32, sums: &mut [u64]) {
+    sums.fill(0);
+    let (columns, sums) = (columns.as_chunks::<N>().0, sums.as_chunks_mut::<N>().0);
+    let (sw, tw) = (u64::from(sw), u64::from(tw));
+    let (mut pos, mut sx, mut tx) = (0u64, 0usize, 0usize);
+    while let (Some(column), Some(sum)) = (columns.get(sx), sums.get_mut(tx)) {
+        let (source_end, target_end) = ((sx as u64 + 1) * tw, (tx as u64 + 1) * sw);
+        let end = source_end.min(target_end);
+        let weight = end - pos;
+        for (sum, column) in sum.iter_mut().zip(column) {
+            *sum += weight * column;
+        }
+        pos = end;
+        if end == source_end {
+            sx += 1;
+        }
+        if end == target_end {
+            tx += 1;
+        }
+    }
+}
+
+/// PdfCraft patch: [`area_average`] of packed `N`-channel samples.
+fn area_average_slice<const N: usize>(
+    data: &[u8],
+    source: (u32, u32),
+    target: (u32, u32),
+) -> Option<Vec<u8>> {
+    let row_len = source_byte_len(source.0, 1, N, MAX_IMAGE_PIXELS)?;
+    area_average::<N>(source, target, |y, weight, columns| {
+        let start = y.checked_mul(row_len)?;
+        let row = data.get(start..start.checked_add(row_len)?)?;
+        for (column, sample) in columns.iter_mut().zip(row) {
+            *column += weight * u64::from(*sample);
+        }
+        Some(())
+    })
+}
+
+/// PdfCraft patch: area-averages a colour image and its same-sized soft mask straight into
+/// premultiplied RGBA of `target` size. Averaging premultiplied samples keeps a transparent
+/// pixel's colour out of its neighbours, and the full-size RGBA copy is never made.
+fn area_premultiplied_rgba(
     color: &ImageData,
     alpha: &[u8],
     source: (u32, u32),
@@ -214,26 +319,34 @@ fn nearest_premultiplied_rgba(
         ImageData::Luma(luma) => (luma.data.as_slice(), 1),
         ImageData::Rgb(rgb) => (rgb.data.as_slice(), 3),
     };
-    let mut out = image_buffer(image_byte_len(target.0, target.1, 4, MAX_IMAGE_PIXELS)?)?;
-    for ty in 0..target.1 {
-        let sy = nearest_source_index(source.1, target.1, ty);
-        for tx in 0..target.0 {
-            let si = sy * source.0 as usize + nearest_source_index(source.0, target.0, tx);
-            let [r, g, b] = match samples.get(si * channels..si * channels + channels)? {
+    let width = source.0 as usize;
+    area_average::<4>(source, target, |y, weight, columns| {
+        let start = y.checked_mul(width)?;
+        let end = start.checked_add(width)?;
+        let colors = samples.get(start.checked_mul(channels)?..end.checked_mul(channels)?)?;
+        let alphas = alpha.get(start..end)?;
+        let pixels = columns.as_chunks_mut::<4>().0.iter_mut();
+        for ((column, color), a) in pixels.zip(colors.chunks_exact(channels)).zip(alphas) {
+            let [r, g, b] = match color {
                 [v] => [*v; 3],
                 [r, g, b] => [*r, *g, *b],
                 _ => return None,
             };
-            let a = *alpha.get(si)?;
-            out.extend_from_slice(
-                &AlphaColor::from_rgba8(r, g, b, a)
+            // Stencil masks and most soft masks are fully opaque or fully clear.
+            let pixel = match a {
+                255 => [r, g, b, 255],
+                0 => continue,
+                a => AlphaColor::from_rgba8(r, g, b, *a)
                     .premultiply()
                     .to_rgba8()
                     .to_u8_array(),
-            );
+            };
+            for (column, sample) in column.iter_mut().zip(pixel) {
+                *column += weight * u64::from(sample);
+            }
         }
-    }
-    Some(out)
+        Some(())
+    })
 }
 
 /// PdfCraft patch: most pieces one dashed stroke may be cut into. Stroke expansion keeps every
@@ -620,15 +733,30 @@ impl Renderer {
     ) -> (Vec<u8>, u32, u32) {
         // PdfCraft patch (#624): `/Interpolate` governs the pre-minification pass too. Using
         // Catmull-Rom here for an image that did not request interpolation blends hard edges
-        // before ImageQuality::Low gets a chance to sample it. Keep the pre-resize (and its
-        // bounded memory/performance behaviour), but use nearest-neighbour when interpolation
-        // is disabled. PDF's default for `/Interpolate` is false.
-        let nearest = Scaler::new(ResamplingFunction::Nearest);
-        let scaler = if interpolate { &self.scaler } else { &nearest };
+        // across neighbouring pixels. Such an image is area-averaged instead, which only mixes
+        // what falls inside each target pixel. PDF's default for `/Interpolate` is false.
+        if !interpolate {
+            let source = (src_width, src_height);
+            let target = (new_width, new_height);
+            let resized = match pixel_format {
+                ImagePixelFormat::Luma => area_average_slice::<1>(&data, source, target),
+                ImagePixelFormat::Rgb => area_average_slice::<3>(&data, source, target),
+                ImagePixelFormat::Rgba => area_average_slice::<4>(&data, source, target),
+            };
+            return match resized {
+                Some(out) => (out, new_width, new_height),
+                None => {
+                    log::warn!(
+                        "Image area averaging failed or exceeded its buffer limit; falling back to source data"
+                    );
+                    (data, src_width, src_height)
+                }
+            };
+        }
+        let scaler = &self.scaler;
         let resized = match pixel_format {
             ImagePixelFormat::Luma => self.resize_image_data_impl::<1>(
                 scaler,
-                interpolate,
                 data,
                 src_width,
                 src_height,
@@ -640,7 +768,6 @@ impl Renderer {
             ),
             ImagePixelFormat::Rgb => self.resize_image_data_impl::<3>(
                 scaler,
-                interpolate,
                 data,
                 src_width,
                 src_height,
@@ -652,7 +779,6 @@ impl Renderer {
             ),
             ImagePixelFormat::Rgba => self.resize_image_data_impl::<4>(
                 scaler,
-                interpolate,
                 data,
                 src_width,
                 src_height,
@@ -677,7 +803,6 @@ impl Renderer {
     fn resize_image_data_impl<const N: usize>(
         &self,
         scaler: &Scaler,
-        interpolate: bool,
         data: Vec<u8>,
         src_width: u32,
         src_height: u32,
@@ -698,7 +823,7 @@ impl Renderer {
                 N,
                 data.len(),
                 MAX_IMAGE_PIXELS,
-                interpolate,
+                true,
             )?;
             let source_size = ImageSize::new(src_width as usize, src_height as usize);
             let target_size = ImageSize::new(new_width as usize, new_height as usize);
@@ -706,17 +831,12 @@ impl Renderer {
                 .ok()?;
             let plan = plan(scaler, source_size, target_size).ok()?;
             let scratch_len = plan.scratch_size();
-            // Nearest-neighbour needs no scratch, so any scratch it reports is refused.
-            let scratch_bound = if interpolate {
-                resampling_scratch_byte_len(
-                    (src_width, src_height),
-                    (new_width, new_height),
-                    N,
-                    MAX_IMAGE_PIXELS,
-                )?
-            } else {
-                0
-            };
+            let scratch_bound = resampling_scratch_byte_len(
+                (src_width, src_height),
+                (new_width, new_height),
+                N,
+                MAX_IMAGE_PIXELS,
+            )?;
             if scratch_len > scratch_bound {
                 return None;
             }
@@ -819,12 +939,12 @@ impl Renderer {
         if requested_resize && self.in_type3_glyph && interpolate {
             quality = ImageQuality::High;
         }
-        // PdfCraft patch: an axis-aligned, interpolated image that is shrunk lands on whole device
-        // pixels. It is shrunk once to exactly its snapped device rectangle and drawn 1:1 at the
-        // snapped corner. Otherwise the shrunk raster (rounded up to a whole size) is sampled a
-        // second time at a fractional scale and offset, which blurs scans and photos.
-        let snapped = if interpolate
-            && requested_resize
+        // PdfCraft patch: an axis-aligned image that is shrunk lands on whole device pixels. It
+        // is shrunk once to exactly its snapped device rectangle and drawn 1:1 at the snapped
+        // corner. Otherwise the shrunk raster (rounded up to a whole size) is sampled a second
+        // time at a fractional scale and offset, which blurs scans and photos (interpolated) or
+        // drops and doubles columns of the averaged result (not interpolated).
+        let snapped = if requested_resize
             && !self.in_type3_glyph
             && (new_width, new_height) != (source_width, source_height)
         {
@@ -836,10 +956,10 @@ impl Renderer {
         let needs_resize = (new_width, new_height) != (source_width, source_height);
 
         // PdfCraft patch (#624): a minified image with a soft mask that is not interpolated is
-        // nearest-sampled straight into premultiplied target RGBA. That skips the full-resolution
+        // area-averaged straight into premultiplied target RGBA. That skips the full-resolution
         // RGBA copy below and the premultiply pass after it.
         let direct = match &alpha_data {
-            Some(alpha) if needs_resize && !interpolate => nearest_premultiplied_rgba(
+            Some(alpha) if needs_resize && !interpolate => area_premultiplied_rgba(
                 &image_data,
                 &alpha.data,
                 (source_width, source_height),
