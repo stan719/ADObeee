@@ -139,6 +139,10 @@ pub struct PrepareView {
     marquee_before: Option<Vec<(String, usize)>>,
     /// Escape ends egui's drag too; ignore its release until the mouse is up.
     ignore_release: bool,
+    /// The fields ⌘C copied (#1571), as they were selected.
+    copied: Vec<(String, usize)>,
+    /// How many times they have been pasted: each paste lands one step further.
+    pastes: u32,
 }
 
 impl PrepareView {
@@ -590,12 +594,60 @@ fn cancel_marquee(prep: &mut PrepareView) {
     }
 }
 
-pub(crate) fn keys(ctx: &egui::Context, view: &mut DocView) {
+/// How far a pasted field lands from the one it copies, in points (right and down).
+const PASTE_STEP: f64 = 18.0;
+
+/// ⌘V: a copy of every field ⌘C copied, as one undoable step, on the current page. Each copy
+/// is a field of its own (#1571). On the page they came from the copies land one step right and
+/// down, and each further paste one step more; on another page the first lands in place.
+pub(crate) fn paste_copied(view: &mut DocView, form: &[FormField]) -> Option<Edit> {
+    let mut sources: Vec<(String, Vec<usize>)> = Vec::new();
+    let mut from_page = None;
+    for (name, wi) in &view.prepare.copied {
+        let Some(w) = form.iter().find(|f| &f.name == name).and_then(|f| f.widgets.get(*wi)) else { continue };
+        from_page = from_page.or(w.page);
+        match sources.iter_mut().find(|(n, _)| n == name) {
+            Some((_, widgets)) => widgets.push(*wi),
+            None => sources.push((name.clone(), vec![*wi])),
+        }
+    }
+    if sources.is_empty() {
+        return None;
+    }
+    let steps = view.prepare.pastes.saturating_add(u32::from(from_page == Some(view.current)));
+    view.prepare.pastes = view.prepare.pastes.saturating_add(1);
+    let d = PASTE_STEP * f64::from(steps);
+    let (page, offset) = (view.current, [d, -d]);
+    let mut edits: Vec<Edit> = sources.into_iter().map(|(name, widgets)| Edit::CopyField { name, widgets, page, offset }).collect();
+    view.prepare.also.clear();
+    view.prepare.select_added = Some(form.len());
+    if edits.len() == 1 {
+        return edits.pop();
+    }
+    Some(Edit::Batch { label: "Paste fields".into(), edits })
+}
+
+pub(crate) fn keys(ctx: &egui::Context, view: &mut DocView, form: &[FormField]) {
     if ctx.egui_wants_keyboard_input() {
         return;
     }
     if view.prepare.marquee_before.is_some() && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
         cancel_marquee(&mut view.prepare);
+        return;
+    }
+    // ⌘C / ⌘V arrive as clipboard events. ⌘V only arrives while the system clipboard holds
+    // text, so ⌘C puts the copied fields' names there.
+    let (copy, paste) = ctx.input(|i| {
+        let any = |f: &dyn Fn(&egui::Event) -> bool| i.events.iter().any(f);
+        (any(&|e| matches!(e, egui::Event::Copy)), any(&|e| matches!(e, egui::Event::Paste(_))))
+    });
+    if copy && view.prepare.selected.is_some() {
+        view.prepare.copied = view.prepare.selected.iter().chain(view.prepare.also.iter()).cloned().collect();
+        view.prepare.pastes = 0;
+        ctx.copy_text(view.prepare.names().join("\n"));
+    }
+    if paste && !view.prepare.copied.is_empty() {
+        view.pending_edit = paste_copied(view, form);
         return;
     }
     if view.prepare.selected.is_none() {
@@ -610,14 +662,15 @@ pub(crate) fn keys(ctx: &egui::Context, view: &mut DocView) {
     }
 }
 
-/// After an Add field edit: select the new field (the form's last).
+/// After an Add field or paste edit: select the new fields (the form's last).
 pub(crate) fn after_refresh(view: &mut DocView, form: &[FormField]) {
     view.prepare.also.retain(|(name, wi)| form.iter().any(|f| &f.name == name && *wi < f.widgets.len()));
     if let Some(n) = view.prepare.select_added.take() {
-        if form.len() > n
-            && let Some(f) = form.last()
-        {
-            view.prepare.selected = Some((f.name.clone(), 0));
+        if form.len() > n {
+            // Every field added: one for Add field, one per field pasted.
+            let mut added = form.iter().skip(n).map(|f| (f.name.clone(), 0));
+            view.prepare.selected = added.next();
+            view.prepare.also.extend(added);
         } else if let Some((name, _)) = &view.prepare.selected
             && let Some(f) = form.iter().find(|f| &f.name == name)
         {

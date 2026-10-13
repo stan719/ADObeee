@@ -2002,6 +2002,8 @@ comment menu	Edit	Redaguoti
 	Drag to draw the area where the signature should appear.	Vilkite, kad apibrėžtumėte sritį, kurioje turi būti parašas.
 	Dropdown Properties	Išskleidžiamojo sąrašo savybės
 	Duplicate field	Dubliuoti lauką
+	Paste field	Įdėti lauką
+	Paste fields	Įdėti laukus
 	Duplicate page	Dubliuoti puslapį
 	Each field needs a tooltip that says what to enter. Add one in Field Properties > General > Tooltip.	Kiekvienam laukui reikia patarimo, nurodančio, ką įvesti. Pridėkite jį skiltyje „Lauko savybės“ > „Bendrosios“ > „Patarimas“.
 	Edit comment	Redaguoti komentarą

@@ -3286,7 +3286,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let mut tool = app.quick_tool;
     comments::keys(ui.ctx(), view, &mut tool, allowed);
     if preparing {
-        crate::prepare::keys(ui.ctx(), view);
+        crate::prepare::keys(ui.ctx(), view, &form);
     }
     if editing_content {
         crate::content_ui::keys(ui.ctx(), view);
