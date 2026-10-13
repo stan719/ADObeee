@@ -66,9 +66,9 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.active = None;
                     app.combine_tab.focused = false;
                 }
-                // Keep the two icon buttons, Discord's text/padding and three gaps outside the scrolling tabs.
+                // Keep the icon buttons (a third, full screen, with a document open), Discord's text/padding and three gaps outside the scrolling tabs.
                 let controls_width = ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x)
-                    + 2.0 * button
+                    + (if app.active.is_some() { 3.0 } else { 2.0 }) * button
                     + 50.0
                     + window_controls::width(&controls.right);
                 // Open stays in sight after the tabs: its icon, text and padding, and the gaps around it.
@@ -237,6 +237,12 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         });
                     }
                     egui::Popup::context_menu(&response).id(response.id.with("theme_menu")).show(|ui| appearance_menu(app, ui));
+                    if app.active.is_some() {
+                        let tip = crate::commands::command_tip(ui.ctx(), tl!("Full screen mode ({key}); Esc leaves it"), "view.full_screen");
+                        if icons::button(ui, "maximize", button, false, &tip).clicked() {
+                            app.execute("view.full_screen");
+                        }
+                    }
                     if icons::button(ui, "circle-help", button, false, tl!("Keyboard shortcuts")).clicked() {
                         app.dialog = Some(Dialog::Shortcuts);
                     }
@@ -579,74 +585,121 @@ pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             rail_button(ui, RightPanel::Tags, "tag", "Tags", false);
 
             // Page navigation cluster at the bottom (as in Acrobat's rail).
-            let view = &mut app.views[index];
-            let mut page_display = None;
-            ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.y = 2.0;
-                let tip = crate::commands::key_tip(ui.ctx(), tl!("Zoom out ({key})"), crate::commands::ZOOM_OUT);
-                if icons::button(ui, "zoom-out", 32.0, false, &tip).clicked() {
-                    view.zoom_step(false);
-                }
-                let tip = crate::commands::key_tip(ui.ctx(), tl!("Zoom in ({key})"), crate::commands::ZOOM_IN);
-                if icons::button(ui, "zoom-in", 32.0, false, &tip).clicked() {
-                    view.zoom_step(true);
-                }
-                // Between rotate and zoom, as in Acrobat. Its command runs once `view` is free.
-                let tip = crate::i18n::fmt(tl!("Page display: {layout}"), &[("layout", tl!(view.layout.label()))]);
-                let resp = icons::button(ui, view.layout.icon(), 32.0, false, &tip);
-                page_display = egui::Popup::menu(&resp)
-                    .show(|ui| {
-                        ui.set_min_width(220.0);
-                        rail_view_menu(ui, view)
-                    })
-                    .and_then(|r| r.inner);
-                let tip = crate::commands::key_tip(ui.ctx(), tl!("Rotate view clockwise ({key})"), crate::commands::ROTATE_CW);
-                if icons::button(ui, "rotate-cw", 32.0, false, &tip).clicked() {
-                    view.rotate_view(true);
-                }
-                // Not `columns-2` while fitting the page: that is the two-page view's icon.
-                let fit_icon = if view.fit == Fit::Width { "maximize" } else { "maximize-2" };
-                if icons::button(ui, fit_icon, 32.0, false, tl!("Toggle fit page / fit width")).clicked() {
-                    view.fit = if view.fit == Fit::Width { Fit::Page } else { Fit::Width };
-                    view.goto = Some((view.current, 0.0));
-                }
-                let zoom = format!("{:.0}%", view.zoom * 100.0);
-                ui.allocate_ui_with_layout(vec2(40.0, 16.0), Layout::top_down(Align::Center), |ui| {
-                    ui.label(egui::RichText::new(zoom).font(theme::medium(11.0)).color(t.text_muted));
-                });
-                ui.add_space(6.0);
-                if icons::button(ui, "chevron-down", 30.0, false, tl!("Next page")).clicked() {
-                    view.step_page(true);
-                }
-                if icons::button(ui, "chevron-up", 30.0, false, tl!("Previous page")).clicked() {
-                    view.step_page(false);
-                }
-                ui.label(egui::RichText::new(page_count.to_string()).font(theme::regular(11.0)).color(t.text_muted));
-                let edit = egui::TextEdit::singleline(&mut view.page_input)
-                    .id(egui::Id::new("page-input"))
-                    .desired_width(34.0)
-                    .horizontal_align(Align::Center)
-                    .font(theme::medium(12.0))
-                    .margin(vec2(2.0, 4.0));
-                let r = egui::Frame::NONE
-                    .fill(t.field)
-                    .stroke(Stroke::new(1.0, t.border))
-                    .corner_radius(CornerRadius::same(5))
-                    .show(ui, |ui| ui.add(edit))
-                    .inner
-                    .on_hover_text(tl!("Current page — type a page number or label (such as iv) and press Enter"));
-                if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    // A page label first (logical page numbers, as Acrobat), then a number.
-                    let typed = view.page_input.clone();
-                    if !view.go_to_typed(&typed, &labels) {
-                        view.page_input = (view.current + 1).to_string();
-                    }
-                }
-            });
-            if let Some(id) = page_display {
-                app.execute(id);
-            }
+            page_nav_cluster(app, index, ui, &labels, page_count);
         });
+}
+
+/// The page controls: page box, previous/next, zoom, fit, reading theme, rotate and the Page
+/// display menu. Laid out bottom-up; the rail and the full-screen island both use it.
+fn page_nav_cluster(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui, labels: &[String], page_count: usize) {
+    let t = Tokens::get(ui.ctx());
+    let view = &mut app.views[index];
+    let mut page_display = None;
+    ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+        ui.spacing_mut().item_spacing.y = 2.0;
+        let tip = crate::commands::key_tip(ui.ctx(), tl!("Zoom out ({key})"), crate::commands::ZOOM_OUT);
+        if icons::button(ui, "zoom-out", 32.0, false, &tip).clicked() {
+            view.zoom_step(false);
+        }
+        let tip = crate::commands::key_tip(ui.ctx(), tl!("Zoom in ({key})"), crate::commands::ZOOM_IN);
+        if icons::button(ui, "zoom-in", 32.0, false, &tip).clicked() {
+            view.zoom_step(true);
+        }
+        // Between rotate and zoom, as in Acrobat. Its command runs once `view` is free.
+        let tip = crate::i18n::fmt(tl!("Page display: {layout}"), &[("layout", tl!(view.layout.label()))]);
+        let resp = icons::button(ui, view.layout.icon(), 32.0, false, &tip);
+        page_display = egui::Popup::menu(&resp)
+            .show(|ui| {
+                ui.set_min_width(220.0);
+                rail_view_menu(ui, view)
+            })
+            .and_then(|r| r.inner);
+        let tip = crate::commands::key_tip(ui.ctx(), tl!("Rotate view clockwise ({key})"), crate::commands::ROTATE_CW);
+        if icons::button(ui, "rotate-cw", 32.0, false, &tip).clicked() {
+            view.rotate_view(true);
+        }
+        // Not `columns-2` while fitting the page: that is the two-page view's icon.
+        let fit_icon = if view.fit == Fit::Width { "maximize" } else { "maximize-2" };
+        if icons::button(ui, fit_icon, 32.0, false, tl!("Toggle fit page / fit width")).clicked() {
+            view.fit = if view.fit == Fit::Width { Fit::Page } else { Fit::Width };
+            view.goto = Some((view.current, 0.0));
+        }
+        let zoom = format!("{:.0}%", view.zoom * 100.0);
+        ui.allocate_ui_with_layout(vec2(40.0, 16.0), Layout::top_down(Align::Center), |ui| {
+            ui.label(egui::RichText::new(zoom).font(theme::medium(11.0)).color(t.text_muted));
+        });
+        ui.add_space(6.0);
+        if icons::button(ui, "chevron-down", 30.0, false, tl!("Next page")).clicked() {
+            view.step_page(true);
+        }
+        if icons::button(ui, "chevron-up", 30.0, false, tl!("Previous page")).clicked() {
+            view.step_page(false);
+        }
+        ui.label(egui::RichText::new(page_count.to_string()).font(theme::regular(11.0)).color(t.text_muted));
+        let edit = egui::TextEdit::singleline(&mut view.page_input)
+            .id(egui::Id::new("page-input"))
+            .desired_width(34.0)
+            .horizontal_align(Align::Center)
+            .font(theme::medium(12.0))
+            .margin(vec2(2.0, 4.0));
+        let r = egui::Frame::NONE
+            .fill(t.field)
+            .stroke(Stroke::new(1.0, t.border))
+            .corner_radius(CornerRadius::same(5))
+            .show(ui, |ui| ui.add(edit))
+            .inner
+            .on_hover_text(tl!("Current page — type a page number or label (such as iv) and press Enter"));
+        if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            // A page label first (logical page numbers, as Acrobat), then a number.
+            let typed = view.page_input.clone();
+            if !view.go_to_typed(&typed, labels) {
+                view.page_input = (view.current + 1).to_string();
+            }
+        }
+    });
+    if let Some(id) = page_display {
+        app.execute(id);
+    }
+}
+
+/// Full screen: the toggle that folds the quick tools and page controls away and brings them back.
+/// It sits in the same place in both states, above the islands.
+pub fn fs_toggle_island(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    let t = Tokens::get(ui.ctx());
+    island(&t).show(ui, |ui| {
+        let (icon, tip) = if app.fs_controls_hidden { ("chevron-right", tl!("Show controls")) } else { ("chevron-left", tl!("Hide controls")) };
+        if icons::button(ui, icon, 32.0, false, tip).clicked() {
+            app.fs_controls_hidden = !app.fs_controls_hidden;
+        }
+    });
+}
+
+/// Full screen: the page controls in their own island, under the quick tools.
+pub fn page_nav_island(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
+    let t = Tokens::get(ui.ctx());
+    let Some((index, id)) = app.active_ids() else { return };
+    let Some(doc) = app.session.get(id) else { return };
+    let page_count = doc.info.pages.len();
+    let labels: Vec<String> = doc.info.pages.iter().map(|p| p.label.clone()).collect();
+    // The cluster is laid out bottom-up, which needs a height: the one it used last frame.
+    let height_id = egui::Id::new("fs-nav-height");
+    let height = ui.data(|d| d.get_temp::<f32>(height_id)).unwrap_or(380.0);
+    island(&t).show(ui, |ui| {
+        ui.allocate_ui_with_layout(vec2(36.0, height), Layout::bottom_up(Align::Center), |ui| {
+            page_nav_cluster(app, index, ui, &labels, page_count);
+            ui.data_mut(|d| d.insert_temp(height_id, ui.min_rect().height()));
+        });
+    });
+}
+
+/// The floating card the full-screen controls sit in (as the quick tools' bar).
+fn island(t: &Tokens) -> egui::Frame {
+    egui::Frame::NONE
+        .fill(t.card)
+        .stroke(Stroke::new(1.0, t.border))
+        .corner_radius(CornerRadius::same(12))
+        .shadow(egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha(if t.dark() { 100 } else { 28 }) })
+        .inner_margin(egui::Margin::same(6))
 }
 
 /// View ▸ Page display and the rail's Page display menu: the layouts and the cover page.

@@ -2426,3 +2426,6 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	Full screen mode ({key}); Esc leaves it	Režim celé obrazovky ({key}); Esc
+	Hide controls	Skrýt ovládací prvky
+	Show controls	Zobrazit ovládací prvky

@@ -3892,6 +3892,16 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let pos = area.left_top() + vec2(14.0, 14.0);
     egui::Area::new(egui::Id::new("quick-bar")).order(egui::Order::Middle).fixed_pos(pos).show(ui.ctx(), |ui| {
+        // Full screen: a toggle on top (the same place hidden or shown), then the quick tools and
+        // the page controls, each in its own island.
+        ui.spacing_mut().item_spacing.y = 8.0;
+        let full_screen = app.full_screen;
+        if full_screen {
+            crate::chrome::fs_toggle_island(app, ui);
+            if app.fs_controls_hidden {
+                return;
+            }
+        }
         egui::Frame::NONE
             .fill(t.card)
             .stroke(Stroke::new(1.0, t.border))
@@ -4068,6 +4078,9 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                     }
                 });
             });
+        if full_screen {
+            crate::chrome::page_nav_island(app, ui);
+        }
     });
 }
 

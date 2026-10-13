@@ -2361,3 +2361,6 @@ animation effects	Off	Disattivati
 	This document is trying to open a local file:	Questo documento sta tentando di aprire un file locale:
 	Move tag earlier	Sposta tag prima
 	Move tag later	Sposta tag dopo
+	Full screen mode ({key}); Esc leaves it	Modalità schermo intero ({key}); Esc
+	Hide controls	Nascondi i controlli
+	Show controls	Mostra i controlli

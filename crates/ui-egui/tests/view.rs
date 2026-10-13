@@ -1100,3 +1100,22 @@ fn sidebar_collapse_and_resize_preserves_scroll_position() {
     let rel_y_reopened = rect_reopened.min.y - vp_reopened.min.y;
     assert!((rel_y_reopened - rel_y_before).abs() < 1.0, "page 2 scroll position preserved on reopen: before {rel_y_before}, after {rel_y_reopened}");
 }
+
+/// Full screen shows the page controls, and one toggle (in the same place) hides and shows them.
+#[test]
+fn full_screen_controls_hide_and_show_with_one_toggle() {
+    use egui_kittest::kittest::Queryable;
+    let mut h = harness_stepping(1.0 / 60.0, &[]);
+    assert!(h.state_mut().execute("view.full_screen"));
+    h.run_steps(4);
+    assert!(h.query_by_label("Next page").is_some(), "the page controls show in full screen");
+    let toggle = h.get_by_label("Hide controls").rect();
+    h.get_by_label("Hide controls").click();
+    h.run_steps(4);
+    assert!(h.state().fs_controls_hidden);
+    assert!(h.query_by_label("Next page").is_none(), "hidden controls are gone");
+    assert_eq!(h.get_by_label("Show controls").rect().min, toggle.min, "the toggle stays where it was");
+    h.get_by_label("Show controls").click();
+    h.run_steps(4);
+    assert!(!h.state().fs_controls_hidden && h.query_by_label("Next page").is_some());
+}

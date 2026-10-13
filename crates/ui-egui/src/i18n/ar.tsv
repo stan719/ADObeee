@@ -2373,3 +2373,6 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	Full screen mode ({key}); Esc leaves it	وضع ملء الشاشة ({key}); Esc
+	Hide controls	إخفاء عناصر التحكم
+	Show controls	إظهار عناصر التحكم

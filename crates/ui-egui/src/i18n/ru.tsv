@@ -2265,3 +2265,6 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Full screen mode ({key}); Esc leaves it	Полноэкранный режим ({key}); Esc
+	Hide controls	Скрыть элементы управления
+	Show controls	Показать элементы управления

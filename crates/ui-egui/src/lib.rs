@@ -549,6 +549,8 @@ pub struct PdfCraftApp {
     pub palette_query: String,
     pub all_tools_expanded: bool,
     pub recent: Vec<RecentFile>,
+    /// Full screen: the page controls (quick tools and navigation) are tucked away.
+    pub fs_controls_hidden: bool,
     /// Preferences: reopen the files that were open when PdfCraft last closed (#442).
     pub reopen_last_session: bool,
     /// The files open when PdfCraft last closed, read from the settings for
@@ -904,6 +906,7 @@ impl PdfCraftApp {
             palette_query: String::new(),
             all_tools_expanded: false,
             recent: Vec::new(),
+            fs_controls_hidden: false,
             reopen_last_session: false,
             last_session: Default::default(),
             quit_session: None,
