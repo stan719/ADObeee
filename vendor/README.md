@@ -39,6 +39,11 @@ Covered by `raster::tests::tiff_predictor_packed_rgb_rows_keep_their_byte_bounda
 horizontal differencing and an 8-bit control) and
 `raster::tests::tiff_predictor_packed_rgb_image_renders_every_row`.
 
+Legacy encryption key length: hayro-syntax refuses a revision 2–4 encryption dictionary whose
+`/Length` is above 128 bits with `InvalidEncryption`. Those revisions take the file key from a
+16-byte MD5 hash, so a `/V 2 /R 3 /Length 256` dictionary sliced past its end and panicked (#1769).
+Covered by `crypto::pdfcraft_password_tests::legacy_key_length_above_128_bits_is_refused_not_a_panic`.
+
 Text extraction: hayro-interpret exposes `OutlineGlyph::is_vertical` from a Type0 font’s CMap writing mode. PdfCraft follows negative glyph-space y for WMode 1 so upright vertical columns can be searched (#126).
 
 Lab Bradford follow-up to #1237: Lab adapts XYZ to D65 with white-point ratios
