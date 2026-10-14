@@ -10,6 +10,9 @@ use crate::{Compression, ImageSettings, OptimizeError, Report, Settings, Stage};
 /// Images with more pixels than this are left alone (memory).
 const MAX_PIXELS: u64 = 80_000_000;
 
+/// Bound repeated Form invocations as well as ordinary operators across the whole document.
+const MAX_RESOLUTION_OPS: usize = 1_000_000;
+
 /// The resources of a page, inherited from the page tree if the page has none.
 fn page_resources(doc: &Document, page: ObjRef) -> Option<Dict> {
     let mut node = Some(page);
@@ -23,33 +26,45 @@ fn page_resources(doc: &Document, page: ObjRef) -> Option<Dict> {
     None
 }
 
-fn content_bytes(doc: &Document, contents: &Object) -> Vec<u8> {
+fn content_bytes(doc: &Document, contents: &Object) -> Option<Vec<u8>> {
     match &*doc.resolve(contents) {
-        Object::Stream(s) => s.decoded().unwrap_or_default(),
-        Object::Array(a) => a
-            .iter()
-            .flat_map(|c| match &*doc.resolve(c) {
-                Object::Stream(s) => {
-                    let mut v = s.decoded().unwrap_or_default();
-                    v.push(b'\n');
-                    v
-                }
-                _ => Vec::new(),
-            })
-            .collect(),
-        _ => Vec::new(),
+        Object::Stream(s) => s.decoded().ok(),
+        Object::Array(a) => {
+            let mut data = Vec::new();
+            for c in a {
+                let obj = doc.resolve(c);
+                let Object::Stream(s) = &*obj else { return None };
+                data.extend(s.decoded().ok()?);
+                data.push(b'\n');
+            }
+            Some(data)
+        }
+        _ => None,
     }
+}
+
+#[derive(Default)]
+struct ResolutionWalk {
+    active: HashSet<ObjRef>,
+    remaining: usize,
+    ppi: HashMap<ObjRef, f64>,
 }
 
 /// Walk one content stream, recording each image's displayed resolution (pixels per inch, the
 /// smaller of the two axes) and descending into form XObjects.
-fn walk(doc: &Document, data: &[u8], resources: &Dict, ctm: Matrix, depth: usize, seen: &mut HashSet<ObjRef>, out: &mut HashMap<ObjRef, f64>) {
-    if depth > 12 {
-        return;
+fn walk(doc: &Document, data: &[u8], resources: &Dict, ctm: Matrix, depth: usize, state: &mut ResolutionWalk) -> bool {
+    if depth > 12 || state.remaining == 0 {
+        return false;
     }
     let xobjects = resources.get(b"XObject").map(|x| doc.resolve(x)).and_then(|x| x.as_dict().cloned()).unwrap_or_default();
     let mut stack = vec![ctm];
-    for op in pdfcraft_content::parse(data).ops {
+    let parsed = pdfcraft_content::parse(data);
+    if parsed.skipped != 0 {
+        return false;
+    }
+    for op in parsed.ops {
+        let Some(remaining) = state.remaining.checked_sub(1) else { return false };
+        state.remaining = remaining;
         let top = stack.last().copied().unwrap_or(ctm);
         match op.op.as_slice() {
             b"q" => stack.push(top),
@@ -75,19 +90,26 @@ fn walk(doc: &Document, data: &[u8], resources: &Dict, ctm: Matrix, depth: usize
                         let (sx, sy) = ((a * a + b * b).sqrt(), (c * c + d * d).sqrt());
                         if w > 0.0 && h > 0.0 && sx > 1e-6 && sy > 1e-6 {
                             let ppi = (w / (sx / 72.0)).min(h / (sy / 72.0));
-                            let e = out.entry(r).or_insert(f64::INFINITY);
+                            let e = state.ppi.entry(r).or_insert(f64::INFINITY);
                             *e = e.min(ppi);
                         }
                     }
                     Some(b"Form") => {
-                        if !seen.insert(r) && depth > 4 {
-                            continue;
+                        // A shared Form must be measured at every transform. Only references
+                        // on this invocation's ancestry are cycles.
+                        if !state.active.insert(r) {
+                            return false;
                         }
                         let m = s.dict.get(b"Matrix").map(|m| doc.resolve(m)).and_then(|m| m.as_array().map(|a| Matrix::from_operands(a))).flatten();
                         let res =
                             s.dict.get(b"Resources").map(|r| doc.resolve(r)).and_then(|r| r.as_dict().cloned()).unwrap_or_else(|| resources.clone());
                         let inner = m.unwrap_or(Matrix([1.0, 0.0, 0.0, 1.0, 0.0, 0.0])).then(&top);
-                        walk(doc, &s.decoded().unwrap_or_default(), &res, inner, depth + 1, seen, out);
+                        let Ok(data) = s.decoded() else { return false };
+                        let complete = walk(doc, &data, &res, inner, depth + 1, state);
+                        state.active.remove(&r);
+                        if !complete {
+                            return false;
+                        }
                     }
                     _ => {}
                 }
@@ -95,19 +117,30 @@ fn walk(doc: &Document, data: &[u8], resources: &Dict, ctm: Matrix, depth: usize
             _ => {}
         }
     }
+    true
 }
 
 /// The effective resolution (ppi) of every image drawn by `pages`: the smallest over its uses.
+/// Returns an empty map if cycles, depth/work limits or unreadable content prevent a complete
+/// measurement; callers must not downsample from partial measurements.
 pub fn effective_resolutions(doc: &Document, pages: &[ObjRef]) -> HashMap<ObjRef, f64> {
-    let mut out = HashMap::new();
-    let mut seen = HashSet::new();
+    resolutions_with_budget(doc, pages, MAX_RESOLUTION_OPS)
+}
+
+fn resolutions_with_budget(doc: &Document, pages: &[ObjRef], remaining: usize) -> HashMap<ObjRef, f64> {
+    let mut state = ResolutionWalk { remaining, ..ResolutionWalk::default() };
     for p in pages {
-        let Some(d) = doc.get(*p).as_dict().cloned() else { continue };
+        let Some(d) = doc.get(*p).as_dict().cloned() else { return HashMap::new() };
         let Some(contents) = d.get(b"Contents") else { continue };
+        let Some(data) = content_bytes(doc, contents) else { return HashMap::new() };
         let res = page_resources(doc, *p).unwrap_or_default();
-        walk(doc, &content_bytes(doc, contents), &res, Matrix([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]), 0, &mut seen, &mut out);
+        if !walk(doc, &data, &res, Matrix([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]), 0, &mut state) {
+            // An unmeasured invocation may draw ANY shared image larger. Do not return
+            // partial PPI values that could permanently downsample it below that use.
+            return HashMap::new();
+        }
     }
-    out
+    state.ppi
 }
 
 /// Colour components of a colour space PdfCraft resamples: gray (1) or RGB (3).
@@ -351,4 +384,32 @@ pub(crate) fn run(
         return Err(OptimizeError::Cancelled);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolution_work_budget_is_shared_by_all_pages_and_never_returns_partial_ppi() {
+        let mut doc = Document::new_empty();
+        let mut image = Dict::new();
+        image.set(b"Subtype".to_vec(), Object::name("Image"));
+        image.set(b"Width".to_vec(), Object::Int(600));
+        image.set(b"Height".to_vec(), Object::Int(600));
+        let image = doc.add(Object::Stream(Stream::from_raw(image, Vec::new())));
+        let mut xobjects = Dict::new();
+        xobjects.set(b"Im".to_vec(), Object::Ref(image));
+        let mut resources = Dict::new();
+        resources.set(b"XObject".to_vec(), Object::Dict(xobjects));
+        let contents = doc.add(Object::Stream(Stream::from_raw(Dict::new(), b"/Im Do /Im Do /Im Do".to_vec())));
+        let mut page = Dict::new();
+        page.set(b"Resources".to_vec(), Object::Dict(resources));
+        page.set(b"Contents".to_vec(), Object::Ref(contents));
+        let page = doc.add(page);
+        assert!(resolutions_with_budget(&doc, &[page], 2).is_empty());
+        assert_eq!(resolutions_with_budget(&doc, &[page], 3).len(), 1);
+        assert!(resolutions_with_budget(&doc, &[page, page], 5).is_empty());
+        assert_eq!(resolutions_with_budget(&doc, &[page, page], 6).len(), 1);
+    }
 }
