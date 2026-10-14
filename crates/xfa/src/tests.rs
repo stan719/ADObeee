@@ -1836,3 +1836,13 @@ fn an_anchor_type_places_the_named_point_of_the_box_at_its_x_and_y() {
     let field = widgets(page).into_iter().find(|w| w.name == "ref").unwrap();
     assert!((field.rect.x - 6.0 * 72.0).abs() < 0.01 && (field.rect.y - 72.0).abs() < 0.01, "{:?}", field.rect);
 }
+
+#[test]
+fn som_indices_count_earlier_same_named_siblings() {
+    let draw = |name: Option<&str>| {
+        Node::Draw(Box::new(Draw { common: Common { name: name.map(str::to_string), ..Default::default() }, ..Default::default() }))
+    };
+    let children = [draw(Some("a")), draw(Some("b")), draw(Some("a")), draw(None), draw(Some("a")), draw(Some("b"))];
+    let sibs = SomIndices::of(&children);
+    assert_eq!((0..=children.len()).map(|i| sibs.at(i)).collect::<Vec<_>>(), [0, 0, 1, 0, 2, 1, 0]);
+}
