@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Original, text-only native MSI dialogs. No third-party UI artwork or custom-action DLLs.
-     Full UI gets welcome (with the desktop-shortcut and PDF context-menu checkboxes)/progress/outcome screens; /qn and /qb stay unattended. -->
+     Full UI gets welcome (with per-user vs all-users scope selection, desktop-shortcut and PDF context-menu checkboxes)/progress/outcome screens; /qn and /qb stay unattended. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Fragment>
     <UI Id="PdfcraftInstallerUI">
@@ -8,18 +8,38 @@
       <TextStyle Id="InstallerTitle" FaceName="Segoe UI" Size="12" Bold="yes" />
       <Property Id="DefaultUIFont" Value="InstallerNormal" />
 
-      <Dialog Id="InstallWelcome" Width="370" Height="180" Title="[ProductName] Setup">
-        <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\InstallerTitle}Install [ProductName]" />
-        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="40"
-            Text="Setup will install [ProductName] for all users and add it to the Start menu. Click Install to continue." />
-        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="105" Width="330" Height="17"
-            Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
-        <Control Id="PdfContextMenu" Type="CheckBox" X="20" Y="123" Width="330" Height="17"
-            Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &quot;&amp;Edit with PdfCraft&quot; to the right-click menu of PDF files" />
-        <Control Id="Install" Type="PushButton" X="195" Y="145" Width="75" Height="23" Default="yes" ElevationShield="yes" Text="&amp;Install">
-          <Publish Event="EndDialog" Value="Return" />
+      <Dialog Id="InstallWelcome" Width="370" Height="230" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="25" Text="{\InstallerTitle}Install [ProductName]" />
+        <Control Id="Description" Type="Text" X="20" Y="42" Width="330" Height="20"
+            Text="Choose whether to install [ProductName] for yourself or all users:" />
+        <Control Id="ScopeRadioGroup" Type="RadioButtonGroup" Property="INSTALLSCOPE"
+            X="20" Y="65" Width="330" Height="50">
+          <RadioButtonGroup Property="INSTALLSCOPE">
+            <RadioButton Value="PerUser" Text="Install for current &amp;user only" X="0" Y="0" Width="320" Height="17" />
+            <RadioButton Value="PerMachine" Text="Install for &amp;all users (requires administrator privileges)" X="0" Y="25" Width="320" Height="17" />
+          </RadioButtonGroup>
         </Control>
-        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="122" Width="330" Height="17"
+            Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
+        <Control Id="PdfContextMenu" Type="CheckBox" X="20" Y="142" Width="330" Height="17"
+            Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &quot;&amp;Edit with PdfCraft&quot; to the right-click menu of PDF files" />
+        <Control Id="InstallUser" Type="PushButton" X="195" Y="195" Width="75" Height="23" Default="yes" Text="&amp;Install"
+            ShowCondition="INSTALLSCOPE = &quot;PerUser&quot;"
+            HideCondition="INSTALLSCOPE &lt;&gt; &quot;PerUser&quot;"
+            DefaultCondition="INSTALLSCOPE = &quot;PerUser&quot;">
+          <Publish Property="ALLUSERS" Value="2" Order="1" />
+          <Publish Property="MSIINSTALLPERUSER" Value="1" Order="2" />
+          <Publish Event="EndDialog" Value="Return" Order="3" />
+        </Control>
+        <Control Id="InstallMachine" Type="PushButton" X="195" Y="195" Width="75" Height="23" ElevationShield="yes" Text="&amp;Install"
+            ShowCondition="INSTALLSCOPE = &quot;PerMachine&quot;"
+            HideCondition="INSTALLSCOPE &lt;&gt; &quot;PerMachine&quot;"
+            DefaultCondition="INSTALLSCOPE = &quot;PerMachine&quot;">
+          <Publish Property="ALLUSERS" Value="2" Order="1" />
+          <Publish Property="MSIINSTALLPERUSER" Value="{}" Order="2" />
+          <Publish Event="EndDialog" Value="Return" Order="3" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="195" Width="70" Height="23" Cancel="yes" Text="Cancel">
           <Publish Event="EndDialog" Value="Exit" />
         </Control>
       </Dialog>
@@ -85,37 +105,27 @@
       <Dialog Id="InstallCancelled" Width="370" Height="180" Title="[ProductName] Setup">
         <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\InstallerTitle}Setup cancelled" />
         <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="70"
-            Text="[ProductName] setup was cancelled. Run setup again when you are ready." />
+            Text="[ProductName] setup was cancelled. No changes were made." />
         <Control Id="Finish" Type="PushButton" X="280" Y="145" Width="70" Height="23" Default="yes" Cancel="yes" Text="&amp;Finish">
           <Publish Event="EndDialog" Value="Return" />
         </Control>
       </Dialog>
 
-      <!-- Shown by Windows Installer (Restart Manager) when an upgrade or repair must replace files
-           that a running PdfCraft holds open. OK closes those programs (MSIRMSHUTDOWN=2) and
-           continues; Cancel ends setup. -->
-      <Dialog Id="MsiRMFilesInUse" Width="370" Height="200" Title="[ProductName] Setup" KeepModeless="yes">
-        <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="25" Text="{\InstallerTitle}Files in use" />
-        <Control Id="Description" Type="Text" X="20" Y="45" Width="330" Height="30"
-            Text="These programs are using files that setup needs to update. Click OK to close them and continue, or Cancel to stop setup." />
-        <Control Id="List" Type="ListBox" X="20" Y="80" Width="330" Height="55" Property="FileInUseProcess" Sunken="yes" TabSkip="yes" />
-        <Control Id="OK" Type="PushButton" X="195" Y="165" Width="75" Height="23" Default="yes" Text="OK">
-          <Publish Property="MSIRMSHUTDOWN" Value="2" Order="1" />
-          <Publish Event="EndDialog" Value="Return" Order="2" />
-        </Control>
-        <Control Id="Cancel" Type="PushButton" X="280" Y="165" Width="70" Height="23" Cancel="yes" Text="Cancel">
-          <Publish Event="EndDialog" Value="Exit" />
-        </Control>
-      </Dialog>
-
       <InstallUISequence>
-        <Show Dialog="InstallWelcome" Before="InstallMaintenance" Condition="UILevel = 5 AND NOT Installed" />
-        <Show Dialog="InstallMaintenance" Before="InstallProgress" Condition="UILevel = 5 AND Installed AND NOT REMOVE AND NOT REINSTALL" />
-        <Show Dialog="InstallProgress" Before="ExecuteAction" Condition="UILevel = 5" />
+        <Show Dialog="InstallWelcome" Before="InstallProgress" Condition="NOT Installed" />
+        <Show Dialog="InstallMaintenance" Before="InstallProgress" Condition="Installed AND NOT RESUME AND NOT Preselected" />
+        <Show Dialog="InstallProgress" Before="ExecuteAction" />
         <Show Dialog="InstallComplete" OnExit="success" Condition="UILevel = 5" />
-        <Show Dialog="InstallFailed" OnExit="error" Condition="UILevel = 5" />
         <Show Dialog="InstallCancelled" OnExit="cancel" Condition="UILevel = 5" />
+        <Show Dialog="InstallFailed" OnExit="error" Condition="UILevel = 5" />
       </InstallUISequence>
+
+      <AdminUISequence>
+        <Show Dialog="InstallProgress" Before="ExecuteAction" />
+        <Show Dialog="InstallComplete" OnExit="success" Condition="UILevel = 5" />
+        <Show Dialog="InstallCancelled" OnExit="cancel" Condition="UILevel = 5" />
+        <Show Dialog="InstallFailed" OnExit="error" Condition="UILevel = 5" />
+      </AdminUISequence>
     </UI>
   </Fragment>
 </Wix>
