@@ -18,9 +18,10 @@ clear_marks(&mut doc, None)?;                        // remove marks without app
   more than a fifth of its size (or a point) both ways; zero-size text goes when its origin is
   inside;
 - **images**: fully covered → removed; partly covered → a copy with the covered pixels cleared
-  (8/16-bit and 1/2/4-bit images, image masks; Flate/LZW/RL/A85/AHx). Codecs PdfCraft can't
-  re-encode (DCT, JPX, JBIG2, CCITT) are removed whole (fail-closed); inline images under an
-  area are removed;
+  (8/16-bit and 1/2/4-bit images, image masks; Flate/LZW/RL/A85/AHx). Grey and RGB JPEGs
+  (scans, camera photos) are decoded, cleared and written as a new JPEG from the cleared pixels,
+  so the rest of the page keeps its picture. Codecs PdfCraft can't re-encode (CMYK JPEG, JPX,
+  JBIG2, CCITT) are removed whole (fail-closed); inline images under an area are removed;
 - **vectors**: covered paths are removed; partly covered paths and shadings are clipped so
   nothing paints inside the areas;
 - **form XObjects**: rewritten recursively into new objects (pages sharing the original keep it);
@@ -62,4 +63,4 @@ Security numbers and dates for Search & Redact.
 Custom code sets aren't supported yet.
 
 Not yet: pattern locales, struct-tree/alt-text cleanup, metadata and hidden-information
-sanitising (M8.4), re-encoding of DCT images (they are removed instead).
+sanitising (M8.4), clearing CMYK JPEG, JPX, JBIG2 and CCITT images (they are removed instead).

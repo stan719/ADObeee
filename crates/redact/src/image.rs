@@ -1,14 +1,20 @@
 //! Clearing the pixels of an image under redaction regions. The image is decoded, every pixel
 //! whose centre maps into a region is set to zero (no ink for image masks), and the result is
-//! written as a new Flate image; the original object is untouched (other pages may use it).
-//! Images whose codec PdfCraft can't decode (DCT, JPX, JBIG2, CCITT) return `None`, and the
-//! caller removes the whole image instead; that is fail-closed.
+//! written as a new image; the original object is untouched (other pages may use it). Flate and
+//! the other lossless filters stay lossless (Flate); a grey or RGB JPEG, which is what scans and
+//! camera photos are, is re-encoded as a JPEG from its pixels, so nothing of the original stream
+//! (its covered pixels, or an EXIF thumbnail) is carried over. Images whose codec PdfCraft can't
+//! clear (CMYK JPEG, JPX, JBIG2, CCITT) return `None`, and the caller removes the whole image
+//! instead; that is fail-closed.
 
 use pdfcraft_content::{Matrix, overlaps};
 use pdfcraft_cos::{Document, Object, Stream};
 
 /// Most pixels an image may have to be cleared in place (larger ones are removed).
 const MAX_PIXELS: u64 = 64 << 20;
+
+/// The quality a cleared JPEG is written at: the page should look as it did.
+const JPEG_QUALITY: u8 = 90;
 
 fn components(doc: &Document, s: &Stream) -> Option<usize> {
     let cs = doc.resolve(s.dict.get(b"ColorSpace")?);
@@ -47,13 +53,16 @@ fn decode_and_clear(doc: &Document, s: &Stream, ctm: &Matrix, rects: &[[f64; 4]]
             b"FlateDecode" | b"Fl" | b"LZWDecode" | b"LZW" | b"ASCII85Decode" | b"A85" | b"ASCIIHexDecode" | b"AHx" | b"RunLengthDecode" | b"RL"
         )
     };
-    let ok = match s.dict.get(b"Filter") {
-        None => true,
-        Some(Object::Name(n)) => supported(n),
-        Some(Object::Array(a)) => a.iter().all(|f| f.as_name().is_some_and(supported)),
-        _ => false,
+    let filters: Vec<&[u8]> = match s.dict.get(b"Filter") {
+        None => Vec::new(),
+        Some(Object::Name(n)) => vec![n.as_slice()],
+        Some(Object::Array(a)) => a.iter().map(|f| f.as_name()).collect::<Option<_>>()?,
+        _ => return None,
     };
-    if !ok {
+    if let [b"DCTDecode" | b"DCT"] = filters.as_slice() {
+        return clear_jpeg(doc, s, ctm, rects);
+    }
+    if !filters.iter().all(|f| supported(f)) {
         return None;
     }
     let (w, h) = (s.dict.int(b"Width")?, s.dict.int(b"Height")?);
@@ -79,7 +88,61 @@ fn decode_and_clear(doc: &Document, s: &Stream, ctm: &Matrix, rects: &[[f64; 4]]
     } else {
         false
     };
-    let bits_per_pixel = ncomp * bpc;
+    let cleared = clear_pixels(&mut data, w, h, ncomp * bpc, clear_bit, ctm, rects);
+    if cleared == 0 {
+        return Some(None);
+    }
+    let mut dict = s.dict.clone();
+    dict.remove(b"Length");
+    dict.remove(b"DecodeParms");
+    Some(Some(Stream::flate(dict, &data)))
+}
+
+/// A grey or RGB JPEG: decoded, cleared, and written as a new JPEG. CMYK and anything the decoder
+/// can't read give `None` (removed whole).
+fn clear_jpeg(doc: &Document, s: &Stream, ctm: &Matrix, rects: &[[f64; 4]]) -> Option<Option<Stream>> {
+    use image::ImageDecoder;
+    let ncomp = components(doc, s)?;
+    let decoder = image::codecs::jpeg::JpegDecoder::new(std::io::Cursor::new(&s.raw[..])).ok()?;
+    let (w, h) = decoder.dimensions();
+    if w == 0 || h == 0 || (w as u64) * (h as u64) > MAX_PIXELS {
+        return None;
+    }
+    let (expected, colour) = match decoder.color_type() {
+        image::ColorType::L8 => (1, image::ExtendedColorType::L8),
+        image::ColorType::Rgb8 => (3, image::ExtendedColorType::Rgb8),
+        _ => return None,
+    };
+    // The colour space has to agree with the JPEG, or the pixels would be read wrongly.
+    if ncomp != expected {
+        return None;
+    }
+    let mut data = vec![0; usize::try_from(decoder.total_bytes()).ok()?];
+    decoder.read_image(&mut data).ok()?;
+    let (wu, hu) = (w as usize, h as usize);
+    if data.len() != wu.checked_mul(hu)?.checked_mul(ncomp)? {
+        return None;
+    }
+    if clear_pixels(&mut data, wu, hu, ncomp * 8, false, ctm, rects) == 0 {
+        return Some(None);
+    }
+    let mut jpeg = Vec::new();
+    image::ImageEncoder::write_image(image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, JPEG_QUALITY), &data, w, h, colour).ok()?;
+    let mut dict = s.dict.clone();
+    dict.remove(b"Length");
+    dict.remove(b"DecodeParms");
+    dict.set(b"Filter".to_vec(), Object::name("DCTDecode"));
+    dict.set(b"Width".to_vec(), Object::Int(i64::from(w)));
+    dict.set(b"Height".to_vec(), Object::Int(i64::from(h)));
+    dict.set(b"BitsPerComponent".to_vec(), Object::Int(8));
+    Some(Some(Stream::from_raw(dict, jpeg)))
+}
+
+/// Set every pixel whose centre maps into one of `rects` to zero bits (or one bits when
+/// `clear_bit`), in `data` of `h` rows of `w` pixels, each row padded to a whole byte. Returns
+/// how many pixels were cleared. `data` must hold at least `h` rows.
+fn clear_pixels(data: &mut [u8], w: usize, h: usize, bits_per_pixel: usize, clear_bit: bool, ctm: &Matrix, rects: &[[f64; 4]]) -> usize {
+    let row = (w * bits_per_pixel).div_ceil(8);
     let mut cleared = 0usize;
     for j in 0..h {
         // Image space: (0,0) is the bottom-left of the unit square; row 0 is the top.
@@ -100,19 +163,14 @@ fn decode_and_clear(doc: &Document, s: &Stream, ctm: &Matrix, rects: &[[f64; 4]]
             let start = j * row * 8 + i * bits_per_pixel;
             for bit in start..start + bits_per_pixel {
                 let (byte, shift) = (bit / 8, 7 - bit % 8);
+                let Some(b) = data.get_mut(byte) else { continue };
                 if clear_bit {
-                    data[byte] |= 1 << shift;
+                    *b |= 1 << shift;
                 } else {
-                    data[byte] &= !(1 << shift);
+                    *b &= !(1 << shift);
                 }
             }
         }
     }
-    if cleared == 0 {
-        return Some(None);
-    }
-    let mut dict = s.dict.clone();
-    dict.remove(b"Length");
-    dict.remove(b"DecodeParms");
-    Some(Some(Stream::flate(dict, &data)))
+    cleared
 }

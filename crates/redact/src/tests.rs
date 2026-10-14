@@ -270,6 +270,60 @@ fn images_are_removed_or_have_their_pixels_cleared() {
     assert_eq!(orig.decoded().unwrap(), [255; 4], "the shared original is untouched");
 }
 
+/// A `w`×`h` JPEG, white, grey (1 component) or RGB (3).
+fn white_jpeg(w: u32, h: u32, ncomp: usize) -> Vec<u8> {
+    let colour = if ncomp == 1 { ::image::ExtendedColorType::L8 } else { ::image::ExtendedColorType::Rgb8 };
+    let mut out = Vec::new();
+    let px = vec![255u8; w as usize * h as usize * ncomp];
+    ::image::ImageEncoder::write_image(::image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90), &px, w, h, colour).unwrap();
+    out
+}
+
+#[test]
+fn a_scanned_jpeg_page_keeps_its_picture_around_the_redaction() {
+    // A scan: one RGB JPEG over the whole page, redacted in its left half. Before, a JPEG was
+    // removed whole and the page came out blank but for the black box.
+    let jpeg = white_jpeg(64, 64, 3);
+    let dict = "/Type /XObject /Subtype /Image /Width 64 /Height 64 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode";
+    let mut doc = one_page(b"q 300 0 0 300 0 0 cm /Scan Do Q", "/XObject << /Scan 7 0 R >>", vec![stream(dict, &jpeg)]);
+    mark(&mut doc, 0, &[[0.0, 0.0, 150.0, 300.0]], "");
+    let r = apply(&mut doc, None).unwrap();
+    assert_eq!((r.images_removed, r.images_cleared), (0, 1), "{r:?}");
+    let p = pdfcraft_model::pages(&doc).swap_remove(0);
+    let res = doc.resolve(p.dict.get(b"Resources").unwrap()).as_dict().cloned().unwrap();
+    let xo = doc.resolve(res.get(b"XObject").unwrap()).as_dict().cloned().unwrap();
+    let new = xo.iter().find(|(k, _)| k.starts_with(b"PCRedacted")).map(|(_, v)| v.clone()).expect("a cleared copy");
+    let Object::Stream(s) = &*doc.resolve(&new) else { panic!() };
+    assert_eq!(s.dict.get(b"Filter").and_then(Object::as_name), Some(&b"DCTDecode"[..]), "still a JPEG, not a huge Flate image");
+    let img = ::image::load_from_memory_with_format(&s.raw, ::image::ImageFormat::Jpeg).unwrap().to_rgb8();
+    assert_eq!(img.dimensions(), (64, 64));
+    // Away from the edge (JPEG blurs it a little): the left half is cleared, the right half kept.
+    for y in [4, 32, 60] {
+        assert!(img.get_pixel(10, y).0.iter().all(|&c| c < 40), "left cleared at y {y}: {:?}", img.get_pixel(10, y));
+        assert!(img.get_pixel(54, y).0.iter().all(|&c| c > 215), "right kept at y {y}: {:?}", img.get_pixel(54, y));
+    }
+    assert!(content(&doc, 0).contains(" Do"), "the page still draws the picture");
+}
+
+#[test]
+fn a_jpeg_that_can_not_be_cleared_safely_is_still_removed() {
+    // The colour space says grey but the JPEG is RGB: reading it would be guesswork, so the image
+    // goes whole (fail-closed), as do bytes that aren't a JPEG at all.
+    for (cs, data) in [("/DeviceGray", white_jpeg(16, 16, 3)), ("/DeviceRGB", b"not a jpeg".to_vec())] {
+        let dict = format!("/Type /XObject /Subtype /Image /Width 16 /Height 16 /ColorSpace {cs} /BitsPerComponent 8 /Filter /DCTDecode");
+        let mut doc = one_page(b"q 100 0 0 100 0 0 cm /Im Do Q", "/XObject << /Im 7 0 R >>", vec![stream(&dict, &data)]);
+        mark(&mut doc, 0, &[[0.0, 0.0, 50.0, 100.0]], "");
+        let r = apply(&mut doc, None).unwrap();
+        assert_eq!((r.images_removed, r.images_cleared), (1, 0), "{cs}: {r:?}");
+    }
+    // A grey JPEG is cleared like an RGB one.
+    let dict = "/Type /XObject /Subtype /Image /Width 16 /Height 16 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter [/DCTDecode]";
+    let mut doc = one_page(b"q 100 0 0 100 0 0 cm /Im Do Q", "/XObject << /Im 7 0 R >>", vec![stream(dict, &white_jpeg(16, 16, 1))]);
+    mark(&mut doc, 0, &[[0.0, 0.0, 50.0, 100.0]], "");
+    let r = apply(&mut doc, None).unwrap();
+    assert_eq!((r.images_removed, r.images_cleared), (0, 1), "{r:?}");
+}
+
 #[test]
 fn vectors_are_removed_or_clipped_and_inline_images_go() {
     let src = b"0 g 10 10 20 20 re f 0 0 300 300 re f q 10 0 0 10 50 50 cm BI /W 1 /H 1 /CS /G /BPC 8 ID \x80 EI Q 1 0 0 RG 150 150 m 160 160 l S";

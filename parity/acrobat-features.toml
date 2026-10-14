@@ -5536,8 +5536,8 @@ milestone = "M8"
 status = "shipped"
 commands = ["redact.mark"]
 tools = ["redact_mark"]
-evidence = ["crates/ui-egui/tests/ui_group/redact.rs::marking_applying_and_clearing", "crates/redact/src/tests.rs::images_are_removed_or_have_their_pixels_cleared"]
-notes = "drag a box anywhere else"
+evidence = ["crates/ui-egui/tests/ui_group/redact.rs::marking_applying_and_clearing", "crates/redact/src/tests.rs::images_are_removed_or_have_their_pixels_cleared", "crates/redact/src/tests.rs::a_scanned_jpeg_page_keeps_its_picture_around_the_redaction"]
+notes = "drag a box anywhere else. Partly covered images keep their picture outside the areas, grey and RGB JPEG scans included; CMYK JPEG, JPEG 2000, JBIG2 and CCITT images are still removed whole"
 
 [[feature]]
 id = "protect.redact-pages"
