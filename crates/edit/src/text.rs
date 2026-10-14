@@ -54,6 +54,8 @@ pub struct TextLine {
     origin: Origin,
     /// Explicit marked-content scope (when present); distinct scopes must not be guessed into one paragraph.
     scope: Option<usize>,
+    /// The user-space bounding box of the clipping path in force there; lines in different clips (table cells) are never one paragraph.
+    clip: Option<[f64; 4]>,
     /// Right-to-left `/ActualText` already supplies typing order; glyph text still needs bidi
     /// recovery. Left-to-right ActualText (e.g. a Latin ligature) joins its line as usual.
     logical_order: bool,
@@ -334,6 +336,8 @@ pub struct LineEdit {
 #[derive(Clone)]
 struct Ts {
     ctm: Matrix,
+    /// The user-space bounding box of the clipping path (`W`/`W*`), intersected as clips accumulate.
+    clip: Option<[f64; 4]>,
     /// The operators that set the current fill colour (`g`, `rg`, `k`, or `cs` + `sc`/`scn`).
     fill: Vec<Op>,
     font: Option<(Vec<u8>, Rc<Metrics>)>,
@@ -346,6 +350,29 @@ struct Ts {
     leading: f64,
     rise: f64,
     render_mode: i64,
+}
+
+/// The points a path-construction operator adds, in user space.
+fn path_points(op: &Op, ctm: &Matrix) -> Vec<(f64, f64)> {
+    let pts: Vec<(f64, f64)> = match op.op.as_slice() {
+        b"re" => match op.nums::<4>() {
+            Some([x, y, w, h]) => vec![(x, y), (x + w, y), (x + w, y + h), (x, y + h)],
+            None => Vec::new(),
+        },
+        b"c" => op.nums::<6>().map_or_else(Vec::new, |[a, b, c, d, e, f]| vec![(a, b), (c, d), (e, f)]),
+        b"v" | b"y" => op.nums::<4>().map_or_else(Vec::new, |[a, b, c, d]| vec![(a, b), (c, d)]),
+        _ => op.nums::<2>().map_or_else(Vec::new, |[x, y]| vec![(x, y)]),
+    };
+    pts.into_iter().map(|(x, y)| ctm.apply(x, y)).collect()
+}
+
+/// Whether two clipping boxes are the same cell.
+fn same_clip(a: Option<[f64; 4]>, b: Option<[f64; 4]>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.iter().zip(&b).all(|(x, y)| (x - y).abs() < 0.01),
+        _ => false,
+    }
 }
 
 fn content_streams(doc: &Document, page: &Dict) -> Vec<(Object, Vec<u8>)> {
@@ -500,6 +527,7 @@ impl Carry {
     fn new() -> Self {
         let ts = Ts {
             ctm: Matrix::IDENTITY,
+            clip: None,
             fill: Vec::new(),
             font: None,
             face: None,
@@ -533,6 +561,9 @@ fn interpret(
     let mut stack: Vec<Ts> = std::mem::take(&mut carry.stack);
     let (mut tm, mut tlm) = (Matrix::IDENTITY, Matrix::IDENTITY);
     let mut bt = 0usize;
+    // The bounding box of the path under construction, and whether `W`/`W*` made it the next clip.
+    let mut path_box: Option<[f64; 4]> = None;
+    let mut clip_pending = false;
     let mut marked = std::mem::take(&mut carry.marked);
     let mut actual: Vec<Option<(usize, usize, String)>> = Vec::new();
     for (i, op) in ops.iter().enumerate() {
@@ -589,6 +620,19 @@ fn interpret(
                 if let Some(m) = op.nums::<6>() {
                     ts.ctm = Matrix(m).then(&ts.ctm);
                 }
+            }
+            b"m" | b"l" | b"re" | b"c" | b"v" | b"y" => {
+                for (x, y) in path_points(op, &ts.ctm) {
+                    path_box = Some(path_box.map_or([x, y, x, y], |b| [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)]));
+                }
+            }
+            b"W" | b"W*" => clip_pending = true,
+            b"n" | b"S" | b"s" | b"f" | b"F" | b"f*" | b"B" | b"B*" | b"b" | b"b*" => {
+                if clip_pending && let Some(b) = path_box {
+                    ts.clip = Some(ts.clip.map_or(b, |c| [c[0].max(b[0]), c[1].max(b[1]), c[2].min(b[2]), c[3].min(b[3])]));
+                }
+                path_box = None;
+                clip_pending = false;
             }
             b"BT" => {
                 tm = Matrix::IDENTITY;
@@ -774,7 +818,7 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
         let si = ops.get(s.op).map_or(0, |op| pieces.pieces_of(op).0);
         let joins = last.is_some_and(|(piece, bt, base, end, size)| {
             piece == si
-                && lines.last().is_some_and(|l| l.scope == s.scope && l.logical_order == s.logical_order)
+                && lines.last().is_some_and(|l| l.scope == s.scope && l.logical_order == s.logical_order && same_clip(l.clip, s.state.clip))
                 && (bt == s.bt || lines.last().is_some_and(|l| compatible_word(l, &s)))
                 && (s.text.trim().is_empty() || lines.last().is_some_and(|l| same_font(l, &s.font, s.face.as_deref())))
                 && (s.text.trim().is_empty()
@@ -816,6 +860,7 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
                 face: s.face.clone(),
                 stream: si,
                 scope: s.scope,
+                clip: s.state.clip,
                 logical_order: s.logical_order,
                 actual_text: s.actual_text,
                 ops: std::iter::once(s.op).chain(s.extra_ops.iter().copied()).collect(),
@@ -853,6 +898,7 @@ fn compatible_word(line: &TextLine, shown: &Shown) -> bool {
     let same = |a: &[f64], b: &[f64]| a.iter().zip(b).all(|(a, b)| (a - b).abs() < 1e-6);
     let (a, b) = (&line.origin.state, TextState::of(&shown.state));
     line.scope == shown.scope
+        && same_clip(line.clip, shown.state.clip)
         && same(&line.origin.tm[..4], &shown.tm.0[..4])
         && same(&line.origin.ctm, &shown.state.ctm.0)
         && same(&[a.char_spacing, a.word_spacing, a.scale, a.rise], &[b.char_spacing, b.word_spacing, b.scale, b.rise])
@@ -864,7 +910,7 @@ fn compatible_word(line: &TextLine, shown: &Shown) -> bool {
 /// (`bt`, baseline, end x, size).
 fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<(usize, f64, f64, f64)>, s: Shown, stream: usize) {
     let joins = last.is_some_and(|(bt, base, end, size)| {
-        lines.last().is_some_and(|l| l.scope == s.scope && l.logical_order == s.logical_order)
+        lines.last().is_some_and(|l| l.scope == s.scope && l.logical_order == s.logical_order && same_clip(l.clip, s.state.clip))
             && (bt == s.bt || lines.last().is_some_and(|l| compatible_word(l, &s)))
             && (s.text.trim().is_empty() || lines.last().is_some_and(|l| same_font(l, &s.font, s.face.as_deref())))
             && (s.text.trim().is_empty()
@@ -902,6 +948,7 @@ fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<(usize, f64, f64, f64)
             face: s.face.clone(),
             stream,
             scope: s.scope,
+            clip: s.state.clip,
             logical_order: s.logical_order,
             actual_text: s.actual_text,
             ops: std::iter::once(s.op).chain(s.extra_ops.iter().copied()).collect(),

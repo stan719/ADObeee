@@ -3443,3 +3443,23 @@ fn an_items_measured_face_is_the_face_it_is_written_as() {
     let courier = |italic| Family::Courier.width("Anna", 12.0, false, italic);
     assert_eq!(courier(false), courier(true));
 }
+
+/// Two table cells side by side on one baseline, each in its own clipping path, are two
+/// paragraphs: one rewritten at the first cell's `BT` would be clipped away.
+#[test]
+fn text_in_different_clips_is_not_one_block() {
+    let cells = "q 50 700 m 110 700 l 110 740 l 50 740 l h W* n BT /F1 12 Tf 0 0 1 rg 1 0 0 1 70 712 Tm (Note1) Tj ET Q\n\
+                 q 115 700 m 540 700 l 540 740 l 115 740 l h W* n BT /F1 22 Tf 0 g 1 0 0 1 120 712 Tm (Heading FAQ) Tj ET Q";
+    let texts = |doc: &Document| text::text_blocks(doc, 0).unwrap().into_iter().map(|b| b.text).collect::<Vec<_>>();
+    let mut doc = text_page(cells);
+    assert_eq!(texts(&doc), ["Note1", "Heading FAQ"]);
+    // Editing the heading rewrites it in its own cell, where its clip still shows it.
+    text::replace_block(&mut doc, 0, 1, "Changed FAQ").unwrap();
+    let doc = reopen(&doc);
+    assert_eq!(texts(&doc), ["Note1", "Changed FAQ"]);
+    let heading = text::text_blocks(&doc, 0).unwrap()[1].rect;
+    assert!(heading[0] > 115.0 && heading[2] < 540.0, "{heading:?}");
+    // The same two runs under one clip still read as one paragraph.
+    let one = "q 50 700 490 40 re W n BT /F1 12 Tf 1 0 0 1 70 712 Tm (Note1) Tj ET BT /F1 12 Tf 1 0 0 1 110 712 Tm (Heading FAQ) Tj ET Q";
+    assert_eq!(texts(&text_page(one)), ["Note1 Heading FAQ"]);
+}
