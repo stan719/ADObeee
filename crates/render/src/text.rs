@@ -366,7 +366,35 @@ const WORD_GAP: f32 = 0.15;
 /// a unit vector.
 type Drawn = (usize, [f64; 2], TextGlyph);
 
+/// Conservative allowance for owned text and glyph bookkeeping during extraction. This is
+/// separate from PDF/font parsing, raster buffers and the renderer's completed-page cache.
+const MAX_TEXT_STORAGE: usize = 64 * 1024 * 1024;
+
+struct TextBudget {
+    remaining: usize,
+    exceeded: bool,
+}
+
+impl TextBudget {
+    fn reserve(&mut self, bytes: usize) -> bool {
+        if self.exceeded {
+            return false;
+        }
+        match self.remaining.checked_sub(bytes) {
+            Some(remaining) => {
+                self.remaining = remaining;
+                true
+            }
+            None => {
+                self.exceeded = true;
+                false
+            }
+        }
+    }
+}
+
 struct TextDevice {
+    budget: TextBudget,
     /// Every glyph in content order.
     glyphs: Vec<Drawn>,
     /// How many marked content sequences are open.
@@ -439,8 +467,8 @@ fn merge(drawn: &[Drawn], text: String) -> Option<Drawn> {
 }
 
 impl TextDevice {
-    fn new() -> Self {
-        TextDevice { glyphs: Vec::new(), depth: 0, actual: None, replaced: Vec::new() }
+    fn new(limit: usize) -> Self {
+        TextDevice { budget: TextBudget { remaining: limit, exceeded: false }, glyphs: Vec::new(), depth: 0, actual: None, replaced: Vec::new() }
     }
 
     /// Ends the open `/ActualText` replacement (ISO 32000-2 §14.9.4): its glyphs become one glyph
@@ -453,6 +481,9 @@ impl TextDevice {
     /// Unicode). An empty one (a soft hyphen at a line break, say) stands for no text at all.
     fn end_actual_text(&mut self) {
         let Some((_, text, drawn)) = self.actual.take() else { return };
+        if self.budget.exceeded {
+            return;
+        }
         let Some(glyph) = merge(&drawn, text.clone()) else {
             self.glyphs.extend(drawn.into_iter().filter(|d| !d.2.text.chars().all(|c| c.is_control())));
             return;
@@ -472,6 +503,9 @@ impl TextDevice {
     /// replacement's glyphs (the same text at the same places, in content order) takes the same
     /// replacement, so the two read alike and line layout drops the copy as a redraw.
     fn finish(&mut self) {
+        if self.budget.exceeded {
+            return;
+        }
         self.end_actual_text();
         if self.replaced.is_empty() {
             return;
@@ -536,7 +570,14 @@ impl TextDevice {
                 continue;
             };
             let run = glyphs.get(range.clone()).unwrap_or_default();
-            let text = self.replaced.get(k).map(|r| r.text.clone()).unwrap_or_default();
+            let replacement = self.replaced.get(k).map(|r| r.text.as_str()).unwrap_or_default();
+            // A single replacement can match many unmarked redraws. Charge each new copy
+            // before cloning, in addition to the original replacement's reserved storage.
+            let cost = replacement.len().saturating_mul(2).saturating_add(2 * std::mem::size_of::<Drawn>());
+            if !self.budget.reserve(cost) {
+                return;
+            }
+            let text = replacement.to_owned();
             if !text.chars().all(|c| c.is_control()) {
                 match merge(run, text) {
                     Some(glyph) => self.glyphs.push(glyph),
@@ -555,6 +596,11 @@ impl<'a> Device<'a> for TextDevice {
     fn push_clip_path(&mut self, _: &ClipPath) {}
     fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'a>>, _: BlendMode) {}
     fn draw_glyph(&mut self, glyph: &Glyph<'a>, transform: Affine, glyph_transform: Affine, _: &Paint<'a>, _: &GlyphDrawMode) {
+        // Reserve vector growth, retained originals and redraw copies before collecting a
+        // glyph. Invalid glyphs keep their charge too: the budget is monotonic per page.
+        if !self.budget.reserve(8 * std::mem::size_of::<Drawn>()) {
+            return;
+        }
         // Inside an `/ActualText` replacement only the glyph's box matters.
         let replaced = self.actual.is_some();
         let text = match glyph.as_unicode() {
@@ -572,6 +618,9 @@ impl<'a> Device<'a> for TextDevice {
                 return;
             }
         };
+        if !self.budget.reserve(text.capacity().saturating_mul(4)) {
+            return;
+        }
         if !replaced && text.chars().all(|c| c.is_control()) {
             return;
         }
@@ -641,6 +690,14 @@ impl<'a> Device<'a> for TextDevice {
     fn actual_text(&mut self, text: &[u8]) {
         // A replacement nested in another is already covered by the outer one.
         if self.actual.is_none() {
+            // PDFDocEncoding can expand one byte to three UTF-8 bytes; UTF-16/UTF-8
+            // decoding and the merged-glyph copy also need room. Reserve before either
+            // copying or decoding the named property, on EVERY invocation (#1797).
+            let cost =
+                text.len().saturating_mul(8).saturating_add(2 * std::mem::size_of::<Replaced>()).saturating_add(2 * std::mem::size_of::<Drawn>());
+            if !self.budget.reserve(cost) {
+                return;
+            }
             self.actual = Some((self.depth, pdfcraft_cos::PdfString::literal(text).to_text(), Vec::new()));
         }
     }
@@ -653,9 +710,13 @@ impl<'a> Device<'a> for TextDevice {
 }
 
 /// Extract the text of one page. Panics inside the interpreter are the caller's to catch.
-pub(crate) fn extract_page(pdf: &Pdf, page: usize, settings: &InterpreterSettings) -> Option<PageText> {
+pub(crate) fn extract_page(pdf: &Pdf, page: usize, settings: &InterpreterSettings) -> Result<PageText, String> {
+    extract_page_with_budget(pdf, page, settings, MAX_TEXT_STORAGE)
+}
+
+fn extract_page_with_budget(pdf: &Pdf, page: usize, settings: &InterpreterSettings, budget: usize) -> Result<PageText, String> {
     let pages = pdf.pages();
-    let p = pages.get(page)?;
+    let p = pages.get(page).ok_or_else(|| format!("page {} does not exist", page.saturating_add(1)))?;
     let (w, h) = p.render_dimensions();
     let cache = InterpreterCache::new();
     // Annotation appearances are included: form-field values and comment text are searchable,
@@ -663,10 +724,13 @@ pub(crate) fn extract_page(pdf: &Pdf, page: usize, settings: &InterpreterSetting
     let settings = settings.clone();
     let initial = p.initial_transform(true).to_kurbo();
     let mut ctx = Context::new(initial, Rect::new(0.0, 0.0, w as f64, h as f64), &cache, p.xref(), settings);
-    let mut dev = TextDevice::new();
+    let mut dev = TextDevice::new(budget);
     interpret_page(p, &mut ctx, &mut dev);
     // A replacement the content never closed ends with the page.
     dev.finish();
+    if dev.budget.exceeded {
+        return Err(format!("page {} exceeds the text extraction memory budget ({budget} bytes)", page.saturating_add(1)));
+    }
     let glyphs = dev.glyphs;
     // Text on a curved path: glyphs that each continue the previous one's line while the
     // direction turns. Each such run is one line.
@@ -781,7 +845,7 @@ pub(crate) fn extract_page(pdf: &Pdf, page: usize, settings: &InterpreterSetting
     for f in extra {
         emit(&mut text, &f.ids, &f.line_of, &f.space_before, None);
     }
-    Some(text)
+    Ok(text)
 }
 
 /// Glyphs in reading order, as indices into the page's glyphs, with their lines and word gaps.
@@ -1604,6 +1668,10 @@ mod tests {
     /// One page per content stream, in Helvetica (`/F1`), with `/P1` in the resources'
     /// `/Properties` naming the `/ActualText` "fi".
     fn marked_pages(contents: &[&str]) -> Pdf {
+        marked_pages_with_replacement(contents, b"fi")
+    }
+
+    fn marked_pages_with_replacement(contents: &[&str], replacement: &[u8]) -> Pdf {
         use lopdf::{Document, Object, Stream, dictionary};
         let mut doc = Document::with_version("1.7");
         let font = doc.add_object(dictionary! { "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica" });
@@ -1613,7 +1681,7 @@ mod tests {
             let content = doc.add_object(Stream::new(dictionary! {}, c.as_bytes().to_vec()));
             let resources = dictionary! {
                 "Font" => dictionary! {"F1" => font},
-                "Properties" => dictionary! {"P1" => dictionary! {"ActualText" => Object::string_literal("fi")}},
+                "Properties" => dictionary! {"P1" => dictionary! {"ActualText" => Object::string_literal(replacement)}},
             };
             let page = doc.add_object(dictionary! { "Type" => "Page", "Parent" => pages, "MediaBox" => vec![Object::Integer(0), Object::Integer(0), Object::Integer(300), Object::Integer(300)], "Resources" => resources, "Contents" => content });
             kids.push(Object::Reference(page));
@@ -1625,6 +1693,69 @@ mod tests {
         let mut bytes = Vec::new();
         doc.save_to(&mut bytes).unwrap();
         Pdf::new(std::sync::Arc::new(bytes)).unwrap()
+    }
+
+    #[test]
+    fn repeated_named_actual_text_refuses_extraction_at_the_page_budget() {
+        let replacement = "replacement".repeat(100);
+        let marked = "/Span /P1 BDC (x) Tj EMC ";
+        let contents = format!("BT /F1 12 Tf 1 0 0 1 10 100 Tm {} ET", marked.repeat(64));
+        let pdf = marked_pages_with_replacement(&[&contents], replacement.as_bytes());
+        let result = extract_page_with_budget(&pdf, 0, &InterpreterSettings::default(), 32 * 1024);
+        assert!(result.is_err(), "reused property strings must count on every invocation");
+        assert!(result.unwrap_err().contains("text extraction memory budget"));
+        let single = marked_pages_with_replacement(&["BT /F1 12 Tf 1 0 0 1 10 100 Tm /Span /P1 BDC (x) Tj EMC ET"], replacement.as_bytes());
+        assert_eq!(extract_page_with_budget(&single, 0, &InterpreterSettings::default(), 32 * 1024).unwrap().plain_text(), replacement);
+    }
+
+    #[test]
+    fn a_large_actual_text_is_refused_before_decoding_and_empty_replacements_are_bounded() {
+        let large = "x".repeat(1024);
+        let c = "BT /F1 12 Tf 1 0 0 1 10 100 Tm /Span /P1 BDC (x) Tj EMC ET";
+        let pdf = marked_pages_with_replacement(&[c], large.as_bytes());
+        assert!(extract_page_with_budget(&pdf, 0, &InterpreterSettings::default(), 512).is_err());
+        let many = format!("BT /F1 12 Tf {} ET", "/Span /P1 BDC (x) Tj EMC ".repeat(128));
+        let empty = marked_pages_with_replacement(&[&many], b"");
+        assert!(extract_page_with_budget(&empty, 0, &InterpreterSettings::default(), 1024).is_err());
+    }
+
+    #[test]
+    fn actual_text_budget_preserves_unicode_and_is_reset_for_each_page() {
+        let c = "BT /F1 12 Tf 1 0 0 1 10 100 Tm /Span /P1 BDC (x) Tj EMC ET";
+        for replacement in [pdfcraft_cos::PdfString::text("น้ำ").bytes, b"\xEF\xBB\xBFfi".to_vec(), vec![0x80]] {
+            let expected = pdfcraft_cos::PdfString::literal(replacement.clone()).to_text();
+            let pdf = marked_pages_with_replacement(&[c, c], &replacement);
+            for page in [0, 1] {
+                assert_eq!(extract_page_with_budget(&pdf, page, &InterpreterSettings::default(), 4096).unwrap().plain_text(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn actual_text_redraw_copies_share_the_page_storage_budget() {
+        let marked = "BT /F1 12 Tf 1 0 0 1 10 100 Tm /Span /P1 BDC (x) Tj EMC ET ";
+        let redraw = "BT /F1 12 Tf 1 0 0 1 10 100 Tm (x) Tj ET ";
+        let content = format!("{marked}{}", redraw.repeat(32));
+        let pdf = marked_pages_with_replacement(&[&content], "long replacement".repeat(100).as_bytes());
+        assert!(extract_page_with_budget(&pdf, 0, &InterpreterSettings::default(), 64 * 1024).is_err());
+    }
+
+    #[test]
+    fn renderer_reports_budget_failure_without_partial_text_and_keeps_rendering() {
+        use crate::{PageRenderer, RenderConfig, RenderRequest, RequestKind};
+        // One 128 KiB property, referenced 80 times: a small input exercises the real
+        // default limit without allocating an out-of-memory fixture.
+        let content = format!("BT /F1 12 Tf 1 0 0 1 10 100 Tm {} ET", "/Span /P1 BDC (x) Tj EMC ".repeat(80));
+        let pdf = marked_pages_with_replacement(&[&content, "BT /F1 12 Tf 10 100 Td (OK) Tj ET"], &vec![b'x'; 128 * 1024]);
+        let mut renderer = PageRenderer::new(std::sync::Arc::new(pdf.data().as_ref().to_vec()), RenderConfig::default());
+        let text = renderer.render(RenderRequest { page: 0, kind: RequestKind::Text, ..Default::default() });
+        assert!(text.error.as_deref().is_some_and(|e| e.contains("text extraction memory budget")));
+        assert!(text.text.is_none(), "no partial text may be accepted as a complete page");
+        let pixels = renderer.render(RenderRequest { page: 0, kind: RequestKind::Pixels, scale: 1.0, ..Default::default() });
+        assert!(pixels.error.is_none(), "{:?}", pixels.error);
+        let other = renderer.render(RenderRequest { page: 1, kind: RequestKind::Text, ..Default::default() });
+        assert!(other.error.is_none());
+        assert_eq!(other.text.unwrap().plain_text(), "OK");
     }
 
     fn marked_text(pdf: &Pdf, page: usize) -> PageText {
@@ -1668,7 +1799,7 @@ mod tests {
             let quad = [[100.0, 110.0], [110.0, 110.0], [110.0, 100.0], [100.0, 100.0]];
             (0, [1.0, 0.0], TextGlyph { text: text.into(), rect: [100.0, 100.0, 110.0, 110.0], quad, direction: [1.0, 0.0] })
         };
-        let mut dev = TextDevice::new();
+        let mut dev = TextDevice::new(MAX_TEXT_STORAGE);
         // A genuine redraw first: it is still deduplicated within the budget.
         dev.glyphs.push(glyph("fi"));
         dev.glyphs.push(glyph("x"));
