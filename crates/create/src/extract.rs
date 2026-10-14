@@ -348,10 +348,13 @@ fn space(doc: &Document, cs: Option<&Object>) -> Result<Space, String> {
             Some(b"CalGray") => Ok(Space::Gray),
             Some(b"CalRGB") => Ok(Space::Rgb),
             Some(b"Indexed" | b"I") => {
-                let base = space(doc, a.get(1))?;
-                if matches!(base, Space::Indexed(..)) {
+                // Checked before recursing, so a base that points back at itself can't loop.
+                if let Some(Object::Array(b)) = a.get(1).map(|b| doc.resolve(b)).as_deref()
+                    && matches!(b.first().and_then(Object::as_name), Some(b"Indexed" | b"I"))
+                {
                     return Err("nested indexed colour spaces aren't valid".into());
                 }
+                let base = space(doc, a.get(1))?;
                 let table = match a.get(3).map(|t| doc.resolve(t)).as_deref() {
                     Some(Object::String(s)) => s.bytes.clone(),
                     Some(Object::Stream(t)) => t.decoded().map_err(|e| e.to_string())?,

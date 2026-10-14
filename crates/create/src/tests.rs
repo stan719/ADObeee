@@ -818,3 +818,25 @@ fn cmyk_and_ycck_jpegs_export_in_the_colours_the_page_shows() {
         }
     }
 }
+
+#[test]
+fn indexed_colour_spaces_with_an_indexed_base_are_skipped_not_followed() {
+    // A colour space that is its own Indexed base used to recurse until the stack ran out.
+    let indexed = |base: Object| {
+        Object::Array(vec![Object::name("Indexed"), base, Object::Int(1), Object::String(PdfString::literal(vec![0, 0, 0, 255, 255, 255]))])
+    };
+    let mut doc = from_images(&[("flat.png".into(), png_bytes(false))]).unwrap();
+    with_image(&mut doc, |doc| {
+        let a = doc.add(Object::Null);
+        let b = doc.add(Object::Null);
+        doc.set(a, indexed(Object::Ref(a)));
+        doc.set(b, indexed(Object::Ref(a)));
+        let mut d = image_dict(4, 1, "DeviceRGB", 1);
+        d.set(b"ColorSpace".to_vec(), Object::Ref(b));
+        Stream::from_raw(d, vec![0b0101_0000])
+    });
+    let out = extract_images(&doc, &[0], 0);
+    assert!(out.images.is_empty());
+    assert_eq!(out.skipped.len(), 1);
+    assert!(out.skipped[0].2.contains("nested indexed"), "{:?}", out.skipped);
+}
