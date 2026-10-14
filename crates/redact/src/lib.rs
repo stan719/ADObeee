@@ -114,6 +114,7 @@ pub struct Report {
     pub forms_removed: usize,
     pub annotations: usize,
     pub fields: usize,
+    pub thumbnails: usize,
     /// Structure elements that lost alternate/actual text or emptied marked content.
     pub tags: usize,
     /// The form was an AcroForm+XFA form and its `/XFA` packets (which still held redacted field
@@ -465,6 +466,13 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
 
         for (old, new, changed, empty) in out.tag_changes {
             report.tags += tags::clean(doc, page.obj, Some((old, new)), &changed, &empty)?;
+        }
+
+        if page.dict.contains(b"Thumb") {
+            doc.update_dict(page.obj, |d| {
+                d.remove(b"Thumb");
+            })?;
+            report.thumbnails += 1;
         }
 
         // 2. Annotations: the marks, and whatever lies under them (with their pop-ups).

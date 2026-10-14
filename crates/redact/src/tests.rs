@@ -940,3 +940,27 @@ fn redacting_every_inheriting_page_retires_the_parent_resources() {
         assert_eq!(under(&mut saved, page, &[[0.0, 190.0, 300.0, 220.0]]), 0);
     }
 }
+
+#[test]
+fn redacted_page_thumbnails_go_but_unselected_page_thumbnails_stay() {
+    let mut doc = one_page(b"BT /F1 10 Tf 10 200 Td (SECRET) Tj ET", "", vec![]);
+    let thumb = doc.add(Object::Stream(Stream::flate(Dict::new(), b"LEAK_THUMB")));
+    let public_thumb = doc.add(Object::Stream(Stream::flate(Dict::new(), b"Public thumbnail")));
+    let mut public_page = doc.get(ObjRef::new(3, 0)).as_dict().unwrap().clone();
+    public_page.set(b"Thumb".to_vec(), Object::Ref(public_thumb));
+    let public_page = doc.add(Object::Dict(public_page));
+    doc.update_dict(ObjRef::new(3, 0), |d| d.set(b"Thumb".to_vec(), Object::Ref(thumb))).unwrap();
+    doc.update_dict(ObjRef::new(2, 0), |d| {
+        d.set(b"Kids".to_vec(), Object::Array(vec![Object::Ref(ObjRef::new(3, 0)), Object::Ref(public_page)]));
+        d.set(b"Count".to_vec(), Object::Int(2));
+    })
+    .unwrap();
+    mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+    assert_eq!(apply(&mut doc, Some(&[0])).unwrap().thumbnails, 1);
+    assert_no_secret(&doc, b"LEAK_");
+    let saved = reopen(&doc);
+    let pages = pdfcraft_model::pages(&saved);
+    assert!(!pages[0].dict.contains(b"Thumb"));
+    let Object::Stream(s) = &*saved.resolve(pages[1].dict.get(b"Thumb").unwrap()) else { panic!() };
+    assert_eq!(s.decoded().unwrap(), b"Public thumbnail");
+}

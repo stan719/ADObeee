@@ -26,6 +26,7 @@ clear_marks(&mut doc, None)?;                        // remove marks without app
 - **form XObjects**: rewritten recursively into new objects (pages sharing the original keep it);
 - **annotations** whose rectangle overlaps (with their pop-ups), and **form fields** with a
   widget under a mark;
+- **thumbnails** on redacted pages, which may still show removed content;
 - the marks themselves, replaced by boxes in their fill colour (and overlay text) drawn into the
   page as a `/PCMark /Redaction` stream.
 
