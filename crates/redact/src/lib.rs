@@ -319,17 +319,15 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
         )));
     }
     let mut report = Report { marks: chosen.len(), ..Report::default() };
-    let mut by_page: Vec<usize> = chosen.iter().map(|m| m.page).collect();
-    by_page.sort_unstable();
-    by_page.dedup();
+    // `marks` visits pages in order. Keep slices of that order for appearance generation,
+    // content rewriting and verification instead of scanning all marks for every page.
+    let groups: Vec<_> = chosen.chunk_by(|a, b| a.page == b.page).filter_map(|group| group.first().map(|mark| (mark.page, group))).collect();
+    let by_page: Vec<_> = groups.iter().map(|(page, _)| *page).collect();
     // Budget failures must leave even a direct library caller's document untouched.
     let mut remaining = overlay::MAX_BYTES;
-    let overlays = by_page
+    let overlays = groups
         .iter()
-        .map(|&pi| {
-            let page_marks: Vec<&Mark> = chosen.iter().copied().filter(|m| m.page == pi).collect();
-            overlay::content(&page_marks, &mut remaining).map(|content| (pi, content))
-        })
+        .map(|&(pi, page_marks)| overlay::content(page_marks, &mut remaining).map(|content| (pi, content)))
         .collect::<Result<Vec<_>, _>>()?;
     report.pages = by_page.len();
     localize_resources(doc, &by_page)?;
@@ -339,9 +337,8 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
     let widget_owner: Vec<(ObjRef, String)> =
         pdfcraft_forms::fields(doc).into_iter().flat_map(|f| f.widgets.iter().map(|w| (w.obj, f.name.clone())).collect::<Vec<_>>()).collect();
 
-    for &pi in &by_page {
+    for &(pi, page_marks) in &groups {
         let page = pdfcraft_model::pages(doc).swap_remove(pi);
-        let page_marks: Vec<&Mark> = chosen.iter().copied().filter(|m| m.page == pi).collect();
         let rects: Vec<[f64; 4]> = page_marks.iter().flat_map(|m| m.rects.iter().copied()).collect();
 
         // 1. Content.
@@ -514,9 +511,9 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
 
     // 5. Verify: nothing readable may remain under a region.
     let mut residue = 0;
-    for &pi in &by_page {
+    for &(pi, page_marks) in &groups {
         let page = pdfcraft_model::pages(doc).swap_remove(pi);
-        let rects: Vec<[f64; 4]> = chosen.iter().filter(|m| m.page == pi).flat_map(|m| m.rects.iter().copied()).collect();
+        let rects: Vec<[f64; 4]> = page_marks.iter().flat_map(|m| m.rects.iter().copied()).collect();
         let (list, data) = page_streams(doc, &page.dict, pi)?;
         // The overlay stream (last) draws text of its own: the overlay label is allowed.
         let original: Vec<Vec<u8>> = list

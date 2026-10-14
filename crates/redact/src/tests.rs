@@ -755,6 +755,41 @@ fn overlay_budget_is_shared_by_pages_and_respects_the_page_selection() {
 }
 
 #[test]
+fn grouped_marks_keep_overlay_order_and_ignore_duplicate_page_selections() {
+    let mut doc = repeated_overlay_document(60.0, 30.0, false);
+    let page = doc.get(ObjRef::new(3, 0)).as_dict().unwrap().clone();
+    let original_mark = (*doc.get(ObjRef::new(5, 0))).clone();
+    let mut kids = vec![Object::Ref(ObjRef::new(3, 0))];
+    for _ in 0..2 {
+        let mut copy = page.clone();
+        let mark = doc.add(original_mark.clone());
+        copy.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(mark)]));
+        kids.push(Object::Ref(doc.add(Object::Dict(copy))));
+    }
+    doc.update_dict(ObjRef::new(2, 0), |d| {
+        d.set(b"Kids".to_vec(), Object::Array(kids));
+        d.set(b"Count".to_vec(), Object::Int(3));
+    })
+    .unwrap();
+    let mut second = original_mark.as_dict().unwrap().clone();
+    second.set(b"OverlayText".to_vec(), Object::String(pdfcraft_cos::PdfString::literal(b"Y".to_vec())));
+    let second = doc.add(Object::Dict(second));
+    doc.update_dict(ObjRef::new(3, 0), |d| {
+        d.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(ObjRef::new(5, 0)), Object::Ref(second)]));
+    })
+    .unwrap();
+    let untouched = content(&doc, 1);
+    let report = apply(&mut doc, Some(&[2, 0, 2])).unwrap();
+    assert_eq!((report.pages, report.marks), (2, 3));
+    let saved = reopen(&doc);
+    assert_eq!(marks(&saved).iter().map(|m| m.page).collect::<Vec<_>>(), [1]);
+    assert_eq!(content(&saved, 1), untouched);
+    let first = content(&saved, 0);
+    assert!(first.find("(X) Tj").unwrap() < first.find("(Y) Tj").unwrap());
+    assert_eq!(content(&saved, 2).matches("(X) Tj").count(), 1);
+}
+
+#[test]
 fn overlay_extreme_counts_and_invalid_geometry_are_refused_without_large_allocations() {
     let doc = repeated_overlay_document(20.0, 10.0, true);
     let original = marks(&doc).remove(0);
