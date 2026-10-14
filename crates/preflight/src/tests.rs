@@ -250,3 +250,73 @@ fn device_colour_is_found_after_any_whitespace() {
         }
     }
 }
+
+/// Embedded font programs and ICC profiles are binary data with no /Type or /Subtype: a byte
+/// sequence that happens to read as `k` or `K` must not count as DeviceCMYK. Any PDF that embeds
+/// a TrueType font (every browser- or word-processor-made report) used to be refused an sRGB
+/// output intent this way.
+#[test]
+fn font_programs_and_icc_profiles_are_not_content() {
+    let cmyk_msg = "DeviceCMYK is used: it needs a CMYK output intent (not added automatically)";
+    let binary = "\u{1}\u{2} k \u{3}\n0 0 0 1 K\n";
+    let font_file2 = format!("<< /Length {} /Length1 {} >>\nstream\n{binary}\nendstream", binary.len(), binary.len());
+    let font_file = format!("<< /Length {0} /Length1 {0} /Length2 0 /Length3 0 >>\nstream\n{binary}\nendstream", binary.len());
+    let icc = format!("<< /Length {} /N 3 >>\nstream\n{binary}\nendstream", binary.len());
+    let mut doc = build(
+        &[
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 200] >>",
+            "<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 8 0 R >> /ColorSpace << /CS0 [/ICCBased 10 0 R] >> >> >>",
+            "<< /Length 50 >>\nstream\n1 0 0 rg BT /F1 12 Tf 10 10 Td (Hi) Tj ET 0 0 1 RG\nendstream",
+            "<< /Type /Font /Subtype /TrueType /BaseFont /Report /FontDescriptor 6 0 R >>",
+            "<< /Type /FontDescriptor /FontName /Report /FontFile2 7 0 R >>",
+            font_file2.as_str(),
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Old /FontDescriptor 9 0 R >>",
+            "<< /Type /FontDescriptor /FontName /Old /FontFile 11 0 R >>",
+            icc.as_str(),
+            font_file.as_str(),
+        ],
+        "",
+    );
+    assert!(!messages(&verify(&doc, Level::A2b)).contains(&cmyk_msg));
+    let r = convert(&mut doc, Level::A2b).unwrap();
+    assert!(r.fixed.iter().any(|f| f.contains("output intent")), "{:?}", r.fixed);
+    assert_eq!(declared(&doc).output_intents, ["sRGB IEC61966-2.1"]);
+}
+
+/// Some writers omit /Length1 on /FontFile2 and /N-less ICC streams exist too: the streams a
+/// font descriptor or an ICCBased colour space points at are still skipped.
+#[test]
+fn referenced_font_and_icc_streams_are_not_content_without_marker_keys() {
+    let cmyk_msg = "DeviceCMYK is used: it needs a CMYK output intent (not added automatically)";
+    let binary = "\u{1}\u{2} k \u{3}\n0 0 0 1 K\n";
+    let bare = format!("<< /Length {} >>\nstream\n{binary}\nendstream", binary.len());
+    let content = "1 0 0 rg BT /F1 12 Tf 10 10 Td (Hi) Tj ET";
+    let content = format!("<< /Length {} >>\nstream\n{content}\nendstream", content.len());
+    let doc = build(
+        &[
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 200] >>",
+            "<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> /ColorSpace << /CS0 [/ICCBased 8 0 R] >> >> >>",
+            content.as_str(),
+            "<< /Type /Font /Subtype /TrueType /BaseFont /Report /FontDescriptor 6 0 R >>",
+            "<< /Type /FontDescriptor /FontName /Report /FontFile2 7 0 R >>",
+            bare.as_str(),
+            bare.as_str(),
+        ],
+        "",
+    );
+    assert!(!messages(&verify(&doc, Level::A2b)).contains(&cmyk_msg));
+
+    // The same bytes as an unreferenced page content stream still count.
+    let doc = build(
+        &[
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 200 200] >>",
+            "<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << >> >>",
+            bare.as_str(),
+        ],
+        "",
+    );
+    assert!(messages(&verify(&doc, Level::A2b)).contains(&cmyk_msg));
+}

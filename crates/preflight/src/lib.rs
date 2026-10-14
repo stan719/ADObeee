@@ -257,10 +257,50 @@ impl DeviceColour {
     }
 }
 
+/// Streams that hold binary data rather than content operators: font programs a font
+/// descriptor points at, and ICC profiles an `[/ICCBased …]` colour space points at. Found by
+/// reference because writers do not always set the dictionary keys that would mark them (some
+/// omit /Length1 on /FontFile2).
+fn binary_streams(objs: &[(ObjRef, std::sync::Arc<Object>)]) -> std::collections::HashSet<ObjRef> {
+    fn icc_refs(o: &Object, out: &mut std::collections::HashSet<ObjRef>, depth: u8) {
+        if depth == 0 {
+            return;
+        }
+        match o {
+            Object::Array(a) => {
+                if let [Object::Name(n), Object::Ref(r), ..] = a.as_slice()
+                    && n == b"ICCBased"
+                {
+                    out.insert(*r);
+                }
+                for item in a {
+                    icc_refs(item, out, depth - 1);
+                }
+            }
+            Object::Dict(d) => d.iter().for_each(|(_, v)| icc_refs(v, out, depth - 1)),
+            Object::Stream(s) => s.dict.iter().for_each(|(_, v)| icc_refs(v, out, depth - 1)),
+            _ => {}
+        }
+    }
+    let mut out = std::collections::HashSet::new();
+    for (_, o) in objs {
+        if let Some(d) = dict_of(o) {
+            for key in [b"FontFile".as_slice(), b"FontFile2", b"FontFile3"] {
+                if let Some(Object::Ref(r)) = d.get(key) {
+                    out.insert(*r);
+                }
+            }
+        }
+        icc_refs(o, &mut out, 8);
+    }
+    out
+}
+
 /// Whether any content or object uses a device colour space.
 fn uses_device_colour(doc: &Document, objs: &[(ObjRef, std::sync::Arc<Object>)]) -> DeviceColour {
     let mut used = DeviceColour::default();
-    for (_, o) in objs {
+    let binary = binary_streams(objs);
+    for (r, o) in objs {
         let Some(d) = dict_of(o) else { continue };
         // A resource dictionary's /ColorSpace, whether it is this object or the page's inline
         // /Resources.
@@ -281,9 +321,14 @@ fn uses_device_colour(doc: &Document, objs: &[(ObjRef, std::sync::Arc<Object>)])
                 _ => {}
             }
         }
+        // Font programs and ICC profiles have no /Type or /Subtype either, but their bytes are
+        // binary data, not operators: a stray `k` in an embedded TrueType font would otherwise
+        // read as DeviceCMYK. Skip them by their keys (/Length1-3, /N) and by reference.
         if let Object::Stream(s) = &**o
             && d.get(b"Type").is_none()
             && d.get(b"Subtype").is_none_or(|t| t.as_name() == Some(b"Form"))
+            && [b"Length1".as_slice(), b"Length2", b"Length3", b"N"].iter().all(|k| d.get(k).is_none())
+            && !binary.contains(r)
             && let Ok(data) = s.decoded()
         {
             // Content streams: rg/RG/g/G/k/K operators.
