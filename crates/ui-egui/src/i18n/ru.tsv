@@ -1377,6 +1377,24 @@
 	Encrypt	Шифровать
 	All document contents	Всё содержимое документа
 	All document contents except metadata	Всё содержимое документа, кроме метаданных
+	Protect PDF with a password	Защитить PDF паролем
+	Require a password to	Требовать пароль для
+	Open the document	Открытия документа
+	Password required to view the PDF.	Для просмотра PDF требуется пароль.
+	Restrict editing	Ограничения редактирования
+	Password required to change editing permissions.	Для изменения разрешений на редактирование требуется пароль.
+	Confirm password	Подтвердите пароль
+	Show confirm password	Показать подтверждение пароля
+	Hide confirm password	Скрыть подтверждение пароля
+	Advanced settings	Дополнительные параметры
+	Content to encrypt	Что шифровать
+	All contents except metadata	Всё содержимое, кроме метаданных
+	Metadata includes details such as title and author.	Метаданные включают такие сведения, как название и автор.
+	Protection takes effect when you save the PDF.	Защита вступит в силу при сохранении PDF.
+	Apply protection	Применить защиту
+	Enter a password.	Введите пароль.
+	Confirm your password.	Подтвердите пароль.
+	Passwords do not match.	Пароли не совпадают.
 	Printing allowed	Печать разрешена
 	Low Resolution (150 dpi)	Низкое разрешение (150 dpi)
 	Changes allowed	Изменения разрешены
@@ -1389,6 +1407,7 @@
 	Type a password.	Введите пароль.
 	The passwords don't match.	Пароли не совпадают.
 	This compatibility level supports only plain ASCII passwords.	Этот уровень совместимости поддерживает только пароли в обычном ASCII.
+	Add at least one letter, number, or punctuation mark to your password.	Добавьте в пароль хотя бы одну букву, цифру или знак препинания.
 	Anyone opening the document will need this password. It's applied when you save.	Любой, кто открывает документ, будет нуждаться в этом пароле. Он применяется при сохранении.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Документ открывается без пароля; этот пароль нужен для изменения ограничений. Он применяется при сохранении.
 	Recover unsaved documents?	Восстановить несохранённые документы?

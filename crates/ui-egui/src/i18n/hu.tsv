@@ -1346,6 +1346,24 @@
 	Encrypt	Titkosítás
 	All document contents	A dokumentum teljes tartalma
 	All document contents except metadata	A dokumentum teljes tartalma, a metaadatok kivételével
+	Protect PDF with a password	PDF védelme jelszóval
+	Require a password to	Jelszó megkövetelése ehhez:
+	Open the document	A dokumentum megnyitása
+	Password required to view the PDF.	A PDF megtekintéséhez jelszó szükséges.
+	Restrict editing	A szerkesztés korlátozása
+	Password required to change editing permissions.	A szerkesztési engedélyek módosításához jelszó szükséges.
+	Confirm password	Jelszó megerősítése
+	Show confirm password	Megerősítő jelszó megjelenítése
+	Hide confirm password	Megerősítő jelszó elrejtése
+	Advanced settings	Speciális beállítások
+	Content to encrypt	Titkosítandó tartalom
+	All contents except metadata	Minden tartalom a metaadatok kivételével
+	Metadata includes details such as title and author.	A metaadatok olyan részleteket tartalmaznak, mint a cím és a szerző.
+	Protection takes effect when you save the PDF.	A védelem a PDF mentésekor lép érvénybe.
+	Apply protection	Védelem alkalmazása
+	Enter a password.	Adjon meg egy jelszót.
+	Confirm your password.	Erősítse meg a jelszavát.
+	Passwords do not match.	A jelszavak nem egyeznek.
 	Printing allowed	Nyomtatás engedélyezve
 	Low Resolution (150 dpi)	Alacsony felbontás (150 dpi)
 	Changes allowed	Módosítás engedélyezve
@@ -1358,6 +1376,7 @@
 	Type a password.	Adj meg egy jelszót.
 	The passwords don't match.	A jelszavak nem egyeznek.
 	This compatibility level supports only plain ASCII passwords.	Ez a kompatibilitási szint csak sima ASCII-jelszót fogad el.
+	Add at least one letter, number, or punctuation mark to your password.	Adjon legalább egy betűt, számjegyet vagy írásjelet a jelszavához.
 	Anyone opening the document will need this password. It's applied when you save.	A dokumentumot megnyitóknak erre a jelszóra lesz szükségük. Mentéskor lép életbe.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	A dokumentum jelszó nélkül nyílik meg; ez a jelszó a korlátozások módosításához kell. Mentéskor lép életbe.
 	Recover unsaved documents?	Visszaállítod a nem mentett dokumentumokat?

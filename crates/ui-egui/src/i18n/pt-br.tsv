@@ -1261,6 +1261,24 @@
 	Encrypt	Criptografar
 	All document contents	Todo o conteúdo do documento
 	All document contents except metadata	Todo o conteúdo do documento, exceto metadados
+	Protect PDF with a password	Proteger o PDF com senha
+	Require a password to	Exigir uma senha para
+	Open the document	Abrir o documento
+	Password required to view the PDF.	Senha necessária para visualizar o PDF.
+	Restrict editing	Restringir a edição
+	Password required to change editing permissions.	Senha necessária para alterar as permissões de edição.
+	Confirm password	Confirmar senha
+	Show confirm password	Mostrar confirmação de senha
+	Hide confirm password	Ocultar confirmação de senha
+	Advanced settings	Configurações avançadas
+	Content to encrypt	Conteúdo a criptografar
+	All contents except metadata	Todo o conteúdo, exceto metadados
+	Metadata includes details such as title and author.	Os metadados incluem detalhes como título e autor.
+	Protection takes effect when you save the PDF.	A proteção entra em vigor quando você salva o PDF.
+	Apply protection	Aplicar proteção
+	Enter a password.	Digite uma senha.
+	Confirm your password.	Confirme sua senha.
+	Passwords do not match.	As senhas não coincidem.
 	Printing allowed	Impressão permitida
 	Low Resolution (150 dpi)	Baixa resolução (150 dpi)
 	Changes allowed	Alterações permitidas
@@ -1273,6 +1291,7 @@
 	Type a password.	Digite uma senha.
 	The passwords don't match.	As senhas não coincidem.
 	This compatibility level supports only plain ASCII passwords.	Este nível de compatibilidade suporta apenas senhas em ASCII simples.
+	Add at least one letter, number, or punctuation mark to your password.	Adicione pelo menos uma letra, um número ou um sinal de pontuação à sua senha.
 	Anyone opening the document will need this password. It's applied when you save.	Qualquer pessoa que abrir o documento precisará desta senha. Ela será aplicada ao salvar.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	O documento é aberto sem senha; esta senha é necessária para alterar as restrições. Ela será aplicada ao salvar.
 	Recover unsaved documents?	Recuperar documentos não salvos?

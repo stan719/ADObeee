@@ -902,6 +902,24 @@
 	Privacy	Privatumas
 	Properties…	Savybės…
 	Protect Using Password	Apsaugoti slaptažodžiu
+	Protect PDF with a password	Apsaugoti PDF slaptažodžiu
+	Require a password to	Reikalauti slaptažodžio, kad būtų galima
+	Open the document	Atidaryti dokumentą
+	Password required to view the PDF.	Slaptažodis reikalingas PDF peržiūrai.
+	Restrict editing	Apriboti redagavimą
+	Password required to change editing permissions.	Slaptažodis reikalingas redagavimo leidimams keisti.
+	Confirm password	Pakartokite slaptažodį
+	Show confirm password	Rodyti patvirtinimo slaptažodį
+	Hide confirm password	Slėpti patvirtinimo slaptažodį
+	Advanced settings	Išplėstiniai nustatymai
+	Content to encrypt	Šifruojamas turinys
+	All contents except metadata	Visas turinys, išskyrus metaduomenis
+	Metadata includes details such as title and author.	Metaduomenys apima tokią informaciją kaip pavadinimas ir autorius.
+	Protection takes effect when you save the PDF.	Apsauga įsigalios, kai išsaugosite PDF.
+	Apply protection	Taikyti apsaugą
+	Enter a password.	Įveskite slaptažodį.
+	Confirm your password.	Patvirtinkite slaptažodį.
+	Passwords do not match.	Slaptažodžiai nesutampa.
 	Protected: the combined file won't keep its security settings	Apsaugota: sujungtame faile saugos nuostatos neišliks
 	Quality	Kokybė
 	Read Only	Tik skaityti
@@ -2330,6 +2348,7 @@ comment menu	Edit	Redaguoti
 	There are no redaction marks to apply	Nėra pritaikytinų konfidencialios informacijos šalinimo žymų
 	This PDF uses the unsupported {s} action.	Šis PDF naudoja nepalaikomą veiksmą {s}.
 	This compatibility level supports only plain ASCII passwords.	Šis suderinamumo lygis palaiko tik slaptažodžius iš paprastų ASCII simbolių.
+	Add at least one letter, number, or punctuation mark to your password.	Į slaptažodį įrašykite bent vieną raidę, skaičių ar skyrybos ženklą.
 	This document can't be checked: it couldn't be read for editing	Dokumento negalima patikrinti: nepavyko jo perskaityti redagavimui
 	This document has no attachments.	Šiame dokumente nėra priedų.
 	This document has no bookmarks.	Šiame dokumente nėra žymelių.

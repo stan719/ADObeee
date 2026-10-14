@@ -10,8 +10,8 @@ const FIELD_MARGIN: egui::Margin = egui::Margin::symmetric(10, 6);
 /// Outer height of a single-line field, including its inset.
 const FIELD_MIN_HEIGHT: f32 = 30.0;
 /// Padding inside every modal.
-const DIALOG_PAD_X: i8 = 20;
-const DIALOG_PAD_Y: i8 = 16;
+pub(crate) const DIALOG_PAD_X: i8 = 20;
+pub(crate) const DIALOG_PAD_Y: i8 = 16;
 
 fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
     let t = Tokens::get(ctx);
@@ -130,10 +130,15 @@ pub fn mode_tab(ui: &mut egui::Ui, label: &str, active: bool) -> Response {
 
 /// Rounded pill button; `primary` fills with the accent.
 pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
+    pill_button_sized(ui, label, primary, 28.0)
+}
+
+/// [`pill_button`] at a given height (dialogs with larger touch targets).
+pub fn pill_button_sized(ui: &mut egui::Ui, label: &str, primary: bool, height: f32) -> Response {
     let t = Tokens::get(ui.ctx());
-    let font = theme::medium(12.5);
+    let font = if height > 28.0 { theme::medium(14.0) } else { theme::medium(12.5) };
     let w = ui.fonts_mut(|f| f.layout_no_wrap(label.to_owned(), font.clone(), t.text).size().x);
-    let (rect, resp) = ui.allocate_exact_size(vec2(w + 26.0, 28.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(w + height - 2.0, height), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke, text) = if primary {
@@ -141,7 +146,7 @@ pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };
-    ui.painter().rect(rect, CornerRadius::same(14), fill, stroke, egui::StrokeKind::Inside);
+    ui.painter().rect(rect, CornerRadius::same((height / 2.0) as u8), fill, stroke, egui::StrokeKind::Inside);
     ui.painter().text(rect.translate(press.offset()).center(), Align2::CENTER_CENTER, label, font, text);
     theme::hand(resp)
 }

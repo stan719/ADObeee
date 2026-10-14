@@ -913,6 +913,24 @@
 	Acrobat 3.0 and later (40-bit RC4)	Acrobat 3.0 και νεότερες εκδόσεις (RC4 40 bit)
 	All document contents	Όλο το περιεχόμενο του εγγράφου
 	All document contents except metadata	Όλο το περιεχόμενο του εγγράφου εκτός από τα μεταδεδομένα
+	Protect PDF with a password	Προστασία PDF με κωδικό πρόσβασης
+	Require a password to	Απαίτηση κωδικού πρόσβασης για
+	Open the document	Άνοιγμα του εγγράφου
+	Password required to view the PDF.	Απαιτείται κωδικός πρόσβασης για την προβολή του PDF.
+	Restrict editing	Περιορισμός επεξεργασίας
+	Password required to change editing permissions.	Απαιτείται κωδικός πρόσβασης για την αλλαγή των δικαιωμάτων επεξεργασίας.
+	Confirm password	Επιβεβαίωση κωδικού πρόσβασης
+	Show confirm password	Εμφάνιση επιβεβαίωσης κωδικού πρόσβασης
+	Hide confirm password	Απόκρυψη επιβεβαίωσης κωδικού πρόσβασης
+	Advanced settings	Σύνθετες ρυθμίσεις
+	Content to encrypt	Περιεχόμενο προς κρυπτογράφηση
+	All contents except metadata	Όλο το περιεχόμενο εκτός από τα μεταδεδομένα
+	Metadata includes details such as title and author.	Τα μεταδεδομένα περιλαμβάνουν στοιχεία όπως ο τίτλος και ο συγγραφέας.
+	Protection takes effect when you save the PDF.	Η προστασία τίθεται σε ισχύ όταν αποθηκεύσετε το PDF.
+	Apply protection	Εφαρμογή προστασίας
+	Enter a password.	Εισαγάγετε έναν κωδικό πρόσβασης.
+	Confirm your password.	Επιβεβαιώστε τον κωδικό πρόσβασης.
+	Passwords do not match.	Οι κωδικοί πρόσβασης δεν ταιριάζουν.
 	Printing allowed	Επιτρέπεται η εκτύπωση
 	Low Resolution (150 dpi)	Χαμηλή ανάλυση (150 dpi)
 	Changes allowed	Επιτρεπόμενες αλλαγές
@@ -925,6 +943,7 @@
 	Type a password.	Πληκτρολογήστε έναν κωδικό πρόσβασης.
 	The passwords don't match.	Οι κωδικοί πρόσβασης δεν ταιριάζουν.
 	This compatibility level supports only plain ASCII passwords.	Αυτό το επίπεδο συμβατότητας υποστηρίζει μόνο κωδικούς πρόσβασης με χαρακτήρες ASCII.
+	Add at least one letter, number, or punctuation mark to your password.	Προσθέστε τουλάχιστον ένα γράμμα, αριθμό ή σημείο στίξης στον κωδικό σας.
 	Anyone opening the document will need this password. It's applied when you save.	Όποιος ανοίγει το έγγραφο θα χρειάζεται αυτόν τον κωδικό. Η προστασία εφαρμόζεται κατά την αποθήκευση.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Το έγγραφο ανοίγει χωρίς κωδικό. Ο κωδικός απαιτείται για αλλαγή των περιορισμών και εφαρμόζεται κατά την αποθήκευση.
 	Recover unsaved documents?	Ανάκτηση μη αποθηκευμένων εγγράφων;

@@ -1318,6 +1318,24 @@
 	Encrypt	Шифровай
 	All document contents	Цялото съдържание на документа
 	All document contents except metadata	Цялото съдържание на документа без метаданните
+	Protect PDF with a password	Защита на PDF с парола
+	Require a password to	Изисквай парола за
+	Open the document	Отваряне на документа
+	Password required to view the PDF.	Необходима е парола за преглед на PDF.
+	Restrict editing	Ограничаване на редактирането
+	Password required to change editing permissions.	Необходима е парола за промяна на разрешенията за редактиране.
+	Confirm password	Потвърдете паролата
+	Show confirm password	Показване на потвърждението на паролата
+	Hide confirm password	Скриване на потвърждението на паролата
+	Advanced settings	Разширени настройки
+	Content to encrypt	Съдържание за шифроване
+	All contents except metadata	Цялото съдържание освен метаданните
+	Metadata includes details such as title and author.	Метаданните включват подробности като заглавие и автор.
+	Protection takes effect when you save the PDF.	Защитата влиза в сила, когато запазите PDF.
+	Apply protection	Прилагане на защитата
+	Enter a password.	Въведете парола.
+	Confirm your password.	Потвърдете паролата си.
+	Passwords do not match.	Паролите не съвпадат.
 	Printing allowed	Разрешен печат
 	Low Resolution (150 dpi)	Ниска разделителна способност (150 dpi)
 	Changes allowed	Разрешени промени
@@ -1330,6 +1348,7 @@
 	Type a password.	Въведете парола.
 	The passwords don't match.	Паролите не съвпадат.
 	This compatibility level supports only plain ASCII passwords.	Това ниво на съвместимост поддържа само пароли с обикновени ASCII знаци.
+	Add at least one letter, number, or punctuation mark to your password.	Добавете поне една буква, цифра или препинателен знак към паролата си.
 	Anyone opening the document will need this password. It's applied when you save.	Всеки, който отваря документа, ще се нуждае от тази парола. Тя се прилага при записване.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Документът се отваря без парола; тази парола е нужна за промяна на ограниченията. Тя се прилага при записване.
 	Recover unsaved documents?	Да се възстановят ли незаписаните документи?

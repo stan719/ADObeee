@@ -1372,6 +1372,24 @@
 	Encrypt	Cifra
 	All document contents	Tutto il contenuto del documento
 	All document contents except metadata	Tutto il contenuto del documento tranne i metadati
+	Protect PDF with a password	Proteggi il PDF con una password
+	Require a password to	Richiedi una password per
+	Open the document	Aprire il documento
+	Password required to view the PDF.	Password necessaria per visualizzare il PDF.
+	Restrict editing	Limitare la modifica
+	Password required to change editing permissions.	Password necessaria per cambiare le autorizzazioni di modifica.
+	Confirm password	Conferma password
+	Show confirm password	Mostra conferma password
+	Hide confirm password	Nascondi conferma password
+	Advanced settings	Impostazioni avanzate
+	Content to encrypt	Contenuto da crittografare
+	All contents except metadata	Tutto il contenuto tranne i metadati
+	Metadata includes details such as title and author.	I metadati includono dettagli come titolo e autore.
+	Protection takes effect when you save the PDF.	La protezione ha effetto quando salvi il PDF.
+	Apply protection	Applica protezione
+	Enter a password.	Inserisci una password.
+	Confirm your password.	Conferma la password.
+	Passwords do not match.	Le password non corrispondono.
 	Printing allowed	Stampa consentita
 	Low Resolution (150 dpi)	Bassa risoluzione (150 dpi)
 	Changes allowed	Modifiche consentite
@@ -1384,6 +1402,7 @@
 	Type a password.	Digita una password.
 	The passwords don't match.	Le password non corrispondono.
 	This compatibility level supports only plain ASCII passwords.	Questo livello di compatibilità supporta solo password in ASCII semplice.
+	Add at least one letter, number, or punctuation mark to your password.	Aggiungi almeno una lettera, un numero o un segno di punteggiatura alla password.
 	Anyone opening the document will need this password. It's applied when you save.	Chiunque apra il documento avrà bisogno di questa password. Viene applicata al salvataggio.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Il documento si apre senza password; questa password serve per modificare le restrizioni. Viene applicata al salvataggio.
 	Recover unsaved documents?	Recuperare i documenti non salvati?

@@ -1269,6 +1269,24 @@
 	Encrypt	加密
 	All document contents	所有文件內容
 	All document contents except metadata	除中繼資料外的所有文件內容
+	Protect PDF with a password	使用密碼保護 PDF
+	Require a password to	要求輸入密碼以
+	Open the document	開啟文件
+	Password required to view the PDF.	檢視 PDF 需要密碼。
+	Restrict editing	限制編輯
+	Password required to change editing permissions.	變更編輯權限需要密碼。
+	Confirm password	確認密碼
+	Show confirm password	顯示確認密碼
+	Hide confirm password	隱藏確認密碼
+	Advanced settings	進階設定
+	Content to encrypt	要加密的內容
+	All contents except metadata	除中繼資料外的所有內容
+	Metadata includes details such as title and author.	中繼資料包含標題和作者等詳細資訊。
+	Protection takes effect when you save the PDF.	保護將在您儲存 PDF 時生效。
+	Apply protection	套用保護
+	Enter a password.	請輸入密碼。
+	Confirm your password.	請確認密碼。
+	Passwords do not match.	兩次輸入的密碼不一致。
 	Printing allowed	允許列印
 	Low Resolution (150 dpi)	低解析度（150 dpi）
 	Changes allowed	允許的更改
@@ -1281,6 +1299,7 @@
 	Type a password.	請輸入密碼。
 	The passwords don't match.	兩次輸入的密碼不一致。
 	This compatibility level supports only plain ASCII passwords.	此相容性級別僅支援純 ASCII 密碼。
+	Add at least one letter, number, or punctuation mark to your password.	請在密碼中至少加入一個字母、數字或標點符號。
 	Anyone opening the document will need this password. It's applied when you save.	開啟文件的任何人都需要此密碼。儲存時應用。
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	開啟文件無需密碼；更改限制需要此密碼。儲存時應用。
 	Recover unsaved documents?	要恢復未儲存的文件嗎？

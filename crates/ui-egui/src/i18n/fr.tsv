@@ -1356,6 +1356,24 @@
 	Encrypt	Chiffrer
 	All document contents	Tout le contenu du document
 	All document contents except metadata	Tout le contenu du document sauf les métadonnées
+	Protect PDF with a password	Protéger le PDF par mot de passe
+	Require a password to	Exiger un mot de passe pour
+	Open the document	Ouvrir le document
+	Password required to view the PDF.	Mot de passe requis pour afficher le PDF.
+	Restrict editing	Restreindre la modification
+	Password required to change editing permissions.	Mot de passe requis pour modifier les autorisations de modification.
+	Confirm password	Confirmer le mot de passe
+	Show confirm password	Afficher la confirmation du mot de passe
+	Hide confirm password	Masquer la confirmation du mot de passe
+	Advanced settings	Paramètres avancés
+	Content to encrypt	Contenu à chiffrer
+	All contents except metadata	Tout le contenu sauf les métadonnées
+	Metadata includes details such as title and author.	Les métadonnées comprennent des informations telles que le titre et l'auteur.
+	Protection takes effect when you save the PDF.	La protection prend effet lorsque vous enregistrez le PDF.
+	Apply protection	Appliquer la protection
+	Enter a password.	Saisissez un mot de passe.
+	Confirm your password.	Confirmez votre mot de passe.
+	Passwords do not match.	Les mots de passe ne correspondent pas.
 	Printing allowed	Impression autorisée
 	Low Resolution (150 dpi)	Basse résolution (150 ppp)
 	Changes allowed	Modifications autorisées
@@ -1368,6 +1386,7 @@
 	Type a password.	Saisissez un mot de passe.
 	The passwords don't match.	Les mots de passe ne correspondent pas.
 	This compatibility level supports only plain ASCII passwords.	Ce niveau de compatibilité n'accepte que les mots de passe ASCII simples.
+	Add at least one letter, number, or punctuation mark to your password.	Ajoutez au moins une lettre, un chiffre ou un signe de ponctuation à votre mot de passe.
 	Anyone opening the document will need this password. It's applied when you save.	Toute personne qui ouvre le document aura besoin de ce mot de passe. Il est appliqué à l'enregistrement.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Le document s'ouvre sans mot de passe ; ce mot de passe est nécessaire pour modifier les restrictions. Il est appliqué à l'enregistrement.
 	Recover unsaved documents?	Récupérer les documents non enregistrés ?

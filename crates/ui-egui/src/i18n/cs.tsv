@@ -1444,6 +1444,24 @@ key	Space	Mezerník
 	Encrypt	Šifrovat
 	All document contents	Veškerý obsah dokumentu
 	All document contents except metadata	Veškerý obsah dokumentu kromě metadat
+	Protect PDF with a password	Ochrana PDF heslem
+	Require a password to	Vyžadovat heslo pro
+	Open the document	Otevření dokumentu
+	Password required to view the PDF.	Heslo je nutné k zobrazení PDF.
+	Restrict editing	Omezení úprav
+	Password required to change editing permissions.	Heslo je nutné ke změně oprávnění k úpravám.
+	Confirm password	Potvrdit heslo
+	Show confirm password	Zobrazit potvrzovací heslo
+	Hide confirm password	Skrýt potvrzovací heslo
+	Advanced settings	Upřesňující nastavení
+	Content to encrypt	Obsah k zašifrování
+	All contents except metadata	Veškerý obsah kromě metadat
+	Metadata includes details such as title and author.	Metadata zahrnují údaje, jako je název a autor.
+	Protection takes effect when you save the PDF.	Ochrana se projeví po uložení PDF.
+	Apply protection	Použít ochranu
+	Enter a password.	Zadejte heslo.
+	Confirm your password.	Potvrďte své heslo.
+	Passwords do not match.	Hesla se neshodují.
 	Printing allowed	Povolený tisk
 	Low Resolution (150 dpi)	Nízké rozlišení (150 dpi)
 	Changes allowed	Povolené změny
@@ -1456,6 +1474,7 @@ key	Space	Mezerník
 	Type a password.	Zadejte heslo.
 	The passwords don't match.	Hesla se neshodují.
 	This compatibility level supports only plain ASCII passwords.	Tato úroveň kompatibility podporuje jen hesla z prostých znaků ASCII.
+	Add at least one letter, number, or punctuation mark to your password.	Přidejte do hesla alespoň jedno písmeno, číslici nebo interpunkční znaménko.
 	Anyone opening the document will need this password. It's applied when you save.	Každý, kdo dokument otevře, bude potřebovat toto heslo. Použije se při uložení.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Dokument se otevře bez hesla; toto heslo je potřeba ke změně omezení. Použije se při uložení.
 	Recover unsaved documents?	Obnovit neuložené dokumenty?

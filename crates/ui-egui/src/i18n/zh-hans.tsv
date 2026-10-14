@@ -1325,6 +1325,24 @@
 	Encrypt	加密
 	All document contents	所有文档内容
 	All document contents except metadata	除元数据外的所有文档内容
+	Protect PDF with a password	使用密码保护 PDF
+	Require a password to	要求输入密码以
+	Open the document	打开文档
+	Password required to view the PDF.	查看 PDF 需要密码。
+	Restrict editing	限制编辑
+	Password required to change editing permissions.	更改编辑权限需要密码。
+	Confirm password	确认密码
+	Show confirm password	显示确认密码
+	Hide confirm password	隐藏确认密码
+	Advanced settings	高级设置
+	Content to encrypt	要加密的内容
+	All contents except metadata	除元数据外的所有内容
+	Metadata includes details such as title and author.	元数据包括标题和作者等详细信息。
+	Protection takes effect when you save the PDF.	保护将在您保存 PDF 时生效。
+	Apply protection	应用保护
+	Enter a password.	请输入密码。
+	Confirm your password.	请确认密码。
+	Passwords do not match.	两次输入的密码不一致。
 	Printing allowed	允许打印
 	Low Resolution (150 dpi)	低分辨率（150 dpi）
 	Changes allowed	允许的更改
@@ -1337,6 +1355,7 @@
 	Type a password.	请输入密码。
 	The passwords don't match.	两次输入的密码不一致。
 	This compatibility level supports only plain ASCII passwords.	此兼容性级别仅支持纯 ASCII 密码。
+	Add at least one letter, number, or punctuation mark to your password.	请在密码中至少添加一个字母、数字或标点符号。
 	Anyone opening the document will need this password. It's applied when you save.	打开文档的任何人都需要此密码。保存时应用。
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	打开文档无需密码；更改限制需要此密码。保存时应用。
 	Recover unsaved documents?	要恢复未保存的文档吗？

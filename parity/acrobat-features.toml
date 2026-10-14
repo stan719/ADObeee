@@ -5356,8 +5356,8 @@ milestone = "M8"
 status = "shipped"
 commands = ["protect.password"]
 tools = ["doc_protect"]
-evidence = ["crates/ui-egui/tests/ui_group/protect.rs::protecting_for_viewing_requires_matching_passwords_and_saves_encrypted", "crates/engine/src/tests.rs::protect_with_an_open_password_then_save_reopen_and_undo", "crates/automation/tests/automation.rs::protecting_through_tools"]
-notes = "Protect Using Password (Viewing); applied by the next save"
+evidence = ["crates/ui-egui/tests/ui_group/protect.rs::protecting_for_viewing_requires_matching_passwords_and_saves_encrypted", "crates/ui-egui/tests/ui_group/protect.rs::applying_an_empty_form_names_each_missing_field_and_focuses_the_first", "crates/engine/src/tests.rs::protect_with_an_open_password_then_save_reopen_and_undo", "crates/automation/tests/automation.rs::protecting_through_tools"]
+notes = "Protect PDF with a password, Open the document; applied by the next save. Each missing or mismatched password is named under its field; a click beside the dialog keeps what was typed"
 
 [[feature]]
 id = "protect.permissions-password"
@@ -5369,7 +5369,7 @@ status = "shipped"
 commands = ["protect.password"]
 tools = ["doc_protect"]
 evidence = ["crates/ui-egui/tests/ui_group/protect.rs::editing_restrictions_via_advanced_options", "crates/engine/src/tests.rs::permissions_password_restricts_others_but_not_this_session", "crates/automation/tests/automation.rs::protecting_through_tools"]
-notes = "Protect Using Password (Editing); the author keeps full rights after saving"
+notes = "Protect PDF with a password, Restrict editing; the author keeps full rights after saving"
 
 [[feature]]
 id = "protect.permissions-matrix"
@@ -5425,11 +5425,11 @@ title = "Password strength meter"
 area = "G"
 tier = "P2"
 milestone = "M8"
-status = "shipped"
-commands = ["protect.password"]
+status = "planned"
+commands = []
 tools = []
-evidence = ["crates/ui-egui/tests/ui_group/protect.rs::protecting_for_viewing_requires_matching_passwords_and_saves_encrypted"]
-notes = "Weak / Medium / Strong under the password field"
+evidence = []
+notes = "The meter was dropped in the Protect dialog redesign, which follows a design that leaves it out; the dialog now names a missing or mismatched password instead"
 
 [[feature]]
 id = "protect.remove-security"
@@ -5440,8 +5440,8 @@ milestone = "M8"
 status = "shipped"
 commands = ["protect.remove"]
 tools = ["doc_unprotect"]
-evidence = ["crates/engine/src/tests.rs::protect_with_an_open_password_then_save_reopen_and_undo", "crates/automation/tests/automation.rs::protecting_through_tools"]
-notes = "needs the permissions password (or none set)"
+evidence = ["crates/ui-egui/tests/ui_group/protect.rs::the_dialog_that_set_the_password_can_take_it_off", "crates/engine/src/tests.rs::protect_with_an_open_password_then_save_reopen_and_undo", "crates/automation/tests/automation.rs::protecting_through_tools"]
+notes = "Also a Remove security button in the Protect dialog's footer, shown when the document has password security; needs the permissions password (or none set); applied by the next save and undoable"
 
 [[feature]]
 id = "protect.certificate-encryption"

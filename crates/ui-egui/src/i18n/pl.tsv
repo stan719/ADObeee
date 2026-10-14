@@ -1360,6 +1360,24 @@
 	Encrypt	Szyfruj
 	All document contents	Cała zawartość dokumentu
 	All document contents except metadata	Cała zawartość dokumentu poza metadanymi
+	Protect PDF with a password	Zabezpiecz PDF hasłem
+	Require a password to	Wymagaj hasła do
+	Open the document	Otwierania dokumentu
+	Password required to view the PDF.	Hasło jest wymagane do wyświetlenia pliku PDF.
+	Restrict editing	Ograniczania edycji
+	Password required to change editing permissions.	Hasło jest wymagane do zmiany uprawnień edycji.
+	Confirm password	Potwierdź hasło
+	Show confirm password	Pokaż potwierdzenie hasła
+	Hide confirm password	Ukryj potwierdzenie hasła
+	Advanced settings	Ustawienia zaawansowane
+	Content to encrypt	Zawartość do zaszyfrowania
+	All contents except metadata	Cała zawartość oprócz metadanych
+	Metadata includes details such as title and author.	Metadane obejmują informacje, takie jak tytuł i autor.
+	Protection takes effect when you save the PDF.	Zabezpieczenie zacznie działać po zapisaniu pliku PDF.
+	Apply protection	Zastosuj zabezpieczenie
+	Enter a password.	Wprowadź hasło.
+	Confirm your password.	Potwierdź swoje hasło.
+	Passwords do not match.	Hasła nie są zgodne.
 	Printing allowed	Dozwolone drukowanie
 	Low Resolution (150 dpi)	Niska rozdzielczość (150 dpi)
 	Changes allowed	Dozwolone zmiany
@@ -1372,6 +1390,7 @@
 	Type a password.	Wpisz hasło.
 	The passwords don't match.	Hasła nie są zgodne.
 	This compatibility level supports only plain ASCII passwords.	Ten poziom zgodności obsługuje tylko hasła złożone ze znaków ASCII.
+	Add at least one letter, number, or punctuation mark to your password.	Dodaj do hasła co najmniej jedną literę, cyfrę lub znak interpunkcyjny.
 	Anyone opening the document will need this password. It's applied when you save.	Każda osoba otwierająca dokument będzie potrzebować tego hasła. Zostanie zastosowane przy zapisie.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Dokument otwiera się bez hasła; to hasło jest potrzebne do zmiany ograniczeń. Zostanie zastosowane przy zapisie.
 	Recover unsaved documents?	Odzyskać niezapisane dokumenty?

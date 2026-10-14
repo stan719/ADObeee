@@ -120,7 +120,7 @@ pub(crate) const MAX_AUTHOR_CHARS: usize = 200;
 #[cfg(not(target_arch = "wasm32"))]
 mod open_worker;
 pub mod portable;
-mod protect;
+pub mod protect;
 mod recovery;
 pub mod scroll_speed;
 #[cfg(not(target_arch = "wasm32"))]

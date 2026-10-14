@@ -48,7 +48,6 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut number_now: Option<Edit> = None;
     let mut apply_number = false;
     let mut link_command: Option<&'static str> = None;
-    let mut protect_now = false;
     let mut boxes_now = false;
     let mut marks_now = false;
     let mut export_now = false;
@@ -79,6 +78,7 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
             Dialog::Print => 820.0,
             Dialog::FieldProps | Dialog::BulkFieldProps => 600.0,
             Dialog::About => 780.0,
+            Dialog::Protect => crate::protect::content_width(ctx),
             _ => 520.0,
         });
         match dialog {
@@ -941,9 +941,19 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 return;
             }
             Dialog::Protect => {
-                let (apply, cancel) = crate::protect::body(ui, app, &t);
-                protect_now = apply;
-                close = apply || cancel;
+                match crate::protect::body(ui, app, &t) {
+                    crate::protect::Action::Cancel => close = true,
+                    crate::protect::Action::Remove if app.apply_edit(pdfcraft_engine::Edit::RemoveProtection) => {
+                        app.notify_tr("Security will be removed when you save");
+                        close = true;
+                    }
+                    // A refused edit keeps the dialog and what was typed, so it can be retried.
+                    crate::protect::Action::Apply if app.apply_edit(app.protect_draft.edit()) => {
+                        app.notify_tr("Password protection will be applied when you save");
+                        close = true;
+                    }
+                    _ => {}
+                }
                 return;
             }
             Dialog::NumberPages => {
@@ -1287,10 +1297,6 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
         app.apply_edit(edit);
         app.boxes_draft.seeded = None;
     }
-    if protect_now && app.apply_edit(app.protect_draft.edit()) {
-        app.protect_draft = Default::default();
-        app.notify_tr("Password protection will be applied when you save");
-    }
     if apply_number && let Some(edit) = number_now {
         app.apply_edit(edit);
     }
@@ -1302,7 +1308,12 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     }
     // Protect / Remove security replace the Properties dialog.
     let replaces = link_command.is_some_and(|c| c.starts_with("protect.")) || open_revision.is_some();
-    if modal.should_close() || close || replaces {
+    // A click beside the Protect dialog must not silently throw away a typed password.
+    let keep_typed = dialog == Dialog::Protect && modal.backdrop_response.clicked() && app.protect_draft.has_input();
+    if (modal.should_close() && !keep_typed) || close || replaces {
+        if dialog == Dialog::Protect {
+            app.protect_draft = Default::default();
+        }
         app.dialog = None;
         app.props_draft = None;
         app.view_draft = None;

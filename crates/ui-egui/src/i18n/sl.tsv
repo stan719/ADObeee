@@ -1378,6 +1378,24 @@
 	Properties…	Lastnosti…
 	Protect	Zaščiti
 	Protect Using Password	Zaščiti z geslom
+	Protect PDF with a password	Zaščita PDF z geslom
+	Require a password to	Zahtevaj geslo za
+	Open the document	Odpiranje dokumenta
+	Password required to view the PDF.	Za ogled PDF je potrebno geslo.
+	Restrict editing	Omejitev urejanja
+	Password required to change editing permissions.	Za spreminjanje dovoljenj za urejanje je potrebno geslo.
+	Confirm password	Potrdite geslo
+	Show confirm password	Pokaži potrditev gesla
+	Hide confirm password	Skrij potrditev gesla
+	Advanced settings	Napredne nastavitve
+	Content to encrypt	Vsebina za šifriranje
+	All contents except metadata	Vsa vsebina razen metapodatkov
+	Metadata includes details such as title and author.	Metapodatki vključujejo podrobnosti, kot sta naslov in avtor.
+	Protection takes effect when you save the PDF.	Zaščita začne veljati, ko shranite PDF.
+	Apply protection	Uporabi zaščito
+	Enter a password.	Vnesite geslo.
+	Confirm your password.	Potrdite svoje geslo.
+	Passwords do not match.	Gesli se ne ujemata.
 	Protect a PDF	Zaščiti PDF
 	Protect using password…	Zaščiti z geslom…
 	Protect with password	Zaščiti z geslom
@@ -1822,6 +1840,7 @@
 	This certificate is trusted through a certificate above it in the chain.	Temu potrdilu se zaupa prek potrdila nad njim v verigi.
 	This comment's appearance can't be changed yet.	Videza tega komentarja še ni mogoče spremeniti.
 	This compatibility level supports only plain ASCII passwords.	Ta raven združljivosti podpira samo navadna gesla ASCII.
+	Add at least one letter, number, or punctuation mark to your password.	Geslu dodajte vsaj eno črko, številko ali ločilo.
 	This dialog shows the details of a certificate and its chain.	To okno prikazuje podrobnosti potrdila in njegove verige.
 	This document can't be checked: it couldn't be read for editing	Tega dokumenta ni mogoče preveriti: ni bilo mogoče prebrati za urejanje
 	This document contains {n} interactive form fields.	Ta dokument vsebuje interaktivna polja obrazca: {n}.

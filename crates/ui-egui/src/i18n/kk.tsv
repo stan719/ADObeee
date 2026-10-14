@@ -1317,6 +1317,24 @@
 	Encrypt	Шифрлау
 	All document contents	Құжаттың барлық мазмұны
 	All document contents except metadata	Метадеректерден басқа құжаттың барлық мазмұны
+	Protect PDF with a password	PDF файлын құпия сөзбен қорғау
+	Require a password to	Құпия сөз талап ету:
+	Open the document	Құжатты ашу
+	Password required to view the PDF.	PDF файлын көру үшін құпия сөз қажет.
+	Restrict editing	Өңдеуді шектеу
+	Password required to change editing permissions.	Өңдеу рұқсаттарын өзгерту үшін құпия сөз қажет.
+	Confirm password	Құпия сөзді растау
+	Show confirm password	Растау құпия сөзін көрсету
+	Hide confirm password	Растау құпия сөзін жасыру
+	Advanced settings	Қосымша параметрлер
+	Content to encrypt	Шифрланатын мазмұн
+	All contents except metadata	Метадеректерден басқа барлық мазмұн
+	Metadata includes details such as title and author.	Метадеректерге атау мен автор сияқты мәліметтер кіреді.
+	Protection takes effect when you save the PDF.	Қорғау PDF файлын сақтағанда күшіне енеді.
+	Apply protection	Қорғауды қолдану
+	Enter a password.	Құпия сөзді енгізіңіз.
+	Confirm your password.	Құпия сөзді растаңыз.
+	Passwords do not match.	Құпия сөздер сәйкес келмейді.
 	Printing allowed	Басып шығаруға рұқсат етілген
 	Low Resolution (150 dpi)	Төмен ажыратымдылық (150 dpi)
 	Changes allowed	Өзгертулерге рұқсат етілген
@@ -1329,6 +1347,7 @@
 	Type a password.	Құпиясөзді енгізіңіз.
 	The passwords don't match.	Құпиясөздер сәйкес емес.
 	This compatibility level supports only plain ASCII passwords.	Бұл үйлесімділік деңгейі тек қарапайым ASCII құпиясөздерін қолдайды.
+	Add at least one letter, number, or punctuation mark to your password.	Құпия сөзге кемінде бір әріп, сан немесе тыныс белгісін қосыңыз.
 	Anyone opening the document will need this password. It's applied when you save.	Құжатты ашатын кез келген адамға осы құпиясөз қажет болады. Ол сақтау кезінде қолданылады.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	Құжат құпиясөзсіз ашылады; шектеулерді өзгерту үшін осы құпиясөз керек. Ол сақтау кезінде қолданылады.
 	Recover unsaved documents?	Сақталмаған құжаттарды қалпына келтіру керек пе?

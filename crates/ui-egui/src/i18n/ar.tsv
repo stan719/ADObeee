@@ -1376,6 +1376,24 @@
 	Encrypt	تشفير
 	All document contents	كل محتويات المستند
 	All document contents except metadata	كل محتويات المستند عدا البيانات الوصفية
+	Protect PDF with a password	حماية ملف PDF بكلمة مرور
+	Require a password to	طلب كلمة مرور من أجل
+	Open the document	فتح المستند
+	Password required to view the PDF.	كلمة المرور مطلوبة لعرض ملف PDF.
+	Restrict editing	تقييد التحرير
+	Password required to change editing permissions.	كلمة المرور مطلوبة لتغيير أذونات التحرير.
+	Confirm password	تأكيد كلمة المرور
+	Show confirm password	إظهار تأكيد كلمة المرور
+	Hide confirm password	إخفاء تأكيد كلمة المرور
+	Advanced settings	إعدادات متقدمة
+	Content to encrypt	المحتوى المراد تشفيره
+	All contents except metadata	كل المحتوى باستثناء البيانات الوصفية
+	Metadata includes details such as title and author.	تتضمن البيانات الوصفية تفاصيل مثل العنوان والمؤلف.
+	Protection takes effect when you save the PDF.	تسري الحماية عند حفظ ملف PDF.
+	Apply protection	تطبيق الحماية
+	Enter a password.	أدخل كلمة مرور.
+	Confirm your password.	أكّد كلمة المرور.
+	Passwords do not match.	كلمتا المرور غير متطابقتين.
 	Printing allowed	الطباعة المسموح بها
 	Low Resolution (150 dpi)	دقة منخفضة (150 dpi)
 	Changes allowed	التغييرات المسموح بها
@@ -1388,6 +1406,7 @@
 	Type a password.	اكتب كلمة مرور.
 	The passwords don't match.	كلمتا المرور غير متطابقتين.
 	This compatibility level supports only plain ASCII passwords.	مستوى التوافق هذا يدعم كلمات مرور ASCII البسيطة فقط.
+	Add at least one letter, number, or punctuation mark to your password.	أضف إلى كلمة المرور حرفًا أو رقمًا أو علامة ترقيم واحدة على الأقل.
 	Anyone opening the document will need this password. It's applied when you save.	كل من يفتح المستند سيحتاج إلى كلمة المرور هذه. تُطبَّق عند الحفظ.
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	يُفتح المستند دون كلمة مرور؛ كلمة المرور هذه لازمة لتغيير القيود. تُطبَّق عند الحفظ.
 	Recover unsaved documents?	استعادة المستندات غير المحفوظة؟

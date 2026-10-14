@@ -1377,6 +1377,24 @@
 	Encrypt	暗号化
 	All document contents	文書のすべての内容
 	All document contents except metadata	メタデータ以外のすべての内容
+	Protect PDF with a password	PDFをパスワードで保護
+	Require a password to	パスワードを要求する操作
+	Open the document	文書を開く
+	Password required to view the PDF.	PDFを表示するにはパスワードが必要です。
+	Restrict editing	編集を制限
+	Password required to change editing permissions.	編集権限を変更するにはパスワードが必要です。
+	Confirm password	パスワードの確認
+	Show confirm password	確認用パスワードを表示
+	Hide confirm password	確認用パスワードを非表示
+	Advanced settings	詳細設定
+	Content to encrypt	暗号化する内容
+	All contents except metadata	メタデータを除くすべての内容
+	Metadata includes details such as title and author.	メタデータには、タイトルや作成者などの情報が含まれます。
+	Protection takes effect when you save the PDF.	保護はPDFを保存したときに有効になります。
+	Apply protection	保護を適用
+	Enter a password.	パスワードを入力してください。
+	Confirm your password.	パスワードを再入力してください。
+	Passwords do not match.	パスワードが一致しません。
 	Printing allowed	印刷を許可
 	Low Resolution (150 dpi)	低解像度（150 dpi）
 	Changes allowed	変更を許可
@@ -1389,6 +1407,7 @@
 	Type a password.	パスワードを入力してください。
 	The passwords don't match.	パスワードが一致しません。
 	This compatibility level supports only plain ASCII passwords.	この互換性レベルでは ASCII 文字のパスワードのみ使用できます。
+	Add at least one letter, number, or punctuation mark to your password.	パスワードに文字、数字、句読点のいずれかを1つ以上追加してください。
 	Anyone opening the document will need this password. It's applied when you save.	文書を開く際にこのパスワードが必要になります。保存時に適用されます。
 	The document opens without a password; this password is needed to change the restrictions. It's applied when you save.	文書はパスワードなしで開けます。制限を変更する際にこのパスワードが必要になります。保存時に適用されます。
 	Recover unsaved documents?	未保存の文書を復元しますか？
