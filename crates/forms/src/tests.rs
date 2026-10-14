@@ -1943,3 +1943,16 @@ fn page_shapes_closes_only_last_stroked_subpath_but_all_filled_subpaths() {
     assert_eq!(filled.boxes, [[50.0, 100.0, 170.0, 140.0], [200.0, 100.0, 320.0, 140.0]]);
     assert!(filled.rules.is_empty());
 }
+
+#[test]
+fn document_scripts_read_each_name_tree_node_once() {
+    // The root lists itself and the leaf twice each.
+    let doc = document(&[
+        "<< /Type /Catalog /Pages 2 0 R /Names << /JavaScript 3 0 R >> >>".into(),
+        "<< /Type /Pages /Kids [] /Count 0 >>".into(),
+        "<< /Kids [3 0 R 4 0 R 3 0 R 4 0 R] >>".into(),
+        "<< /Names [(init) 5 0 R] >>".into(),
+        "<< /S /JavaScript /JS (var ready = true;) >>".into(),
+    ]);
+    assert_eq!(document_scripts_named(&doc), [("init".to_string(), "var ready = true;".to_string())]);
+}
