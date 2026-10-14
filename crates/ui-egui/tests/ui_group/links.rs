@@ -100,3 +100,46 @@ fn about_dialog_has_contributors_and_models_tabs() {
     h.run_steps(4);
     assert!(h.query_all_by_label("Anthropic").count() >= 1);
 }
+
+#[test]
+fn community_card_closes_and_stays_closed_after_restart() {
+    let mut h = harness(|_| {});
+    h.get_by_label("Join the ArtCraft community");
+    h.get_by_label("Close").click();
+    h.run_steps(2);
+    assert!(h.query_by_label("Join the ArtCraft community").is_none(), "the card is gone");
+    assert!(h.query_by_label("Join our Discord").is_none());
+    h.get_by_label("Discord");
+    let saved = h.state().persist();
+
+    let mut h = harness(move |app| app.restore(&saved));
+    assert!(h.query_by_label("Join the ArtCraft community").is_none(), "still closed after a restart");
+    h.get_by_label("Recommended tools");
+    h.state_mut().restore(r#"{"community_card_closed": false}"#);
+    h.run_steps(2);
+    h.get_by_label("Join the ArtCraft community");
+}
+
+#[test]
+fn help_menu_and_preferences_bring_the_community_card_back() {
+    let mut h = harness(|app| app.community_card_closed = true);
+    assert!(h.query_by_label("Join the ArtCraft community").is_none());
+    assert!(h.state_mut().execute("help.community_card"));
+    h.run_steps(2);
+    h.get_by_label("Join the ArtCraft community");
+    assert_eq!(pdfcraft_engine::commands::command("help.community_card").unwrap().menu, Some("Help"));
+
+    let mut h = harness(|app| {
+        app.community_card_closed = true;
+        app.dialog = Some(Dialog::Preferences);
+    });
+    // The preferences scroll in a 900-point window: bring the checkbox into view first.
+    h.get_by_label("Show the ArtCraft community card on Home").scroll_to_me();
+    h.run_steps(4);
+    h.get_by_label("Show the ArtCraft community card on Home").click();
+    h.run_steps(2);
+    assert!(!h.state().community_card_closed, "the checkbox shows the card again");
+    h.get_by_label("Show the ArtCraft community card on Home").click();
+    h.run_steps(2);
+    assert!(h.state().community_card_closed, "and hides it");
+}

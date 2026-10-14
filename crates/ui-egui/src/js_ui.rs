@@ -381,6 +381,10 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
     // The web build has no files on disk to watch.
     #[cfg(not(target_arch = "wasm32"))]
     ui.add(widgets::checkbox(&mut app.reload_changed_files, tl!("Reload documents when their files change on disk")));
+    let mut show_card = !app.community_card_closed;
+    if ui.add(widgets::checkbox(&mut show_card, tl!("Show the ArtCraft community card on Home"))).changed() {
+        app.community_card_closed = !show_card;
+    }
     ui.horizontal(|ui| {
         ui.label(tl!("Mouse wheel scroll speed"));
         for speed in crate::scroll_speed::ScrollSpeed::ALL {
