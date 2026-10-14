@@ -889,7 +889,7 @@ impl Automation {
     fn doc_revisions(&mut self, a: &Args) -> Result<Value> {
         let doc = self.doc(a)?;
         let ends = doc.revision_ends();
-        let sigs = doc.signatures.clone();
+        let sigs = doc.signatures();
         let list: Vec<Value> = ends
             .iter()
             .enumerate()

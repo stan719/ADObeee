@@ -147,10 +147,41 @@ pub fn merge_data_files(files: &[(String, Vec<u8>)]) -> Result<String, String> {
 
 pub type SplitPart = (usize, usize, Arc<Vec<u8>>);
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+#[cfg(test)]
+thread_local! {
+    static SECONDARY_SCAN_COUNTS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+}
+
+#[cfg(test)]
+fn reset_secondary_scan_counts() {
+    SECONDARY_SCAN_COUNTS.with(|counts| counts.set((0, 0)));
+}
+
+#[cfg(test)]
+fn secondary_scan_counts() -> (usize, usize) {
+    SECONDARY_SCAN_COUNTS.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+fn record_marker_scan() {
+    SECONDARY_SCAN_COUNTS.with(|counts| {
+        let (markers, links) = counts.get();
+        counts.set((markers + 1, links));
+    });
+}
+
+#[cfg(test)]
+fn record_link_scan() {
+    SECONDARY_SCAN_COUNTS.with(|counts| {
+        let (markers, links) = counts.get();
+        counts.set((markers, links + 1));
+    });
+}
 
 use pdfcraft_cos::{SaveOptions, write_full, write_incremental};
-use pdfcraft_render::{DocInfo, Layer, LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect};
+use pdfcraft_render::{DocInfo, Layer, LayerOp, OpenError, ReadingColors, RenderConfig, RenderPool, inspect, inspect_with_cos};
 
 /// Stable identifier of an open document within a session.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -179,6 +210,8 @@ enum Scope {
     Comments,
     /// Only form field values (and their widget appearances).
     Form,
+    /// Link annotations; the full inspection is refreshed, but page-content indexes stay valid.
+    Links,
     /// Only page content streams, resources and added content/marks: the page tree,
     /// annotations, form fields, links, outline and fonts are unchanged, so the full
     /// re-inspection is skipped (seconds on very large files).
@@ -215,6 +248,7 @@ fn scope_of(edit: &Edit) -> Scope {
         | Edit::StyleAnnotation { .. }
         | Edit::FillAnnotation { .. }
         | Edit::SetAnnotationInfo { .. } => Scope::Comments,
+        Edit::AddLink { .. } | Edit::SetLink { .. } | Edit::DeleteLink { .. } | Edit::RemoveLinks { .. } | Edit::AddLinks { .. } => Scope::Links,
         Edit::SetFieldValue { .. } | Edit::ResetForm { .. } | Edit::SetFieldImage { .. } | Edit::ApplyScriptChanges { .. } => Scope::Form,
         // Page content, resources and added content/marks only: the page tree, annotations,
         // fields, links and document metadata are untouched (see `refresh_content`).
@@ -320,14 +354,10 @@ pub struct Document {
     pub read_only_reason: Option<String>,
     /// Interactive form fields of the current state (empty without a form).
     pub form: Arc<Vec<pdfcraft_forms::Field>>,
-    /// Page marks present (headers and footers, watermarks, backgrounds), for Update/Remove.
-    pub marks: Vec<MarkKind>,
-    /// Text and images added with Edit a PDF ▸ Add content (still editable).
-    pub added: Vec<pdfcraft_edit::Added>,
-    /// Link annotations, for Edit a PDF ▸ Link.
-    pub links: Vec<pdfcraft_annot::links::LinkItem>,
-    /// Signature fields, validated against the session's trust store (Signatures panel).
-    pub signatures: Arc<Vec<SignatureInfo>>,
+    marker_scan: OnceLock<pdfcraft_edit::MarkerScan>,
+    links: OnceLock<Vec<pdfcraft_annot::links::LinkItem>>,
+    validated_signatures: OnceLock<Vec<SignatureInfo>>,
+    signature_presence: OnceLock<bool>,
     trust: Arc<TrustStore>,
     sig_cache: Arc<pdfcraft_sign::DigestCache>,
     editor: Option<Editor>,
@@ -574,7 +604,19 @@ impl Document {
 
     /// Signed: at least one signature field holds a signature.
     pub fn is_signed(&self) -> bool {
-        self.signatures.iter().any(|s| s.signed)
+        *self.signature_presence.get_or_init(|| self.editor.as_ref().is_some_and(|editor| signed_state(&editor.cos, &self.sig_cache)))
+    }
+
+    /// Signature fields, validated against the current session trust store on first use.
+    pub fn signatures(&self) -> &[SignatureInfo] {
+        self.validated_signatures.get_or_init(|| {
+            self.editor.as_ref().map(|editor| signatures_of(&editor.cos, &self.bytes, &self.trust, &self.sig_cache)).unwrap_or_default()
+        })
+    }
+
+    /// Signature details if a caller has already requested validation.
+    pub fn validated_signatures(&self) -> Option<&[SignatureInfo]> {
+        self.validated_signatures.get().map(Vec::as_slice)
     }
 
     /// Whether comments are hidden (Comments ▸ Hide all comments).
@@ -634,6 +676,43 @@ impl Document {
     /// Redaction marks waiting to be applied.
     pub fn redaction_marks(&self) -> usize {
         self.info.annotations.iter().filter(|a| a.subtype == "Redact").count()
+    }
+
+    /// Page marks present (headers and footers, watermarks, backgrounds), for Update/Remove.
+    pub fn marks(&self) -> &[MarkKind] {
+        &self.markers().marks
+    }
+
+    /// Text and images added with Edit a PDF ▸ Add content (still editable).
+    pub fn added(&self) -> &[pdfcraft_edit::Added] {
+        &self.markers().added
+    }
+
+    fn markers(&self) -> &pdfcraft_edit::MarkerScan {
+        self.marker_scan.get_or_init(|| {
+            self.editor
+                .as_ref()
+                .map(|e| {
+                    #[cfg(test)]
+                    record_marker_scan();
+                    pdfcraft_edit::scan_markers(&e.cos)
+                })
+                .unwrap_or_default()
+        })
+    }
+
+    /// Link annotations, for Edit a PDF ▸ Link.
+    pub fn links(&self) -> &[pdfcraft_annot::links::LinkItem] {
+        self.links.get_or_init(|| {
+            self.editor
+                .as_ref()
+                .map(|e| {
+                    #[cfg(test)]
+                    record_link_scan();
+                    pdfcraft_annot::links::list(&e.cos)
+                })
+                .unwrap_or_default()
+        })
     }
 
     /// Changes to content and document information are allowed.
@@ -2701,6 +2780,13 @@ pub struct PreparedDocument {
 }
 
 impl OpenContext {
+    /// Whether the session still uses this snapshot's JavaScript and certificate-trust policy.
+    /// Hosts should reprepare an outstanding open when this returns false. Clock time is an
+    /// intentional per-open snapshot and does not make every result stale.
+    pub fn is_current(&self, session: &Session) -> bool {
+        self.js_off == session.js_off && Arc::ptr_eq(&self.trust, &session.trust)
+    }
+
     /// Prepare a document without mutating the session that supplied this context.
     pub fn prepare_open(
         &self,
@@ -2944,8 +3030,36 @@ fn xfa_values_from_datasets(doc: &mut pdfcraft_cos::Document) -> Result<Vec<Stri
 }
 
 /// Validate the signature fields of `cos` (written as `bytes`).
-fn signatures_of(cos: &pdfcraft_cos::Document, bytes: &[u8], trust: &TrustStore, cache: &pdfcraft_sign::DigestCache) -> Arc<Vec<SignatureInfo>> {
-    Arc::new(pdfcraft_sign::pdf::list_cached(cos, bytes, trust, cache))
+fn signatures_of(cos: &pdfcraft_cos::Document, bytes: &[u8], trust: &TrustStore, cache: &pdfcraft_sign::DigestCache) -> Vec<SignatureInfo> {
+    pdfcraft_sign::pdf::list_cached(cos, bytes, trust, cache)
+}
+
+fn has_signed_signature_field(cos: &pdfcraft_cos::Document) -> bool {
+    pdfcraft_forms::fields_with_adopted(cos).items.into_iter().filter(|field| field.kind == pdfcraft_forms::FieldKind::Signature).any(|field| {
+        let mut current = Some(field.obj);
+        let mut seen = std::collections::HashSet::new();
+        while let Some(reference) = current {
+            if !seen.insert(reference) || seen.len() > 64 {
+                break;
+            }
+            let object = cos.get(reference);
+            let Some(dict) = object.as_dict() else { break };
+            if let Some(value) = dict.get(b"V") {
+                return cos.resolve(value).as_dict().is_some();
+            }
+            current = dict.reference(b"Parent");
+        }
+        false
+    })
+}
+
+fn signed_state(cos: &pdfcraft_cos::Document, cache: &pdfcraft_sign::DigestCache) -> bool {
+    has_signed_signature_field(cos) || pdfcraft_sign::pdf::has_document_timestamp(cos, cache)
+}
+
+fn invalidate_signature_state(doc: &mut Document) {
+    doc.signature_presence.take();
+    doc.validated_signatures.take();
 }
 
 impl Session {
@@ -3047,9 +3161,13 @@ impl Session {
         password: Option<&str>,
     ) -> Result<PreparedDocument, OpenError> {
         let cos = std::panic::catch_unwind(|| pdfcraft_cos::Document::open_with_password(bytes.clone(), password));
+        let inspect_open = |password| match &cos {
+            Ok(Ok(source)) => inspect_with_cos(bytes.clone(), password, source),
+            _ => inspect(bytes.clone(), password),
+        };
         // The renderer authenticates on its own. It cannot use the owner password of R2–R4
         // files, so give it the user password that owner authentication recovers.
-        let (info, render_password) = match inspect(bytes.clone(), password) {
+        let (info, render_password) = match inspect_open(password) {
             Ok(info) => (info, password.map(str::to_owned)),
             Err(OpenError::WrongPassword) => {
                 let user = match &cos {
@@ -3057,7 +3175,7 @@ impl Session {
                     _ => None,
                 };
                 let user = renderer_password(&user.ok_or(OpenError::WrongPassword)?);
-                (inspect(bytes.clone(), Some(&user))?, Some(user))
+                (inspect_open(Some(&user))?, Some(user))
             }
             Err(e) => return Err(e),
         };
@@ -3188,7 +3306,7 @@ impl Session {
         Ok(PreparedDocument { document })
     }
 
-    /// The last step of opening: build the document record and register it.
+    /// Build a document record without registering it in a session.
     #[allow(clippy::too_many_arguments)]
     fn build_document(
         trust: &Arc<TrustStore>,
@@ -3241,16 +3359,7 @@ impl Session {
             };
             e.cos.note_repair(line);
         }
-        let (marks, added) = editor
-            .as_ref()
-            .map(|e| {
-                let scan = pdfcraft_edit::scan_markers(&e.cos);
-                (scan.marks, scan.added)
-            })
-            .unwrap_or_default();
-        let links = editor.as_ref().map(|e| pdfcraft_annot::links::list(&e.cos)).unwrap_or_default();
         let sig_cache = Arc::new(pdfcraft_sign::DigestCache::default());
-        let signatures = editor.as_ref().map(|e| signatures_of(&e.cos, &bytes, trust, &sig_cache)).unwrap_or_default();
         Document {
             id: DocId(0),
             name,
@@ -3265,10 +3374,10 @@ impl Session {
             snapshot_generation: 0,
             read_only_reason,
             form: Arc::new(form),
-            marks,
-            added,
-            links,
-            signatures,
+            marker_scan: OnceLock::new(),
+            links: OnceLock::new(),
+            validated_signatures: OnceLock::new(),
+            signature_presence: OnceLock::new(),
             trust: trust.clone(),
             sig_cache,
             editor,
@@ -3303,7 +3412,8 @@ impl Session {
         cx.pages = doc.info.pages.len();
         cx.today = today;
         let reason = doc.read_only_reason.clone().unwrap_or_default();
-        let signed = doc.is_signed();
+        let signature_presence = &doc.signature_presence;
+        let sig_cache = doc.sig_cache.clone();
         let editor = doc.editor.as_mut().ok_or(EditError::ReadOnly(reason))?;
         if let Some(p) = editor.cos.permissions() {
             check_permission(&edit, &p)?;
@@ -3419,7 +3529,7 @@ impl Session {
         // Signed documents are only ever saved incrementally: an edit that needs a full rewrite
         // (applying redactions, changing security, sanitizing) would invalidate the signatures.
         let rewrites = |c: &pdfcraft_cos::Document| c.full_save_required() || c.encryption_changed();
-        if signed && rewrites(&next) && !rewrites(&editor.cos) {
+        if rewrites(&next) && !rewrites(&editor.cos) && *signature_presence.get_or_init(|| signed_state(&editor.cos, &sig_cache)) {
             return Err(EditError::SignedRewrite(edit.label().to_string()));
         }
         // What this edit drew with `?` (a value or comment text its font can't draw, stored as
@@ -3516,11 +3626,15 @@ impl Session {
     /// Comment and form edits skip the full re-inspection (seconds on very large files): the
     /// comment list and field values are re-read from the object graph instead.
     fn refresh_scoped(doc: &mut Document, scope: Scope) -> Result<(), EditError> {
+        invalidate_signature_state(doc);
         if scope == Scope::Full || doc.info.encrypted != doc.editor.as_ref().is_some_and(|e| e.cos.output_handler().is_some()) {
             return Self::refresh(doc);
         }
         if scope == Scope::Content {
             return Self::refresh_content(doc, None);
+        }
+        if scope == Scope::Links {
+            return Self::refresh_links(doc);
         }
         // Metadata edits keep the renderer, which holds the working file anyway.
         if scope != Scope::Metadata {
@@ -3548,9 +3662,6 @@ impl Session {
             doc.info.creator = info("Creator");
             doc.info.producer = info("Producer");
             doc.info.file_size = bytes.len();
-            if !doc.signatures.is_empty() {
-                doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-            }
             doc.bytes = bytes;
             return Ok(());
         }
@@ -3559,7 +3670,11 @@ impl Session {
         let form = Arc::new(form);
         match scope {
             Scope::Metadata => return Ok(()),
-            Scope::Comments => doc.info.annotations = comment_list(&editor.cos),
+            Scope::Comments => {
+                doc.info.annotations = comment_list(&editor.cos);
+                // Link indexes are positions in /Annots, so comment insertion/deletion can move them.
+                doc.links = OnceLock::new();
+            }
             Scope::Form => {
                 // PERF: keystroke path, index once. A linear find per field is O(F^2);
                 // forms reach 10k fields.
@@ -3580,6 +3695,7 @@ impl Session {
                     }
                 }
             }
+            Scope::Links => return Self::refresh_links(doc),
             // Handled above; kept as a full refresh so the match stays total.
             Scope::Full => return Self::refresh(doc),
             // Handled above (content-only refresh); the arm keeps the match total.
@@ -3587,9 +3703,6 @@ impl Session {
         }
         doc.info.file_size = bytes.len();
         doc.form = form;
-        if !doc.signatures.is_empty() {
-            doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        }
         doc.display = display_bytes(Some(editor), &bytes);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
@@ -3618,6 +3731,7 @@ impl Session {
     /// from undo/redo, re-reads both: always correct, rarely paid). The cached display
     /// appearances are kept: content edits leave every annotation dictionary alone.
     fn refresh_content(doc: &mut Document, edit: Option<&Edit>) -> Result<(), EditError> {
+        invalidate_signature_state(doc);
         Self::release_working(doc);
         let Some(editor) = doc.editor.as_mut() else { return Ok(()) };
         // A script may have laid an XFA form out again (rows added, subforms shown).
@@ -3634,16 +3748,10 @@ impl Session {
         // The edit must still leave a file the viewer can open; anything else rolls back above.
         pdfcraft_render::check_pages(bytes.clone(), doc.password.as_deref(), doc.info.pages.len()).map_err(|e| EditError::Reopen(e.to_string()))?;
         let (touches_added, touches_marks) = Self::content_refresh_lists(edit);
-        if touches_added {
-            doc.added = pdfcraft_edit::list_added(&editor.cos);
-        }
-        if touches_marks {
-            doc.marks = pdfcraft_edit::marks_present(&editor.cos);
+        if touches_added || touches_marks {
+            doc.marker_scan = OnceLock::new();
         }
         doc.info.file_size = bytes.len();
-        if !doc.signatures.is_empty() {
-            doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        }
         doc.display = display_bytes(Some(editor), &bytes);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
@@ -3675,6 +3783,16 @@ impl Session {
 
     /// Rebuild working bytes, inspection and renderer from the current edit state.
     fn refresh(doc: &mut Document) -> Result<(), EditError> {
+        Self::refresh_with_indexes(doc, true, true)
+    }
+
+    /// Reinspect a link edit while preserving the page-content marker scan cache.
+    fn refresh_links(doc: &mut Document) -> Result<(), EditError> {
+        Self::refresh_with_indexes(doc, false, true)
+    }
+
+    fn refresh_with_indexes(doc: &mut Document, invalidate_markers: bool, invalidate_links: bool) -> Result<(), EditError> {
+        invalidate_signature_state(doc);
         // A full refresh may follow structural or annotation changes: cached appearances
         // may be stale, so they are rebuilt below.
         if let Some(editor) = doc.editor.as_mut() {
@@ -3707,11 +3825,12 @@ impl Session {
         let mut form = pdfcraft_forms::fields(&editor.cos);
         xfa::mark_script_buttons(&editor.cos, &mut form);
         doc.form = Arc::new(form);
-        let marker_scan = pdfcraft_edit::scan_markers(&editor.cos);
-        doc.marks = marker_scan.marks;
-        doc.added = marker_scan.added;
-        doc.links = pdfcraft_annot::links::list(&editor.cos);
-        doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
+        if invalidate_markers {
+            doc.marker_scan = OnceLock::new();
+        }
+        if invalidate_links {
+            doc.links = OnceLock::new();
+        }
         doc.display = display_bytes(Some(editor), &bytes);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
@@ -4209,7 +4328,7 @@ impl Session {
                         ]
                     })
                     .filter(|r| {
-                        !doc.links.iter().any(|l| l.page == page && l.rect[0] < r[2] && r[0] < l.rect[2] && l.rect[1] < r[3] && r[1] < l.rect[3])
+                        !doc.links().iter().any(|l| l.page == page && l.rect[0] < r[2] && r[0] < l.rect[2] && l.rect[1] < r[3] && r[1] < l.rect[3])
                     })
                     .collect();
                 if !rects.is_empty() {
@@ -4370,14 +4489,12 @@ impl Session {
         &self.trust.certs
     }
 
-    /// Replace the trusted certificates and revalidate every open document's signatures.
+    /// Replace trusted certificates; loaded signature details are revalidated on the next read.
     pub fn set_trusted_certificates(&mut self, certs: Vec<pdfcraft_sign::Certificate>) {
         self.trust = Arc::new(TrustStore { certs });
         for doc in &mut self.docs {
             doc.trust = self.trust.clone();
-            if let Some(e) = doc.editor.as_ref() {
-                doc.signatures = signatures_of(&e.cos, &doc.bytes, &doc.trust, &doc.sig_cache);
-            }
+            doc.validated_signatures.take();
         }
     }
 

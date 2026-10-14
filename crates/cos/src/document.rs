@@ -104,6 +104,8 @@ pub struct Document {
     source_identity: Arc<()>,
     entries: Arc<BTreeMap<u32, XrefEntry>>,
     trailer: Dict,
+    /// Mutable trailer access prevents reusing this state as an inspection of the source bytes.
+    trailer_touched: bool,
     revisions: Arc<Vec<Revision>>,
     /// See [`Self::xref_oddities`].
     xref_oddities: Arc<Vec<(u64, u32)>>,
@@ -220,6 +222,7 @@ impl Document {
             source_identity: Arc::new(()),
             entries: Arc::new(BTreeMap::new()),
             trailer: Dict::new(),
+            trailer_touched: false,
             revisions: Arc::new(Vec::new()),
             xref_oddities: Arc::default(),
             repair_log: Arc::new(Vec::new()),
@@ -284,6 +287,7 @@ impl Document {
             source_identity: Arc::new(()),
             entries: Arc::new(BTreeMap::new()),
             trailer: Dict::new(),
+            trailer_touched: false,
             revisions: Arc::new(Vec::new()),
             xref_oddities: Arc::default(),
             repair_log: Arc::new(Vec::new()),
@@ -442,6 +446,7 @@ impl Document {
     /// Protect the document with a password (§7.6.4). Takes effect on the next save, which is
     /// always a full rewrite. Returns the handler (authenticated as owner).
     pub fn set_encryption(&mut self, params: &pdfcraft_crypt::NewEncryption) -> Result<(), CosError> {
+        self.trailer_touched = true;
         // The file identifier is part of the key; make sure it exists and keep it.
         let id0 = match self.trailer.get(b"ID") {
             Some(Object::Array(a)) if a.len() == 2 => a[0].as_string().map(|s| s.bytes.clone()).unwrap_or_default(),
@@ -500,6 +505,7 @@ impl Document {
     /// Remove password protection (requires the document to be open — any authenticated
     /// password; callers should require the owner password, §7.6.4). Applied by a full save.
     pub fn remove_encryption(&mut self) {
+        self.trailer_touched = true;
         if let Some(Object::Ref(r)) = self.trailer.get(b"Encrypt").cloned() {
             self.free(r);
         }
@@ -527,6 +533,25 @@ impl Document {
         SourceIdentity(Arc::downgrade(&self.source_identity))
     }
 
+    /// An independent, bounded inspection view over this parsed source.
+    ///
+    /// The original bytes, cross-reference data, revisions, and authentication state are shared.
+    /// Object caches and the copy-on-write overlay are independent so inspection cannot populate
+    /// or mutate the editor's caches.
+    pub fn inspection_view(&self, stream_limit: usize) -> Self {
+        let mut view = self.clone();
+        view.cache = Arc::default();
+        view.objstms = Arc::default();
+        view.stream_limit = stream_limit.min(self.stream_limit);
+        view
+    }
+
+    /// Whether inspection may reuse this parse to describe the original bytes. Object edits,
+    /// encryption changes and even mutable trailer access require an independent source read.
+    pub fn is_unmodified_source(&self) -> bool {
+        !self.is_modified() && !self.trailer_touched && !self.encryption_changed
+    }
+
     pub fn version(&self) -> &str {
         &self.version
     }
@@ -536,6 +561,7 @@ impl Document {
     }
 
     pub fn trailer_mut(&mut self) -> &mut Dict {
+        self.trailer_touched = true;
         &mut self.trailer
     }
 
@@ -1645,6 +1671,33 @@ mod tests {
         let bytes = Arc::new(crate::write_full(&doc, &crate::SaveOptions::default()).unwrap());
         assert!(Document::open(bytes.clone()).is_ok());
         assert!(Document::open_with_stream_limit(bytes, None, 512).is_err());
+    }
+
+    #[test]
+    fn inspection_view_reuses_source_identity_with_independent_caches() {
+        let bytes = Arc::new(crate::write_full(&Document::new_empty(), &crate::SaveOptions::default()).unwrap());
+        let source = Document::open(bytes).unwrap();
+        let root = source.root().unwrap();
+        source.try_get(root.num).unwrap();
+
+        let view = source.inspection_view(512);
+
+        assert_eq!(view.source_identity(), source.source_identity());
+        assert_eq!(view.stream_limit, 512);
+        assert!(view.stream_limited());
+        assert!(!Arc::ptr_eq(&view.cache, &source.cache));
+        assert!(!Arc::ptr_eq(&view.objstms, &source.objstms));
+        assert!(source.cache.lock().unwrap().contains_key(&root.num));
+        assert!(view.cache.lock().unwrap().is_empty());
+        assert!(matches!(&*view.try_get(root.num).unwrap(), Object::Dict(_)));
+    }
+
+    #[test]
+    fn inspection_view_preserves_a_stricter_source_stream_limit() {
+        let bytes = Arc::new(crate::write_full(&Document::new_empty(), &crate::SaveOptions::default()).unwrap());
+        let source = Document::open_with_stream_limit(bytes, None, 512).unwrap();
+        assert_eq!(source.inspection_view(256 << 20).stream_limit, 512);
+        assert_eq!(source.inspection_view(128).stream_limit, 128);
     }
 
     /// A /Prev chain that loops back on itself stops at the loop (and says so).

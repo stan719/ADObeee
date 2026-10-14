@@ -59,6 +59,26 @@ flag, autosave and the automation tools consistent for free.
 `split_by_size`, `reduced_bytes`, `optimized_bytes`, `print_pdf`, `export_data`, and the signing
 family (`sign`, `sign_with_timestamp`, `timestamp_document`, `embed_ltv`).
 
+Opening reuses the editable COS parse for inspection when it still represents the same byte
+allocation. Inspection has independent bounded caches. Editable links and content markers are
+scanned on first use through `doc.links()`, `doc.marks()` and `doc.added()`; relevant edits and
+undo/redo invalidate those indexes.
+
+Signature discovery and validation run on the first `doc.signatures()` call (the Signatures
+panel and signature tools use it). Ordinary viewing reads `doc.validated_signatures()` without
+triggering validation, so signature status banners appear only after details have been requested.
+`doc.is_signed()` remains an exact structural check, including adopted fields and document
+timestamps: signed-file rewrite guards do not depend on whether validation has run. Edits and
+trust-store changes invalidate cached validation results.
+
+Native frontends may snapshot `Session::open_context()` and call its `prepare_open` on a
+worker. Preparation owns its input and does not register a document or consume an ID. The
+owning thread calls `Session::commit_open` exactly once to register the prepared document.
+The regular `Session::open` composes both steps synchronously, as before, for CLI and MCP
+callers. Preparation reports password errors without registering a partial document. Before
+committing asynchronously, a host checks `OpenContext::is_current` and reprepares if JavaScript
+or certificate-trust preferences changed in the meantime.
+
 ## Modules
 
 | Module | What it holds |

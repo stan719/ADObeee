@@ -118,6 +118,8 @@ pub(crate) fn date_text_for_pdf(session: &Session) -> Result<String, String> {
 pub(crate) const MAX_AUTHOR_CHARS: usize = 200;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod open_flow;
+#[cfg(not(target_arch = "wasm32"))]
 mod open_worker;
 pub mod portable;
 mod protect;
@@ -394,7 +396,17 @@ pub type HostSaveFn = Box<dyn Fn(&str, &[u8], bool) -> Result<(), String>>;
 /// Told every frame whether any tab has unsaved work, so a host page can warn before leaving.
 pub type HostDirtyFn = Box<dyn FnMut(bool)>;
 
+#[derive(Clone)]
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+enum OpenDestination {
+    Remote(pdfcraft_render::RemoteDestination),
+    SessionPage(usize),
+    Reopened(String),
+}
+
 pub struct PasswordPrompt {
+    #[cfg(not(target_arch = "wasm32"))]
+    open_token: Option<u64>,
     pub name: String,
     pub path: Option<String>,
     pub bytes: std::sync::Arc<Vec<u8>>,
@@ -411,18 +423,20 @@ pub struct PasswordPrompt {
     /// the document is unlocked.
     then: Option<&'static str>,
     /// A link destination to apply after the linked PDF is unlocked.
-    after_open: Option<pdfcraft_render::RemoteDestination>,
+    after_open: Option<OpenDestination>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 struct PendingOpen {
     token: u64,
     receiver: std::sync::mpsc::Receiver<open_worker::ResultMessage>,
+    context: pdfcraft_engine::OpenContext,
+    password: Option<String>,
     name: String,
     path: Option<String>,
     stamp: Option<file_watch::Stamp>,
     activate: bool,
-    after_open: Option<pdfcraft_render::RemoteDestination>,
+    after_open: Option<OpenDestination>,
     recovered: Option<RecoveryMeta>,
     then: Option<&'static str>,
 }
@@ -435,7 +449,7 @@ struct OpenRequest {
     input: open_worker::Input,
     password: Option<String>,
     activate: bool,
-    after_open: Option<pdfcraft_render::RemoteDestination>,
+    after_open: Option<OpenDestination>,
     recovered: Option<RecoveryMeta>,
     then: Option<&'static str>,
 }
@@ -565,9 +579,15 @@ pub struct PdfCraftApp {
     #[cfg(not(target_arch = "wasm32"))]
     open_worker: Option<open_worker::OpenWorker>,
     #[cfg(not(target_arch = "wasm32"))]
+    background_open: bool,
+    #[cfg(not(target_arch = "wasm32"))]
     pending_opens: Vec<PendingOpen>,
     #[cfg(not(target_arch = "wasm32"))]
     next_open_token: u64,
+    #[cfg(not(target_arch = "wasm32"))]
+    startup_options: Vec<(String, String)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    startup_open: Option<u64>,
     #[cfg(all(test, not(target_arch = "wasm32")))]
     open_prepare_gate: Option<std::sync::Arc<open_worker::PrepareGate>>,
     /// Folders pinned to Home, and what they held when last listed.
@@ -913,9 +933,15 @@ impl PdfCraftApp {
             #[cfg(not(target_arch = "wasm32"))]
             open_worker: None,
             #[cfg(not(target_arch = "wasm32"))]
+            background_open: false,
+            #[cfg(not(target_arch = "wasm32"))]
             pending_opens: Vec::new(),
             #[cfg(not(target_arch = "wasm32"))]
             next_open_token: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            startup_options: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            startup_open: None,
             #[cfg(all(test, not(target_arch = "wasm32")))]
             open_prepare_gate: None,
             pinned: Default::default(),
@@ -1110,123 +1136,6 @@ impl PdfCraftApp {
         self.try_open(name, path, std::sync::Arc::new(bytes), None, activate)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn schedule_open(&mut self, request: OpenRequest) -> Result<u64, String> {
-        if self.open_worker.is_none() {
-            self.open_worker = Some(
-                open_worker::OpenWorker::new(
-                    #[cfg(test)]
-                    self.open_prepare_gate.clone(),
-                )
-                .map_err(|e| format!("couldn't start the document-open worker: {e}"))?,
-            );
-        }
-        let token = self.next_open_token.wrapping_add(1);
-        let worker = self.open_worker.as_ref().ok_or("the document-open worker is unavailable")?;
-        if let Some(ctx) = &self.ctx {
-            worker.set_context(ctx);
-        }
-        let receiver =
-            worker.submit(token, self.session.open_context(), request.name.clone(), request.path.clone(), request.password, request.input)?;
-        self.next_open_token = token;
-        self.pending_opens.push(PendingOpen {
-            token,
-            receiver,
-            name: request.name,
-            path: request.path,
-            stamp: request.stamp,
-            activate: request.activate,
-            after_open: request.after_open,
-            recovered: request.recovered,
-            then: request.then,
-        });
-        Ok(token)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn poll_pending_opens(&mut self) {
-        let mut ready = Vec::new();
-        let mut waiting = Vec::new();
-        let pending_opens = std::mem::take(&mut self.pending_opens);
-        for pending in pending_opens {
-            match pending.receiver.try_recv() {
-                Ok(result) if result.token == pending.token => ready.push((pending, result.kind)),
-                Ok(_) => waiting.push(pending),
-                Err(std::sync::mpsc::TryRecvError::Empty) => waiting.push(pending),
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    self.notify_fmt("Couldn't open {name}: the background worker stopped", &[("name", &pending.name)]);
-                }
-            }
-        }
-        self.pending_opens = waiting;
-        for (pending, kind) in ready {
-            self.finish_pending_open(pending, kind);
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn finish_pending_open(&mut self, pending: PendingOpen, kind: open_worker::ResultKind) {
-        match kind {
-            open_worker::ResultKind::ReadFailed(reason) => {
-                self.notify_fmt("Couldn't read {name}: {e}", &[("name", &pending.name), ("e", &reason)]);
-            }
-            open_worker::ResultKind::RemoteFailed(reason) => {
-                self.notify_fmt("Couldn't follow linked PDF: {reason}", &[("reason", &reason)]);
-            }
-            open_worker::ResultKind::RecoveryFailed(reason) => {
-                self.notify_fmt("Couldn't recover {name}: {e}", &[("name", &pending.name), ("e", &reason)]);
-            }
-            open_worker::ResultKind::Failed(reason) => {
-                self.notify_fmt("Couldn't open {name}: {reason}", &[("name", &pending.name), ("reason", &reason)]);
-            }
-            open_worker::ResultKind::Conversion(bytes) => match self.open_converted(&pending.name, &bytes) {
-                Some(Ok(())) => {
-                    if let Some(command) = pending.then {
-                        self.execute(command);
-                    }
-                }
-                Some(Err(error)) => self.notify_fmt("Couldn't open {name}: {e}", &[("name", &pending.name), ("e", &error)]),
-                None => {}
-            },
-            open_worker::ResultKind::Prepared { bytes, result } => match *result {
-                Ok(prepared) => match self.finish_open(&pending.name, pending.path.clone(), bytes.len(), prepared, pending.activate) {
-                    Ok(id) => {
-                        if pending.path.is_some() {
-                            self.watch.known_as(id, pending.stamp);
-                        }
-                        if let Some(destination) = pending.after_open {
-                            self.apply_remote_destination(destination);
-                        }
-                        if let Some(meta) = &pending.recovered {
-                            self.finish_recovery(meta);
-                        }
-                        if let Some(command) = pending.then {
-                            self.execute(command);
-                        }
-                    }
-                    Err(error) => self.notify_fmt("Couldn't open {name}: {e}", &[("name", &pending.name), ("e", &error)]),
-                },
-                Err(error @ (pdfcraft_render::OpenError::NeedsPassword | pdfcraft_render::OpenError::WrongPassword)) => {
-                    let password_error =
-                        matches!(error, pdfcraft_render::OpenError::WrongPassword).then(|| "Incorrect password. Try again.".to_string());
-                    self.password_prompt = Some(PasswordPrompt {
-                        name: pending.name,
-                        path: pending.path,
-                        bytes,
-                        stamp: pending.stamp,
-                        input: String::new(),
-                        error: password_error,
-                        activate: pending.activate,
-                        recovered: pending.recovered,
-                        then: pending.then,
-                        after_open: pending.after_open,
-                    });
-                }
-                Err(error) => self.notify_fmt("Couldn't open {name}: {e}", &[("name", &pending.name), ("e", &error.to_string())]),
-            },
-        }
-    }
-
     fn try_open(
         &mut self,
         name: &str,
@@ -1243,6 +1152,8 @@ impl PdfCraftApp {
                 #[cfg(not(target_arch = "wasm32"))]
                 let stamp = path.as_deref().and_then(file_watch::Stamp::at);
                 self.password_prompt = Some(PasswordPrompt {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    open_token: None,
                     name: name.to_string(),
                     path,
                     bytes,
@@ -1271,7 +1182,6 @@ impl PdfCraftApp {
         activate: bool,
     ) -> Result<DocId, String> {
         let id = self.session.commit_open(prepared);
-        self.password_prompt = None;
         // The reading-colours preference is app-wide: a newly opened document starts with it.
         // Idempotent: the engine returns `false` when the document has the setting already.
         self.session.set_reading_colors(id, self.reading_colors);
@@ -1339,7 +1249,7 @@ impl PdfCraftApp {
         let name = f.path().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "dropped.pdf".into());
         match f.bytes() {
             Ok(bytes) => {
-                if self.ctx.is_some() && !self.run_inline {
+                if self.background_open && !self.run_inline {
                     let result = self.schedule_open(OpenRequest {
                         name: name.clone(),
                         path: None,
@@ -1503,6 +1413,10 @@ impl PdfCraftApp {
     pub fn submit_password(&mut self, password: Option<String>) {
         let Some(p) = self.password_prompt.take() else { return };
         let Some(pw) = password else {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(token) = p.open_token {
+                self.cancel_startup_open(token);
+            }
             // A cancelled recovery goes back on offer; its snapshot stays in the store and must
             // not attach itself to whatever document is unlocked next (#813).
             if let Some(meta) = p.recovered {
@@ -1511,7 +1425,7 @@ impl PdfCraftApp {
             return;
         };
         #[cfg(not(target_arch = "wasm32"))]
-        if self.ctx.is_some() && !self.run_inline {
+        if self.background_open && !self.run_inline {
             let result = self.schedule_open(OpenRequest {
                 name: p.name.clone(),
                 path: p.path.clone(),
@@ -1523,10 +1437,17 @@ impl PdfCraftApp {
                 recovered: p.recovered.clone(),
                 then: p.then,
             });
-            if let Err(error) = result {
-                let mut prompt = p;
-                prompt.error = Some(error);
-                self.password_prompt = Some(prompt);
+            match result {
+                Ok(token) => {
+                    if p.open_token.is_some() && self.startup_open == p.open_token {
+                        self.startup_open = Some(token);
+                    }
+                }
+                Err(error) => {
+                    let mut prompt = p;
+                    prompt.error = Some(error);
+                    self.password_prompt = Some(prompt);
+                }
             }
             return;
         }
@@ -1534,7 +1455,13 @@ impl PdfCraftApp {
         let (path_for_watch, stamp_for_watch) = (p.path.clone(), p.stamp);
         let after_open = p.after_open.clone();
         match self.try_open(&p.name, p.path, p.bytes, Some(&pw), p.activate) {
-            Err(e) => self.notify_fmt("Couldn't open {name}: {e}", &[("name", &p.name), ("e", &e.to_string())]),
+            Err(e) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(token) = p.open_token {
+                    self.cancel_startup_open(token);
+                }
+                self.notify_fmt("Couldn't open {name}: {e}", &[("name", &p.name), ("e", &e.to_string())]);
+            }
             // A recovered encrypted document is open once its prompt is gone.
             Ok(()) if self.password_prompt.is_none() => {
                 #[cfg(not(target_arch = "wasm32"))]
@@ -1548,7 +1475,7 @@ impl PdfCraftApp {
                     self.watch.known_as(id, stamp_for_watch);
                 }
                 if let Some(destination) = after_open {
-                    self.apply_remote_destination(destination);
+                    self.apply_open_destination(destination);
                 }
                 if let Some(meta) = &p.recovered {
                     self.finish_recovery(meta);
@@ -1556,11 +1483,19 @@ impl PdfCraftApp {
                 if let Some(command) = p.then {
                     self.execute(command);
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(token) = p.open_token {
+                    self.complete_startup_open(token);
+                }
             }
             // Wrong password: the new prompt is for the same bytes, so it keeps the snapshot
             // and the tool waiting for it.
             Ok(()) => {
                 if let Some(prompt) = self.password_prompt.as_mut() {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        prompt.open_token = p.open_token;
+                    }
                     prompt.recovered = p.recovered;
                     prompt.then = p.then;
                     prompt.after_open = after_open;
@@ -1645,6 +1580,27 @@ impl PdfCraftApp {
         let name = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone());
         let stamp = file_watch::Stamp::at(&path);
         self.startup_superseded = true;
+        if !self.background_open || self.run_inline {
+            let bytes = match pdfcraft_engine::read_remote_document(std::path::Path::new(&path)) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    self.notify_fmt("Couldn't follow linked PDF: {reason}", &[("reason", &error.to_string())]);
+                    return;
+                }
+            };
+            let before = self.views.len();
+            if let Err(error) = self.try_open(&name, Some(path.clone()), std::sync::Arc::new(bytes), None, true) {
+                self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &error)]);
+            } else if self.views.len() > before {
+                if let Some(view) = self.views.last() {
+                    self.watch.known_as(view.id, stamp);
+                }
+                self.apply_remote_destination(destination);
+            } else if let Some(prompt) = self.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path.as_str())) {
+                prompt.after_open = Some(OpenDestination::Remote(destination));
+            }
+            return;
+        }
         let result = self.schedule_open(OpenRequest {
             name: name.clone(),
             path: Some(path.clone()),
@@ -1652,7 +1608,7 @@ impl PdfCraftApp {
             input: open_worker::Input::RemotePath(std::path::PathBuf::from(path)),
             password: None,
             activate: true,
-            after_open: Some(destination),
+            after_open: Some(OpenDestination::Remote(destination)),
             recovered: None,
             then: None,
         });
@@ -1690,52 +1646,67 @@ impl PdfCraftApp {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_path(&mut self, path: &str) {
-        self.open_path_then(path, None);
+        self.open_path_with(path, true, None, None);
     }
 
-    /// Keep a chosen tool with its file until preparation and any password entry finish.
     #[cfg(not(target_arch = "wasm32"))]
-    fn open_path_then(&mut self, path: &str, then: Option<&'static str>) {
+    fn open_path_with(&mut self, path: &str, activate: bool, after_open: Option<OpenDestination>, then: Option<&'static str>) {
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
-        // Taken before reading: a build that rewrites the file meanwhile still counts as a change.
         let stamp = file_watch::Stamp::at(path);
-        // Before the first frame there is no interaction to keep responsive; this also preserves
-        // deterministic inline startup and test flows. Once live, reading and preparation use
-        // the bounded worker and commit on the UI thread.
-        if self.ctx.is_none() || self.run_inline {
+        self.startup_superseded = true;
+        if !self.background_open || self.run_inline {
             match std::fs::read(path) {
                 Ok(bytes) => {
                     let before = self.views.len();
-                    if let Err(error) = self.open_bytes(&name, Some(path.to_string()), bytes) {
+                    if let Err(error) = self.open_bytes_with_focus(&name, Some(path.to_string()), bytes, activate) {
                         self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &error)]);
-                    } else if let Some(prompt) = self.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path)) {
-                        prompt.then = then;
                     } else if self.views.len() > before {
                         if let Some(doc) = self.views.last().map(|view| view.id) {
                             self.watch.known_as(doc, stamp);
                         }
+                        if let Some(destination) = after_open {
+                            self.apply_open_destination(destination);
+                        }
                         if let Some(command) = then {
                             self.execute(command);
                         }
+                    } else if let Some(prompt) = self.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path)) {
+                        prompt.after_open = after_open;
+                        prompt.then = then;
                     }
                 }
                 Err(error) => self.notify_fmt("Couldn't read {name}: {e}", &[("name", &name), ("e", &error.to_string())]),
             }
             return;
         }
-        self.startup_superseded = true;
         if let Err(error) = self.schedule_open(OpenRequest {
             name: name.clone(),
             path: Some(path.to_string()),
             stamp,
             input: open_worker::Input::Path(std::path::PathBuf::from(path)),
             password: None,
-            activate: true,
-            after_open: None,
+            activate,
+            after_open,
             recovered: None,
             then,
         }) {
             self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &error)]);
+        }
+    }
+
+    fn apply_open_destination(&mut self, destination: OpenDestination) {
+        match destination {
+            OpenDestination::Remote(destination) => self.apply_remote_destination(destination),
+            OpenDestination::SessionPage(page) => {
+                if let Some(view) = self.views.last_mut() {
+                    view.go_to_page(page);
+                }
+            }
+            OpenDestination::Reopened(path) => {
+                if let Some(index) = self.closed_tabs.iter().rposition(|p| p == &path) {
+                    self.closed_tabs.remove(index);
+                }
+            }
         }
     }
 
@@ -2001,8 +1972,13 @@ impl PdfCraftApp {
         let command = spec.id;
         self.ask_one(pickers::Ask::File(dialog), None, move |app, path| {
             let path = path.to_string_lossy().into_owned();
-            app.open_path_then(&path, Some(command));
+            app.open_path_then(&path, command);
         });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn open_path_then(&mut self, path: &str, command: &'static str) {
+        self.open_path_with(path, true, None, Some(command));
     }
 
     /// Browsers read the picked file asynchronously; it opens, and the tool can be chosen again.
@@ -2827,12 +2803,13 @@ impl eframe::App for PdfCraftApp {
             }
         }
         // Don't replace a pending prompt or import. A startup file may need its own password
-        // prompt, so its bytes stay queued until the current interaction finishes.
+        // prompt, so its bytes stay queued until the current interaction finishes, including
+        // preparation after submit_password has taken the local prompt off screen.
         #[cfg(not(target_arch = "wasm32"))]
-        let opening = !self.pending_opens.is_empty();
+        let preparing_open = !self.pending_opens.is_empty();
         #[cfg(target_arch = "wasm32")]
-        let opening = false;
-        if !opening
+        let preparing_open = false;
+        if !preparing_open
             && self.password_prompt.is_none()
             && self.image_import.is_none()
             && self.dialog.is_none()

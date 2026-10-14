@@ -9,7 +9,7 @@ use crate::RecoveryStore;
 use pdfcraft_engine::{OpenContext, PreparedDocument, SourceKind};
 use pdfcraft_render::OpenError;
 
-const MAX_QUEUED_OPENS: usize = 16;
+pub(crate) const MAX_QUEUED_OPENS: usize = crate::last_session::MAX_FILES;
 
 pub(crate) enum Input {
     Path(PathBuf),
@@ -103,7 +103,11 @@ impl OpenWorker {
         if queue.jobs.len() >= MAX_QUEUED_OPENS {
             return Err("too many documents are waiting to open".into());
         }
-        queue.jobs.push_back(job);
+        if job.password.is_some() {
+            queue.jobs.push_front(job);
+        } else {
+            queue.jobs.push_back(job);
+        }
         ready.notify_one();
         Ok(receiver)
     }

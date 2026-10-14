@@ -197,10 +197,11 @@ impl PdfCraftApp {
     /// Reopen recovered documents (`keys`), as unsaved changes at their original paths.
     pub fn recover(&mut self, keys: &[String]) {
         let Some(store) = self.recovery.clone() else { return };
+        let mut accepted = Vec::new();
         for key in keys {
             let Some(meta) = self.recoverable.iter().find(|m| &m.key == key).cloned() else { continue };
             #[cfg(not(target_arch = "wasm32"))]
-            if self.ctx.is_some() && !self.run_inline {
+            if self.background_open && !self.run_inline {
                 self.startup_superseded = true;
                 let result = self.schedule_open(crate::OpenRequest {
                     name: meta.name.clone(),
@@ -215,6 +216,8 @@ impl PdfCraftApp {
                 });
                 if let Err(error) = result {
                     self.notify_fmt("Couldn't recover {name}: {e}", &[("name", &meta.name), ("e", &error)]);
+                } else {
+                    accepted.push(key.clone());
                 }
                 continue;
             }
@@ -226,19 +229,23 @@ impl PdfCraftApp {
                 }
             };
             match self.open_bytes(&meta.name, None, bytes) {
-                Ok(()) if self.password_prompt.is_none() => self.finish_recovery(&meta),
+                Ok(()) if self.password_prompt.is_none() => {
+                    self.finish_recovery(&meta);
+                    accepted.push(key.clone());
+                }
                 // Encrypted: the password prompt opens it, and finishes its recovery once it
                 // does. The association travels with the prompt, so cancelling it cannot hand
                 // this snapshot's path to the next document that is unlocked (#813).
                 Ok(()) => {
                     if let Some(prompt) = self.password_prompt.as_mut() {
                         prompt.recovered = Some(meta.clone());
+                        accepted.push(key.clone());
                     }
                 }
                 Err(e) => self.notify_fmt("Couldn't recover {name}: {e}", &[("name", &meta.name), ("e", &e.to_string())]),
             }
         }
-        self.recoverable.retain(|m| !keys.contains(&m.key));
+        self.recoverable.retain(|m| !accepted.contains(&m.key));
     }
 
     /// The most recently opened tab came from `meta`: keep its recovery entry and path.

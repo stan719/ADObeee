@@ -63,8 +63,31 @@ impl PdfCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let path = |v: &crate::DocView| self.session.get(v.id).and_then(|d| d.path.as_deref()).map(absolute);
-            let files = self.views.iter().filter_map(|v| Some(SessionFile { path: path(v)?, page: v.current })).take(MAX_FILES).collect();
-            let active = self.active.and_then(|i| self.views.get(i)).and_then(path);
+            let mut files: Vec<SessionFile> =
+                self.views.iter().filter_map(|v| Some(SessionFile { path: path(v)?, page: v.current })).take(MAX_FILES).collect();
+            let mut active = self.active.and_then(|i| self.views.get(i)).and_then(path);
+            // Quitting while startup is still loading must not erase the saved session.
+            // Remember only paths/pages: never persist queued bytes or passwords.
+            let mut remember = |path: Option<&str>, destination: Option<&crate::OpenDestination>, activate: bool| {
+                let Some(path) = path.map(absolute) else { return };
+                if files.len() >= MAX_FILES || files.iter().any(|f| f.path == path) {
+                    return;
+                }
+                let page = match destination {
+                    Some(crate::OpenDestination::SessionPage(page)) => *page,
+                    _ => 0,
+                };
+                if activate {
+                    active = Some(path.clone());
+                }
+                files.push(SessionFile { path, page });
+            };
+            if let Some(prompt) = &self.password_prompt {
+                remember(prompt.path.as_deref(), prompt.after_open.as_ref(), prompt.activate);
+            }
+            for pending in &self.pending_opens {
+                remember(pending.path.as_deref(), pending.after_open.as_ref(), pending.activate);
+            }
             LastSession { files, active }
         }
         #[cfg(target_arch = "wasm32")]
@@ -97,8 +120,8 @@ impl PdfCraftApp {
     /// `skip` (files the app is about to open anyway, e.g. from the command line) and documents
     /// the Recovery dialog offers, so neither opens twice.
     ///
-    /// Only one password prompt can wait at a time: the first encrypted file asks for its
-    /// password and later ones stay closed (they are in the recent-files list).
+    /// Native background opens retain their page and focus through password retries. Prompts
+    /// are handled one at a time; cancelling one allows the next queued file to continue.
     pub fn reopen_last_files(&mut self, skip: &[String]) {
         let last = std::mem::take(&mut self.last_session);
         #[cfg(not(target_arch = "wasm32"))]
@@ -112,6 +135,14 @@ impl PdfCraftApp {
                     app.views.iter().any(|v| app.session.get(v.id).and_then(|d| d.path.as_deref()).map(absolute).as_deref() == Some(f.path.as_str()))
                 };
                 if skip.contains(&f.path) || !std::path::Path::new(&f.path).is_file() || open(self) {
+                    continue;
+                }
+                if self.background_open && !self.run_inline {
+                    if self.pending_opens.iter().any(|p| p.path.as_deref() == Some(f.path.as_str())) {
+                        continue;
+                    }
+                    let activate = last.active.as_ref() == Some(&f.path) || (self.active.is_none() && self.pending_opens.is_empty());
+                    self.open_path_with(&f.path, activate, Some(crate::OpenDestination::SessionPage(f.page)), None);
                     continue;
                 }
                 let before = self.views.len();

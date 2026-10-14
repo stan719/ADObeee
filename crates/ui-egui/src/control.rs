@@ -755,11 +755,12 @@ impl Host for crate::PdfCraftApp {
     #[cfg(not(target_arch = "wasm32"))]
     fn open(&mut self, path: &str) -> Reply {
         let before = self.views.len();
+        let token = self.next_open_token;
         self.open_path(path);
-        if self.views.len() > before || self.password_prompt.is_some() {
-            Ok(json!({ "opened": path, "password_prompt": self.password_prompt.is_some() }))
-        } else if self.pending_opens.iter().any(|pending| pending.path.as_deref() == Some(path)) {
+        if self.next_open_token != token {
             Ok(json!({ "accepted": path, "pending": true }))
+        } else if self.views.len() > before || self.password_prompt.as_ref().is_some_and(|p| p.path.as_deref() == Some(path)) {
+            Ok(json!({ "opened": path, "password_prompt": self.password_prompt.is_some() }))
         } else {
             Err(self.toast.as_ref().map(|t| t.0.clone()).unwrap_or_else(|| format!("couldn't open {path}")))
         }

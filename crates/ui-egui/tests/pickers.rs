@@ -79,6 +79,34 @@ fn file_open_returns_at_once_and_opens_the_pick_when_preparation_finishes() {
 }
 
 #[test]
+fn choosing_a_tool_before_opening_runs_it_after_inline_or_background_preparation() {
+    let dir = scratch("open-then-tool");
+    let path = dir.join("picked.pdf");
+    std::fs::write(&path, fixture(3)).unwrap();
+    for background in [false, true] {
+        let mut h = harness(&[]);
+        if background {
+            let ctx = h.ctx.clone();
+            h.state_mut().enable_background_open(&ctx);
+        }
+        h.state_mut().pick_override = Some(vec![path.to_string_lossy().into_owned()]);
+        h.state_mut().run_command("page.organize");
+        assert!(h.state().views.is_empty(), "the picker does not open synchronously");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while h.state().views.is_empty() {
+            assert!(std::time::Instant::now() < deadline, "picked PDF did not open (background: {background})");
+            h.step();
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert_eq!(h.state().views.len(), 1);
+        assert_eq!(pages(h.state(), 0), 3);
+        assert!(h.state().views[0].organize, "the chosen tool must survive preparation (background: {background})");
+    }
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir(dir).unwrap();
+}
+
+#[test]
 fn insert_from_file_uses_the_pick_on_the_next_frame() {
     let dir = std::env::temp_dir().join(format!("printcraft-pickers-insert-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
