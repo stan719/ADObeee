@@ -384,6 +384,10 @@ pub struct DocView {
     /// (#759). The window outlasts a single frame so egui's internal easing tail is suppressed as
     /// it decays, instead of adding on top of the 1:1 motion.
     precise_scroll_until: f64,
+    /// Arrival-rate state for line wheel input, one per axis so a
+    /// horizontal nudge never borrows a vertical burst.
+    wheel_boost_x: crate::wheel_boost::WheelBoost,
+    wheel_boost_y: crate::wheel_boost::WheelBoost,
     pub(crate) auto_scroll: crate::autoscroll::AutoScroll,
     /// Pages selected in the organize grid or the Pages panel (0-based). Empty means "the current page".
     pub selected: BTreeSet<usize>,
@@ -632,6 +636,8 @@ impl DocView {
             shown: false,
             wheel: Default::default(),
             precise_scroll_until: 0.0,
+            wheel_boost_x: Default::default(),
+            wheel_boost_y: Default::default(),
             auto_scroll: Default::default(),
             selected: BTreeSet::new(),
             select_anchor: None,
@@ -703,6 +709,7 @@ impl DocView {
         self.flash = None;
         // A thumbnail drag holds page indexes from before the change.
         self.panel_drag = None;
+        self.reset_coarse_state();
     }
 
     /// The document was replaced by a newer version of its file (#431). The reader's place
@@ -983,6 +990,7 @@ impl DocView {
             .unwrap_or(0.0);
         self.goto = Some((page, frac));
         self.current = page;
+        self.reset_coarse_state();
     }
 
     /// Screen position of the centre of glyph `glyph` on `page`, if that page is on screen and its
@@ -1004,6 +1012,14 @@ impl DocView {
         self.thumbs.get(&page).map(|t| &t.tex)
     }
 
+    /// Drops transient wheel state after a discontinuous jump. Partial gestures
+    /// belong to the old place, so a landing never inherits their speed.
+    fn reset_coarse_state(&mut self) {
+        self.wheel.clear_motion();
+        self.wheel_boost_x.reset();
+        self.wheel_boost_y.reset();
+    }
+
     pub fn go_to_page(&mut self, page: usize) {
         let page = page.min(self.page_count.saturating_sub(1));
         if page != self.current {
@@ -1017,7 +1033,7 @@ impl DocView {
             self.forward.clear();
         }
         // Partial wheel motion belongs to the old place.
-        self.wheel.clear_motion();
+        self.reset_coarse_state();
         self.goto = Some((page, 0.0));
         self.current = page;
         self.page_input = (page + 1).to_string();
@@ -1131,6 +1147,7 @@ impl DocView {
         self.goto = Some((page, 0.0));
         self.current = page;
         self.page_input = (page + 1).to_string();
+        self.reset_coarse_state();
         true
     }
 
@@ -1155,12 +1172,14 @@ impl DocView {
     pub fn rotate_view(&mut self, clockwise: bool) {
         self.rotation = (self.rotation + if clockwise { 90 } else { 270 }) % 360;
         self.goto = Some((self.current, 0.0));
+        self.reset_coarse_state();
     }
 
     /// Switch the zoom mode, keeping the current page in view.
     pub fn set_fit(&mut self, fit: Fit) {
         self.fit = fit;
         self.goto = Some((self.current, 0.0));
+        self.reset_coarse_state();
     }
 
     /// Switch the base page display (Single or Two-page), leaving continuous scrolling as it is.
@@ -1172,6 +1191,7 @@ impl DocView {
         }
         self.layout = layout;
         self.goto = Some((self.current, 0.0));
+        self.reset_coarse_state();
     }
 
     /// Whether the view scrolls continuously (as opposed to one page or spread at a time).
@@ -1200,6 +1220,7 @@ impl DocView {
         if self.cover != cover {
             self.cover = cover;
             self.goto = Some((self.current, 0.0));
+            self.reset_coarse_state();
         }
     }
 
@@ -2043,9 +2064,15 @@ pub fn shortcuts(view: &mut DocView, ctx: &egui::Context) {
     }
 }
 
-/// How far ↓ / ↑ scroll: a mouse-wheel line on the desktop. Page Down / Page Up keep this much
-/// of the previous screen in view.
+/// How far ↓ / ↑ scroll. Fixed at egui's default line step on purpose: the
+/// keyboard step stays put while the wheel follows the scroll speed
+/// preference. Page Down / Page Up keep this much of the previous screen
+/// in view.
 const KEY_SCROLL_LINE: f32 = 40.0;
+/// How long the precise path keeps suppressing egui smoothing, in seconds.
+/// egui 0.36.2 drains tail deltas in `WheelState::after_events` at 90% per
+/// 0.1 s, so the eased copy is gone well within this window.
+const SUPPRESS_SECS: f64 = 0.25;
 
 pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
@@ -2195,40 +2222,54 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             ui.input_mut(|i| i.smooth_scroll_delta.y = 0.0);
         }
     }
-    // Touchpad scrolling 1:1 (#759). A precision touchpad sends pixel-precise `MouseWheel`
-    // events; on Windows they carry no `TouchPhase::Start`, so egui never takes its no-smoothing
-    // path and eases deltas of 8 px or more, leaving the page a frame behind the finger. Apply
-    // the precise delta ourselves this frame through the un-animated scroll path, and suppress
-    // egui's eased copy while it decays so it neither doubles nor trails the motion. A coarse
-    // mouse wheel keeps egui's easing (pleasant for chunky notches).
+    // Point events are pixel-precise and applied 1:1. Line events carry a
+    // fixed step per notch: egui applies the configured base through its own
+    // smoothing, and this adds only the surplus for a fast spin, so single
+    // notches feel identical to every other scroll area. Page events are left
+    // entirely to egui. Point and line input arriving together keep the point
+    // path's suppression; the line base follows through egui smoothing.
     let now = ui.input(|i| i.time);
     let mut precise_scroll = Vec2::ZERO;
+    let mut boost_extra = Vec2::ZERO;
     if ui.rect_contains_pointer(avail) {
-        let mut coarse_wheel = false;
-        ui.input(|i| {
+        // Points per wheel line, following the scroll speed preference: this is
+        // the same base egui applies everywhere else.
+        let live = ui.ctx().options(|o| o.input_options.line_scroll_speed);
+        let line_points = if live.is_finite() && live > 0.0 { live } else { crate::scroll_speed::EGUI_LINE_POINTS };
+        let input = ui.input(|i| {
             for e in &i.events {
                 if let egui::Event::MouseWheel { unit, delta, modifiers, .. } = e {
                     if modifiers.command || modifiers.ctrl {
                         continue; // Zooming, not scrolling.
                     }
+                    if !delta.is_finite() {
+                        continue;
+                    }
                     match unit {
                         // Shift scrolls sideways, matching egui's own wheel handling.
-                        egui::MouseWheelUnit::Point if modifiers.shift => precise_scroll.x += delta.x + delta.y,
+                        egui::MouseWheelUnit::Point if modifiers.shift => {
+                            let sum = delta.x + delta.y;
+                            if sum.is_finite() {
+                                precise_scroll.x += sum;
+                            }
+                        }
                         egui::MouseWheelUnit::Point => precise_scroll += *delta,
-                        egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => coarse_wheel = true,
+                        egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {}
                     }
                 }
             }
+            crate::wheel_boost::accumulate(&i.events, line_points, single_paging)
         });
-        if coarse_wheel {
-            view.precise_scroll_until = 0.0;
-        } else if precise_scroll != Vec2::ZERO {
-            view.precise_scroll_until = now + 0.25;
+        boost_extra = crate::wheel_boost::boost_extra(input, &mut view.wheel_boost_x, &mut view.wheel_boost_y, now);
+        precise_scroll = crate::wheel_boost::cap_frame(precise_scroll);
+        if now.is_finite() && precise_scroll != Vec2::ZERO {
+            view.precise_scroll_until = now + SUPPRESS_SECS;
         }
     }
     // Paging owns the vertical axis in single-page view; leave it to the pager.
     if single_paging {
         precise_scroll.y = 0.0;
+        boost_extra.y = 0.0;
     }
     if now < view.precise_scroll_until {
         ui.input_mut(|i| i.smooth_scroll_delta = Vec2::ZERO);
@@ -2391,10 +2432,9 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             // Only interactions pause; the document must keep its original colours.
             ui.set_opacity(opacity);
         }
-        // Middle-button auto-scroll, the keyboard and precise touchpad input (#759); positive y
-        // moves the content down. All three scroll without easing, unlike egui's wheel default.
-        let delta = auto_delta - vec2(0.0, key_scroll) + precise_scroll;
-        if delta != Vec2::ZERO {
+        // Custom scroll sources bypass easing. Positive y moves content down.
+        let delta = auto_delta - vec2(0.0, key_scroll) + precise_scroll + boost_extra;
+        if delta != Vec2::ZERO && delta.is_finite() {
             ui.scroll_with_delta_animation(delta, egui::style::ScrollAnimation::none());
         }
         let (resp_rect, resp) = ui.allocate_exact_size(vec2(content_w, content_h), Sense::click_and_drag());

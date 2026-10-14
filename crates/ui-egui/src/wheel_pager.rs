@@ -9,6 +9,7 @@
 //! the OS sends after it (macOS and Wayland report touch phases), or, without phases, a burst
 //! of input with no pause longer than `BURST_GAP_SECS`.
 
+// Smooth input turns a page once it has moved one notch worth of points.
 use egui::{MouseWheelUnit, TouchPhase};
 
 /// One wheel notch, in points (egui's default desktop `line_scroll_speed`, fixed so paging
