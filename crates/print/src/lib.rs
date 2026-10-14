@@ -268,6 +268,24 @@ pub fn matching_paper(size: (f64, f64)) -> Option<usize> {
     PAPERS.iter().position(|(_, p)| (p.0 - size.0).abs() <= 0.5 && (p.1 - size.1).abs() <= 0.5)
 }
 
+/// The index in [`PAPERS`] of the paper that measures `width_mm × height_mm`, in either
+/// orientation and within 2 mm; `None` when none matches.
+pub fn paper_index_mm(width_mm: f32, height_mm: f32) -> Option<usize> {
+    let (short, long) = (f64::from(width_mm.min(height_mm)), f64::from(width_mm.max(height_mm)));
+    PAPERS.iter().position(|(_, (w, h))| {
+        let (p_short, p_long) = (w.min(*h) * 25.4 / 72.0, w.max(*h) * 25.4 / 72.0);
+        (short - p_short).abs() < 2.0 && (long - p_long).abs() < 2.0
+    })
+}
+ 
+/// The paper a printer is set to use in the system (on Windows, the one in its printing
+/// preferences), as an index into [`PAPERS`]. `None` when the system doesn't say or that paper
+/// isn't in the list; the caller then keeps the paper it already has.
+pub fn printer_paper(printer: &str) -> Option<usize> {
+    let (w, h) = spool::default_paper_mm(printer)?;
+    paper_index_mm(w, h)
+}
+
 /// The unprintable margin assumed around the sheet for Fit, Multiple and Booklet.
 pub const MARGIN: f64 = 18.0;
 

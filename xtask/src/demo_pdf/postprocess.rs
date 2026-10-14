@@ -39,7 +39,8 @@ pub fn enhance(doc: &mut Document, now: Stamp) -> Result<Summary> {
              a page probably overflowed - check dist/demo/build/chrome.pdf",
             pages.len()
         );
-    }
+	}
+
     let fonts = Fonts::add_to(doc);
     let mut annotator = Annotator::new(fonts.clone(), now.clone());
     let mut annotation_count = 0;

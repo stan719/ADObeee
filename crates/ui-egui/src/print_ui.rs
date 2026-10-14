@@ -265,6 +265,13 @@ impl PdfCraftApp {
             which,
             ..keep
         };
+        
+        // Start on the paper the printer is set to use (A4 or Letter, say), not on a fixed one.
+        if let Some(name) = self.print_draft.printer.clone()
+            && let Some(paper) = print::printer_paper(&name)
+        {
+            self.print_draft.paper = paper;
+        }
         self.dialog = Some(crate::Dialog::Print);
     }
 
@@ -303,7 +310,15 @@ impl PdfCraftApp {
                     self.print_tasks.printers = None;
                     let d = &mut self.print_draft;
                     if !d.printer_picked {
+                        let before = d.printer.clone();
                         d.printer = default_printer(&printers);
+                        // The fresh list can change the preselected printer: take that one's paper.
+                        if d.printer != before
+                            && let Some(name) = d.printer.as_deref()
+                            && let Some(paper) = print::printer_paper(name)
+                        {
+                            d.paper = paper;
+                        }
                     }
                     d.printers = printers;
                     d.printers_loading = false;
@@ -704,6 +719,12 @@ pub(crate) fn body(
                     d.printer_picked = true;
                     d.show_driver_options = false;
                     d.driver_error = None;
+                    // The new printer's own paper, when the system says which it is.
+                    if let Some(name) = d.printer.as_deref()
+                        && let Some(paper) = print::printer_paper(name)
+                    {
+                        d.paper = paper;
+                    }
                 }
                 ui.end_row();
                 ui.label(tl!("Copies:"));
