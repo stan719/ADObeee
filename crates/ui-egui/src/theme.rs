@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use craft_ui::theme::SuitePalette;
 use egui::epaint::text::{FontTweak, HintingTarget, SmoothHinting};
 use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Rect, Response, Stroke, Vec2, Visuals};
 
@@ -68,7 +69,13 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    /// Foreground for a filled accent control in the standard dark palette.
+    pub fn on_accent(&self) -> Color32 {
+        if self.dark() { SuitePalette::ARTCRAFT_DARK.on_accent } else { Color32::WHITE }
+    }
+
     pub fn for_kind(kind: ThemeKind) -> Self {
+        let suite = SuitePalette::ARTCRAFT_DARK;
         match kind {
             ThemeKind::Light => Self {
                 kind,
@@ -96,25 +103,28 @@ impl Tokens {
             },
             ThemeKind::Dark => Self {
                 kind,
-                titlebar: Color32::from_rgb(0x1B, 0x1B, 0x1E),
-                chrome: Color32::from_rgb(0x26, 0x26, 0x2A),
-                panel: Color32::from_rgb(0x26, 0x26, 0x2A),
+                // ArtCraft standard dark UI. Pasteboard and page pixels remain document roles.
+                titlebar: suite.chrome,
+                chrome: suite.window,
+                panel: suite.panel,
                 pasteboard: Color32::from_rgb(0x19, 0x19, 0x1C),
-                card: Color32::from_rgb(0x2E, 0x2E, 0x33),
-                border: Color32::from_rgb(0x3C, 0x3C, 0x43),
-                divider: Color32::from_rgb(0x33, 0x33, 0x39),
-                text: Color32::from_rgb(0xEC, 0xEC, 0xEF),
-                text_muted: Color32::from_rgb(0xAE, 0xAE, 0xB6),
-                text_faint: Color32::from_rgb(0x97, 0x97, 0x9E),
-                icon: Color32::from_rgb(0xD4, 0xD4, 0xDA),
-                hover: Color32::from_rgb(0x34, 0x34, 0x3A),
-                pressed: Color32::from_rgb(0x3E, 0x3E, 0x45),
-                selected: Color32::from_rgb(0x23, 0x3A, 0x63),
-                accent: Color32::from_rgb(0x4B, 0x8B, 0xF5),
-                accent_text: Color32::from_rgb(0x8C, 0xB6, 0xFA),
-                accent_soft: Color32::from_rgb(0x24, 0x36, 0x57),
-                field: Color32::from_rgb(0x1E, 0x1E, 0x22),
-                badge_new: Color32::from_rgb(0x3D, 0x7D, 0xEE),
+                card: suite.raised,
+                border: suite.border,
+                divider: suite.border,
+                text: suite.text,
+                text_muted: suite.text_secondary,
+                // This token labels hints and page details, so keep it AA-readable
+                // on raised cards instead of using the suite's disabled-text gray.
+                text_faint: Color32::from_rgb(0x88, 0x88, 0x8C),
+                icon: suite.text_secondary,
+                hover: suite.hover,
+                pressed: suite.pressed,
+                selected: suite.selection,
+                accent: suite.accent,
+                accent_text: suite.accent_hover,
+                accent_soft: suite.selection,
+                field: suite.input,
+                badge_new: suite.accent,
                 page_shadow: Color32::from_black_alpha(120),
                 radius: 6,
             },
@@ -389,8 +399,8 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     v.window_stroke = Stroke::new(1.0, t.border);
     v.extreme_bg_color = t.field;
     v.faint_bg_color = t.hover;
-    v.selection.bg_fill = t.accent_soft;
-    v.selection.stroke = Stroke::new(1.0, t.accent);
+    v.selection.bg_fill = if t.dark() { t.selected } else { t.accent_soft };
+    v.selection.stroke = Stroke::new(1.0, if t.dark() { t.text } else { t.accent });
     v.hyperlink_color = t.accent_text;
     v.override_text_color = Some(t.text);
     v.window_corner_radius = CornerRadius::same(10);
@@ -446,6 +456,76 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
 mod tests {
     use super::*;
     use egui::epaint::text::{Fonts, TextOptions};
+
+    #[test]
+    fn shared_dark_adapter_maps_ui_roles_and_preserves_document_and_light_styles() {
+        let suite = SuitePalette::ARTCRAFT_DARK;
+        let dark = Tokens::for_kind(ThemeKind::Dark);
+        for (actual, expected) in [
+            (dark.titlebar, suite.chrome),
+            (dark.chrome, suite.window),
+            (dark.panel, suite.panel),
+            (dark.card, suite.raised),
+            (dark.border, suite.border),
+            (dark.divider, suite.border),
+            (dark.text, suite.text),
+            (dark.text_muted, suite.text_secondary),
+            (dark.icon, suite.text_secondary),
+            (dark.hover, suite.hover),
+            (dark.pressed, suite.pressed),
+            (dark.selected, suite.selection),
+            (dark.accent, suite.accent),
+            (dark.accent_text, suite.accent_hover),
+            (dark.accent_soft, suite.selection),
+            (dark.field, suite.input),
+            (dark.badge_new, suite.accent),
+            (dark.on_accent(), suite.on_accent),
+        ] {
+            assert_eq!(actual, expected);
+        }
+        // Readable hints and document rendering remain local contracts.
+        assert_eq!(dark.text_faint, Color32::from_rgb(0x88, 0x88, 0x8c));
+        assert_eq!(dark.pasteboard, Color32::from_rgb(0x19, 0x19, 0x1c));
+        assert_eq!(dark.page_shadow, Color32::from_black_alpha(120));
+        let dark_ctx = egui::Context::default();
+        apply(&dark_ctx, ThemeKind::Dark);
+        let dark_visuals = dark_ctx.style_of(dark_ctx.theme()).visuals.clone();
+        assert_eq!(dark_visuals.selection.bg_fill, suite.selection);
+        assert_eq!(dark_visuals.selection.stroke.color, suite.selection_text);
+        assert_eq!(dark_visuals.widgets.inactive.bg_fill, suite.input);
+        assert_eq!(dark_visuals.widgets.inactive.bg_stroke, Stroke::NONE);
+        assert_eq!(dark_visuals.widgets.active.bg_fill, suite.pressed);
+        let light = Tokens::for_kind(ThemeKind::Light);
+        assert_eq!(light.chrome, Color32::WHITE);
+        assert_eq!(light.titlebar, Color32::from_rgb(0xe9, 0xe9, 0xeb));
+        assert_eq!(light.text, Color32::from_rgb(0x22, 0x22, 0x26));
+        assert_eq!(light.accent, Color32::from_rgb(0x1b, 0x63, 0xe0));
+        assert_eq!(light.pasteboard, Color32::from_rgb(0xf1, 0xf1, 0xf3));
+        assert_eq!(light.page_shadow, Color32::from_black_alpha(34));
+        let light_ctx = egui::Context::default();
+        apply(&light_ctx, ThemeKind::Light);
+        let light_visuals = light_ctx.style_of(light_ctx.theme()).visuals.clone();
+        assert_eq!(light_visuals.selection.bg_fill, light.accent_soft);
+        assert_eq!(light_visuals.selection.stroke.color, light.accent);
+        assert_eq!(light_visuals.widgets.inactive.bg_fill, light.field);
+    }
+
+    #[test]
+    fn dark_chrome_uses_standard_roles_and_keeps_light_and_pages() {
+        let dark = Tokens::for_kind(ThemeKind::Dark);
+        let light = Tokens::for_kind(ThemeKind::Light);
+        assert_eq!(dark.chrome, Color32::from_rgb(0x12, 0x13, 0x16));
+        assert_eq!(dark.panel, Color32::from_rgb(0x10, 0x10, 0x14));
+        assert_eq!(dark.card, Color32::from_rgb(0x1e, 0x1f, 0x22));
+        assert_eq!(dark.text_faint, Color32::from_rgb(0x88, 0x88, 0x8c));
+        assert_eq!(dark.selected, Color32::from_rgb(0x20, 0x3b, 0x65));
+        assert_eq!(dark.on_accent(), Color32::from_rgb(0x06, 0x06, 0x07));
+        assert_eq!(dark.pasteboard, Color32::from_rgb(0x19, 0x19, 0x1c));
+        assert_eq!(light.panel, Color32::WHITE);
+        assert_eq!(light.on_accent(), Color32::WHITE);
+        assert_eq!(ThemePreference::System.resolve(Some(true), ThemeKind::Light), ThemeKind::Dark);
+        assert_eq!(ThemePreference::System.resolve(Some(false), ThemeKind::Dark), ThemeKind::Light);
+    }
 
     const HINTING_CORPUS: [&str; 4] = ["Il1MWmw", "Hamburgefonts", "0123456789 .,;:!?()[]{}+-=/\\", "Café Ångström déjà-vu Ωμέγα Ελληνικά Журнал"];
     const HINTING_SIZES: [f32; 6] = [10.0, 11.0, 12.0, 13.0, 14.0, 16.0];
