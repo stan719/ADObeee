@@ -853,7 +853,7 @@ fn finish_validation(
     info.modification = if covered == bytes.len() || bytes[covered..].iter().all(|b| b.is_ascii_whitespace() || *b == 0) {
         Modification::None
     } else {
-        classify_changes(doc, cache.revision(bytes, covered), info.certify)
+        classify_changes(doc, cache.revision(bytes, covered), info.certify, covered)
     };
     let mut problems = false;
     // The changes are handed over as the words they are, not stitched into the sentence, so an
@@ -1038,7 +1038,7 @@ fn validate_doc_timestamp(doc: &Document, bytes: &[u8], v: &Dict, info: &mut Sig
     info.modification = if covered == bytes.len() || bytes[covered..].iter().all(|b| b.is_ascii_whitespace() || *b == 0) {
         Modification::None
     } else {
-        classify_changes(doc, cache.revision(bytes, covered), None)
+        classify_changes(doc, cache.revision(bytes, covered), None, covered)
     };
     match &info.modification {
         Modification::None => info.details.push(Detail::plain("This document has not been modified since this timestamp was applied.")),
@@ -1175,9 +1175,50 @@ fn validate_x509_rsa_sha1(
     finish_validation(doc, bytes, trust, info, cache, covered, cert, &certs, None, None);
 }
 
+/// The kinds of change found so far, each listed once in the order found, split by whether the
+/// signature permits them.
+#[derive(Default)]
+struct Verdict {
+    allowed: Vec<&'static str>,
+    disallowed: Vec<&'static str>,
+}
+
+impl Verdict {
+    /// A change no signature permits.
+    fn forbid(&mut self, what: &'static str) {
+        self.record(what, false);
+    }
+
+    fn record(&mut self, what: &'static str, permitted: bool) {
+        let list = if permitted { &mut self.allowed } else { &mut self.disallowed };
+        if !list.contains(&what) {
+            list.push(what);
+        }
+    }
+
+    fn finish(self) -> Modification {
+        if self.disallowed.is_empty() { Modification::Allowed(self.allowed) } else { Modification::Disallowed(self.disallowed) }
+    }
+}
+
+/// Whether a signature under DocMDP level `p` (none: an approval signature) permits a change of
+/// kind `what`, going by the kind alone.
+fn permitted(what: &'static str, p: Option<u8>) -> bool {
+    match (what, p) {
+        // Signing again, and adding validation data (ISO 32000-2 12.8.2.2.2).
+        (kind::SIGNATURE | kind::SECURITY_STORE, _) => true,
+        (kind::FORM_FILL, Some(2 | 3) | None) => true,
+        (kind::COMMENTS, Some(3) | None) => true,
+        // Every save updates /Info (ModDate), signing included.
+        (kind::METADATA, _) => true,
+        _ => false,
+    }
+}
+
 /// What later revisions changed, classified as Acrobat reports it, under DocMDP `p` (or none:
-/// an approval signature permits form fill, comments and further signatures).
-fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>) -> Modification {
+/// an approval signature permits form fill, comments and further signatures). `appended_from`
+/// is where the bytes after the signed revision start.
+fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>, appended_from: usize) -> Modification {
     let Some(old) = old else {
         return Modification::Disallowed(vec![kind::UNREADABLE]);
     };
@@ -1204,7 +1245,7 @@ fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>) -> Mod
     // /Type and adding /ModDate, must not reclassify it away from page content).
     let signed_pages: HashSet<ObjRef> = pdfcraft_annot::page_refs(&old).unwrap_or_default().into_iter().collect();
     let old_info = old.trailer().get(b"Info").and_then(Object::as_ref);
-    let (mut allowed, mut disallowed): (Vec<&'static str>, Vec<&'static str>) = (Vec::new(), Vec::new());
+    let mut verdict = Verdict::default();
     let dss = dss_parts(doc, &old);
     // Stored at the same place in both (and not edited since): the same bytes, unchanged.
     let same_place = |num: u32| -> bool {
@@ -1220,18 +1261,19 @@ fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>) -> Mod
             _ => false,
         }
     };
+    // What reading the file differently amounts to for object `r`: page content when `r` was a
+    // signed page or one of its content streams, else "other".
+    let shown_when_signed = |r: ObjRef| if old_content.contains(&r) || signed_pages.contains(&r) { kind::PAGE_CONTENT } else { kind::OTHER };
     // A later cross-reference section may carry an entry this reader sets aside (an in-use entry
     // at offset 0, a second entry for one object, a reserved entry type). The renderer may follow
     // it and draw another object than the one compared below, so the page could show new content
     // while every comparison here finds the signed object untouched. No writer has a reason to
     // add such an entry after signing: it is never a permitted change.
     for (_, num) in doc.xref_oddities().iter().filter(|o| !old.xref_oddities().contains(o)) {
-        let r = ObjRef { num: *num, generation: doc.generation(*num) };
-        let what = if old_content.contains(&r) || signed_pages.contains(&r) { kind::PAGE_CONTENT } else { kind::OTHER };
-        if !disallowed.contains(&what) {
-            disallowed.push(what);
-        }
+        verdict.forbid(shown_when_signed(ObjRef { num: *num, generation: doc.generation(*num) }));
     }
+    unlisted_bodies(doc, &old, appended_from, shown_when_signed, &mut verdict);
+    trailer_changes(doc, &old, &mut verdict);
     for num in doc.object_numbers() {
         if same_place(num) {
             continue;
@@ -1243,8 +1285,8 @@ fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>) -> Mod
             // The same content at a new place. That is true for the renderer as well only when
             // the entry locates the object itself: where this reader had to search for the
             // object, another reader may arrive at a different one.
-            if !doc.is_edited(num) && !doc.xref_entry_is_exact(num) && !disallowed.contains(&kind::OTHER) {
-                disallowed.push(kind::OTHER);
+            if !doc.is_edited(num) && !doc.xref_entry_is_exact(num) {
+                verdict.forbid(kind::OTHER);
             }
             continue;
         }
@@ -1285,20 +1327,175 @@ fn classify_changes(doc: &Document, old: Option<Document>, p: Option<u8>) -> Mod
             _ if before.is_none() => continue,
             _ => kind::OTHER,
         };
-        let ok = match (what, p) {
-            (kind::SIGNATURE | kind::SECURITY_STORE, _) => true,
-            (kind::FORM_FILL, Some(2 | 3) | None) => true,
-            (kind::COMMENTS, Some(3) | None) => true,
-            // Every save updates /Info (ModDate), signing included.
-            (kind::METADATA, _) => true,
-            _ => false,
+        verdict.record(what, permitted(what, p));
+    }
+    freed_objects(doc, &old, p, &old_content, &signed_pages, old_info, &mut verdict);
+    verdict.finish()
+}
+
+/// Forbid every object body in the bytes after the signed revision (from `appended_from`) that
+/// no cross-reference entry locates. A writer lists every object it appends. A reader that
+/// rebuilds its table by scanning the file (the renderer does, whenever a section of the chain
+/// fails it) takes such a body for the number and draws it, whatever this reader resolves:
+/// never a permitted change, whatever made that reader rebuild.
+fn unlisted_bodies(doc: &Document, old: &Document, appended_from: usize, shown_when_signed: impl Fn(ObjRef) -> &'static str, verdict: &mut Verdict) {
+    for num in doc.objects_unlisted_from(appended_from) {
+        verdict.forbid(shown_when_signed(ObjRef { num, generation: old.generation(num) }));
+    }
+}
+
+/// Forbid changes to the trailer itself: which catalog the file starts from, how its strings
+/// and streams decode, and the first file identifier. A later revision can point /Root at a
+/// catalog of its own (a new object is judged by what references it, and nothing but the
+/// trailer references a catalog), add or change /Encrypt, or replace /ID. No signature permits
+/// it.
+fn trailer_changes(doc: &Document, old: &Document, verdict: &mut Verdict) {
+    if doc.root() != old.root() {
+        verdict.forbid(kind::STRUCTURE);
+    }
+    let encrypt = |d: &Document| d.trailer().get(b"Encrypt").map(|e| d.resolve(e)).filter(|e| !matches!(**e, Object::Null));
+    // A revision without /ID is tolerated (writers leave it out, and every save adds one to a
+    // file that had none): only a first identifier replaced by another is a change.
+    let first_id =
+        |d: &Document| d.trailer().get(b"ID").and_then(Object::as_array).and_then(|a| a.first()).and_then(Object::as_string).map(|s| s.bytes.clone());
+    let id_replaced = matches!((first_id(doc), first_id(old)), (Some(now), Some(then)) if now != then);
+    if encrypt(doc).as_deref() != encrypt(old).as_deref() || id_replaced {
+        verdict.forbid(kind::OTHER);
+    }
+}
+
+/// Record the objects the signed revision had that a later one freed, or no longer locates.
+/// The changed-objects loop of `classify_changes` never visits them (`object_numbers` leaves
+/// out freed numbers) and the objects that referenced them are unchanged bytes, yet the page
+/// draws without its content stream, font or image, and a form without its field. Each is
+/// judged by what it was when signed, as a rewritten object is: page content when it was a
+/// signed page or one of its content streams (`old_content`, `signed_pages`), metadata when it
+/// was the signed `/Info` (`old_info`), else by what the signed pages reach it as, else by its
+/// own dictionary.
+fn freed_objects(
+    doc: &Document,
+    old: &Document,
+    p: Option<u8>,
+    old_content: &HashSet<ObjRef>,
+    signed_pages: &HashSet<ObjRef>,
+    old_info: Option<ObjRef>,
+    verdict: &mut Verdict,
+) {
+    // What the signed pages reach is only asked for the rare freed object that is neither a
+    // page nor /Info: walked when first needed.
+    let reach = std::cell::OnceCell::new();
+    for num in old.object_numbers() {
+        if doc.is_edited(num) || !matches!(doc.xref_entry(num), None | Some(pdfcraft_cos::XrefEntry::Free { .. })) {
+            continue;
+        }
+        let r = ObjRef { num, generation: old.generation(num) };
+        let what = if old_content.contains(&r) || signed_pages.contains(&r) {
+            kind::PAGE_CONTENT
+        } else if Some(r) == old_info {
+            kind::METADATA
+        } else if let Some(role) = reach.get_or_init(|| signed_reach(old)).get(&num) {
+            role
+        } else {
+            match &*old.get(r) {
+                Object::Dict(d) => freed_kind(d),
+                Object::Stream(s) => freed_kind(&s.dict),
+                Object::Null => continue,
+                _ => kind::OTHER,
+            }
         };
-        let list = if ok { &mut allowed } else { &mut disallowed };
-        if !list.contains(&what) {
-            list.push(what);
+        verdict.record(what, permitted(what, p));
+    }
+}
+
+/// What freeing the signed object `d` amounts to, by what it was: a page-tree node is
+/// structure, a widget or field is form fill, a link is links, any other annotation a comment.
+/// A signature widget or anything else is "other": no permission covers removing it.
+fn freed_kind(d: &Dict) -> &'static str {
+    if let Some(b"Catalog" | b"Pages" | b"Page") = d.name(b"Type") {
+        return kind::STRUCTURE;
+    }
+    match d.name(b"Subtype") {
+        Some(b"Widget") => return if d.name(b"FT") == Some(b"Sig") { kind::OTHER } else { kind::FORM_FILL },
+        Some(b"Link") => return kind::LINKS,
+        Some(_) if d.name(b"Type") == Some(b"Annot") || d.contains(b"Rect") => return kind::COMMENTS,
+        _ => {}
+    }
+    if d.name(b"FT") == Some(b"Sig") {
+        return kind::OTHER;
+    }
+    if is_field_dict(d) || d.contains(b"Fields") {
+        return kind::FORM_FILL;
+    }
+    kind::OTHER
+}
+
+/// Whether `d` has the keys of interactive form data: a field's type, a name with kids (a field
+/// that only groups others), or the default resources (/DR) an interactive form carries.
+fn is_field_dict(d: &Dict) -> bool {
+    d.contains(b"FT") || (d.contains(b"T") && d.contains(b"Kids")) || d.contains(b"DR")
+}
+
+/// What the signed revision's pages reach, and as what: the pages themselves and everything
+/// under their /Contents and /Resources are page content; what an annotation reaches is form
+/// fill, comments or links by the annotation's kind (page content seen first stays so). Each
+/// walk stops at a page's parent and an annotation's page, destination and action, and at the
+/// usual depth and size bounds.
+fn signed_reach(old: &Document) -> HashMap<u32, &'static str> {
+    fn visit(old: &Document, o: &Object, role: &'static str, depth: usize, roles: &mut HashMap<u32, &'static str>) {
+        if depth > 32 || roles.len() > 100_000 {
+            return;
+        }
+        match o {
+            Object::Ref(r) => {
+                if roles.contains_key(&r.num) {
+                    return;
+                }
+                roles.insert(r.num, role);
+                visit(old, &old.get(*r), role, depth + 1, roles);
+            }
+            Object::Dict(d) => visit_entries(old, d, role, depth, roles),
+            Object::Stream(s) => visit_entries(old, &s.dict, role, depth, roles),
+            Object::Array(a) => {
+                for v in a {
+                    visit(old, v, role, depth + 1, roles);
+                }
+            }
+            _ => {}
         }
     }
-    if disallowed.is_empty() { Modification::Allowed(allowed) } else { Modification::Disallowed(disallowed) }
+    /// Visit the entries of the dictionary (or stream dictionary) `d` met at `depth`, except the
+    /// keys that lead back up or away: a page's parent, an annotation's page, destination and
+    /// actions.
+    fn visit_entries(old: &Document, d: &Dict, role: &'static str, depth: usize, roles: &mut HashMap<u32, &'static str>) {
+        for (_, v) in d.iter().filter(|(k, _)| !matches!(k.as_slice(), b"Parent" | b"P" | b"Dest" | b"A" | b"AA")) {
+            visit(old, v, role, depth + 1, roles);
+        }
+    }
+    let mut roles = HashMap::new();
+    let pages = pdfcraft_annot::page_refs(old).unwrap_or_default();
+    for pg in &pages {
+        roles.insert(pg.num, kind::PAGE_CONTENT);
+    }
+    for pg in &pages {
+        let page = old.get(*pg);
+        let Some(d) = page.as_dict() else { continue };
+        for key in [&b"Contents"[..], b"Resources"] {
+            if let Some(v) = d.get(key) {
+                visit(old, v, kind::PAGE_CONTENT, 1, &mut roles);
+            }
+        }
+    }
+    for pg in &pages {
+        let page = old.get(*pg);
+        let Some(d) = page.as_dict() else { continue };
+        for annot in refs(old, d.get(b"Annots")) {
+            let a = old.get(annot);
+            let Some(ad) = a.as_dict() else { continue };
+            let role = freed_kind(ad);
+            visit(old, &Object::Ref(annot), role, 1, &mut roles);
+        }
+    }
+    roles
 }
 
 /// Where an object sits in the Document Security Store (ISO 32000-2 §12.8.4.3).
@@ -1522,7 +1719,9 @@ fn change_kind(doc: &Document, old: &Document, d: &Dict, before: Option<&Dict>) 
                         kind::METADATA
                     }
                 }
-                None => kind::FORM_FILL,
+                // A catalog that did not exist when signed: only the trailer can make it the
+                // document's, and classify_changes compares that; by itself it is a structure change.
+                None => kind::STRUCTURE,
             };
         }
         Some(b"Page") => {
@@ -1551,8 +1750,12 @@ fn change_kind(doc: &Document, old: &Document, d: &Dict, before: Option<&Dict>) 
     if d.contains(b"Fields") {
         return acroform_kind(doc, old, d, before);
     }
-    if d.contains(b"FT") || (d.contains(b"T") && d.contains(b"Kids")) || d.contains(b"DR") {
+    if is_field_dict(d) {
         return kind::FORM_FILL;
+    }
+    if d.contains(b"Kids") || d.contains(b"Contents") || d.contains(b"MediaBox") {
+        // A page-tree node or a page that omits its /Type: what the document shows hangs on it.
+        return kind::STRUCTURE;
     }
     if before.is_none() {
         // New objects referenced by changed ones (fonts, appearance resources).
