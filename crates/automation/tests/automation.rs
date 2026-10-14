@@ -2526,6 +2526,59 @@ fn image_signatures_through_tools_preserve_transparency_and_survive_save() {
     assert_eq!(ok(&mut a, "comment_list", json!({ "doc": doc }))["count"], 2, "errors leave the PDF intact");
 }
 
+/// #2061: an image that states its density (PNG `pHYs`) is placed at its physical size; without
+/// one it keeps the 150 x 32 pt signature box.
+#[test]
+fn image_signatures_through_tools_keep_their_physical_size() {
+    let dir = workdir("image-signature-dpi");
+    let write = |name: &str, (w, h): (u32, u32), dpi: Option<f64>| {
+        let mut png = Vec::new();
+        let mut encoder = png::Encoder::new(&mut png, w, h);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        if let Some(dpi) = dpi {
+            let ppm = (dpi / 0.0254).round() as u32;
+            encoder.set_pixel_dims(Some(png::PixelDimensions { xppu: ppm, yppu: ppm, unit: png::Unit::Meter }));
+        }
+        encoder.write_header().unwrap().write_image_data(&[0, 80, 180, 255].repeat((w * h) as usize)).unwrap();
+        std::fs::write(dir.join(name), png).unwrap();
+    };
+    write("seal.png", (300, 300), Some(300.0));
+    write("wide.png", (600, 150), Some(150.0));
+    write("plain.png", (300, 300), None);
+    // 4000 x 2000 pt at 72 dpi, beyond an A4 page (and the 4 megapixels a signature keeps).
+    write("poster.png", (4000, 2000), Some(72.0));
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_create", json!({ "from": "blank", "width": 595, "height": 842 }))["doc"].as_u64().unwrap();
+    let cases = [
+        ("signature", "seal.png", [72.0, 72.0]),
+        ("initials", "seal.png", [72.0, 72.0]),
+        ("signature", "wide.png", [288.0, 72.0]),
+        ("signature", "plain.png", [32.0, 32.0]),
+        ("signature", "poster.png", [595.0, 297.5]),
+    ];
+    for (kind, path, _) in cases {
+        ok(&mut a, "fill_sign_add", json!({ "doc": doc, "page": 1, "type": kind, "at": [0, 400], "path": path }));
+    }
+    let sizes = |a: &mut Automation, doc| -> Vec<[f64; 2]> {
+        let list = ok(a, "comment_list", json!({ "doc": doc }));
+        let rect = |c: &Value| -> Vec<f64> { c["rect"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect() };
+        list["comments"].as_array().unwrap().iter().map(rect).map(|r| [r[2] - r[0], r[3] - r[1]]).collect()
+    };
+    // comment_list orders by position, and every mark starts at the same point: compare sorted.
+    let sorted = |mut v: Vec<[f64; 2]>| {
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        v
+    };
+    let placed = sorted(sizes(&mut a, doc));
+    let want = sorted(cases.iter().map(|(_, _, size)| *size).collect());
+    assert_eq!(placed.len(), want.len());
+    assert!(placed.iter().zip(&want).all(|(g, w)| g.iter().zip(w).all(|(g, w)| (g - w).abs() < 0.05)), "{placed:?}, want {want:?}");
+    ok(&mut a, "doc_save", json!({ "doc": doc, "path": "sealed.pdf" }));
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "sealed.pdf" }))["doc"].as_u64().unwrap();
+    assert_eq!(sorted(sizes(&mut a, reopened)), placed, "the placed size survives save and reopen");
+}
+
 #[test]
 fn scanned_signatures_through_tools_drop_the_paper_and_report_bad_arguments() {
     let dir = workdir("scanned-signatures");
