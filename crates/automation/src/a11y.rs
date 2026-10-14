@@ -458,6 +458,19 @@ impl Automation {
         Ok(json!({ "count": tags.len(), "tags": tags }))
     }
 
+    pub(crate) fn accessibility_role_map(&self, a: &Args) -> Result<Value> {
+        let roles: Vec<Value> = self.doc(a)?.role_map().into_iter().map(|role| json!({ "custom": role.custom, "standard": role.standard })).collect();
+        Ok(json!({ "count": roles.len(), "roles": roles }))
+    }
+
+    pub(crate) fn accessibility_set_role_map(&mut self, a: &Args) -> Result<Value> {
+        let custom = a.str("custom")?.to_owned();
+        let standard = a.opt_str("standard")?.map(str::to_owned);
+        let id = self.doc(a)?.id;
+        self.session.apply(id, pdfcraft_engine::Edit::SetRoleMap { custom, standard }).map_err(failed)?;
+        self.accessibility_role_map(a)
+    }
+
     pub(crate) fn accessibility_set_tag_property(&mut self, a: &Args) -> Result<Value> {
         let object = u32::try_from(a.int("object")?).map_err(|_| ToolError::InvalidArgs("object must be a positive tag object number".into()))?;
         if object == 0 {

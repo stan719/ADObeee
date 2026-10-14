@@ -946,6 +946,13 @@ pub fn tools() -> Vec<ToolDef> {
             .ro()
             .cmd("a11y.tags")
             .with(schema(json!({ "doc": doc() }), &["doc"])),
+        t("accessibility_role_map", "List structure role map", "List custom PDF structure roles and the standard structure types to which they map.")
+            .ro()
+            .cmd("a11y.tags")
+            .with(schema(json!({ "doc": doc() }), &["doc"])),
+        t("accessibility_set_role_map", "Set structure role mapping", "Add, replace or remove a custom structure role mapping. standard must be a standard PDF structure type; omit it to remove custom. The structure tree must be indirect. Undoable.")
+            .cmd("a11y.tags")
+            .with(schema(json!({ "doc": doc(), "custom": { "type": "string", "minLength": 1 }, "standard": { "type": "string" } }), &["doc", "custom"])),
         t("accessibility_set_tag_property", "Edit tag property", "Set or clear one property of a reachable indirect structure tag. Use object and generation from accessibility_tags. Properties: type, title, actual_text, alternate_text, language. Empty or omitted value clears text properties; type requires a nonempty PDF name. Undoable.")
             .with(schema(json!({
                 "doc": doc(), "object": { "type": "integer", "minimum": 1 },

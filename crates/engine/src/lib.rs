@@ -540,6 +540,11 @@ impl Document {
         self.editor.as_ref().map(|e| a11y::tags(&e.cos)).unwrap_or_default()
     }
 
+    /// Custom structure role mappings in the tagged document.
+    pub fn role_map(&self) -> Vec<a11y::RoleMapEntry> {
+        self.editor.as_ref().map(|e| a11y::role_map(&e.cos)).unwrap_or_default()
+    }
+
     /// The edit that fixes `rule`, for the rules with an automatic fix: the document language
     /// (`value` is the language), the title (`value` replaces it; else the current title or the
     /// file name) and the tab order.
@@ -1350,6 +1355,11 @@ pub enum Edit {
         anchor: pdfcraft_cos::ObjRef,
         placement: a11y::TagPlacement,
     },
+    /// Set or remove the mapping from a custom structure role to a standard role.
+    SetRoleMap {
+        custom: String,
+        standard: Option<String>,
+    },
     /// Add alternate text ▸ Decorative figure: the figure's content becomes an artifact.
     MarkDecorative {
         figure: u32,
@@ -1817,6 +1827,7 @@ impl Edit {
             Edit::SetAltText { .. } => Label::of("Set alternate text"),
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
             Edit::MoveTag { .. } => Label::of("Move object"),
+            Edit::SetRoleMap { .. } => Label::of("Change role map"),
             Edit::MarkDecorative { .. } => Label::of("Mark figure as decorative"),
             Edit::AddOcrText { .. } => Label::of("Recognize text"),
             Edit::ApplyScriptChanges { .. } => Label::of("Run JavaScript"),
@@ -2006,6 +2017,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetAltText { .. }
         | Edit::SetTagProperty { .. }
         | Edit::MoveTag { .. }
+        | Edit::SetRoleMap { .. }
         | Edit::MarkDecorative { .. }
         | Edit::AddOcrText { .. }
         | Edit::SetDocumentScript { .. }
@@ -2289,6 +2301,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         }
         Edit::MoveTag { object, anchor, placement } => {
             a11y::move_tag(doc, *object, *anchor, *placement).map_err(|e| EditError::Accessibility(e.to_string()))?;
+        }
+        Edit::SetRoleMap { custom, standard } => {
+            a11y::set_role_map(doc, custom, standard.as_deref()).map_err(|e| EditError::Accessibility(e.to_string()))?;
         }
         Edit::EditTextLine { page, line, text } => {
             pdfcraft_edit::replace_line(doc, *page, *line, text)?;

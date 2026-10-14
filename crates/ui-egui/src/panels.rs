@@ -671,7 +671,8 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     }
                     RightPanel::Tags => {
                         let tags = tags_state.tags(doc);
-                        let (page, edit) = crate::tags_ui::panel(ui, &t, id, &tags, tags_state, doc.allows_modification());
+                        let roles = doc.role_map();
+                        let (page, edit) = crate::tags_ui::panel(ui, &t, id, &tags, &roles, tags_state, doc.allows_modification());
                         if let Some(page) = page {
                             nav = Some(Nav::Page(page));
                         }

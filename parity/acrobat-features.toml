@@ -8885,11 +8885,11 @@ title = "Role map editor"
 area = "M"
 tier = "P2"
 milestone = "M12"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["a11y.tags"]
+tools = ["accessibility_role_map", "accessibility_set_role_map"]
+evidence = ["crates/a11y/src/tests.rs::role_map_entries_list_replace_and_remove_without_disturbing_tags", "crates/automation/tests/automation.rs::tool_table_is_well_formed", "crates/ui-egui/tests/accessibility.rs::tags_panel_edits_role_map_entries"]
+notes = "The Tags panel and headless tools list, add, replace and remove role-map entries with undo. Custom roles must be valid PDF names and map to standard structure types. Direct structure-tree roots and malformed non-name RoleMap values remain unsupported."
 
 [[feature]]
 id = "a11y.class-map"

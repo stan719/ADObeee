@@ -1949,6 +1949,14 @@ trailer << /Root 1 0 R >>
     assert_eq!(tags["tags"][1]["type"], "Figure");
     assert_eq!(tags["tags"][1]["parent"], json!({ "object": 6, "generation": 0 }));
     assert_eq!(tags["tags"][1]["depth"], 1);
+    assert_eq!(ok(&mut a, "accessibility_role_map", json!({ "doc": fd }))["count"], 0);
+    let roles = ok(&mut a, "accessibility_set_role_map", json!({ "doc": fd, "custom": "Heading1", "standard": "H1" }));
+    assert_eq!(roles["roles"][0], json!({ "custom": "Heading1", "standard": "H1" }));
+    assert_eq!(ok(&mut a, "edit_undo", json!({ "doc": fd }))["undone"], "Change role map");
+    assert!(matches!(
+        a.call("accessibility_set_role_map", &json!({ "doc": fd, "custom": "Heading1", "standard": "NotAType" })),
+        Err(ToolError::Failed(_))
+    ));
     let changed = ok(
         &mut a,
         "accessibility_set_tag_property",

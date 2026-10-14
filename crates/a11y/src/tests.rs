@@ -591,6 +591,24 @@ fn setting_alt_text_and_marking_decorative() {
     assert!(text.contains("/Artifact BMC") && !text.contains("/MCID 0"), "{text}");
 }
 
+#[test]
+fn role_map_entries_list_replace_and_remove_without_disturbing_tags() {
+    let mut doc = figures_doc();
+    assert_eq!(role_map(&doc), [RoleMapEntry { custom: "Photo".into(), standard: "Figure".into() }]);
+    set_role_map(&mut doc, "Heading1", Some("H1")).unwrap();
+    assert_eq!(
+        role_map(&doc),
+        [RoleMapEntry { custom: "Heading1".into(), standard: "H1".into() }, RoleMapEntry { custom: "Photo".into(), standard: "Figure".into() },]
+    );
+    set_role_map(&mut doc, "Photo", Some("P")).unwrap();
+    assert_eq!(role_map(&doc)[1], RoleMapEntry { custom: "Photo".into(), standard: "P".into() });
+    set_role_map(&mut doc, "Heading1", None).unwrap();
+    assert_eq!(role_map(&doc), [RoleMapEntry { custom: "Photo".into(), standard: "P".into() }]);
+    assert!(matches!(set_role_map(&mut doc, "bad role", Some("P")), Err(RoleMapError::InvalidName)));
+    assert!(matches!(set_role_map(&mut doc, "Custom", Some("NotAType")), Err(RoleMapError::InvalidTarget)));
+    assert_eq!(tags(&doc).into_iter().map(|tag| tag.object.num).collect::<Vec<_>>(), [6, 7, 8]);
+}
+
 fn ref_(n: u32) -> Option<pdfcraft_cos::ObjRef> {
     Some(pdfcraft_cos::ObjRef::new(n, 0))
 }

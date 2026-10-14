@@ -24,7 +24,7 @@ pub use alt::{AltError, Figure, figures, mark_decorative, set_alt};
 pub use autotag::{AutoTagError, AutoTagResult, autotag_text};
 pub use headings::{Heading, headings};
 pub use report::{REPORT_WORDS, report_html};
-pub use tags::{TagError, TagInfo, TagPlacement, TagProperty, move_tag, set_tag_property, tags};
+pub use tags::{RoleMapEntry, RoleMapError, TagError, TagInfo, TagPlacement, TagProperty, move_tag, role_map, set_role_map, set_tag_property, tags};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Category {

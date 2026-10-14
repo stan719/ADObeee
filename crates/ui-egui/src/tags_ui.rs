@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use egui::Ui;
 use pdfcraft_cos::ObjRef;
-use pdfcraft_engine::a11y::{TagInfo, TagPlacement, TagProperty};
+use pdfcraft_engine::a11y::{RoleMapEntry, TagInfo, TagPlacement, TagProperty};
 use pdfcraft_engine::{DocId, Edit};
 
 use crate::{icons, theme::Tokens, widgets};
@@ -17,6 +17,8 @@ pub(crate) struct State {
     collapsed: BTreeSet<ObjRef>,
     query: String,
     draft: Draft,
+    role_custom: String,
+    role_standard: String,
     /// The tag list per (document, edit generation): walking the structure tree is too slow
     /// to repeat every frame on a large tagged PDF.
     cache: Option<(DocId, u64, Arc<Vec<TagInfo>>)>,
@@ -102,12 +104,22 @@ impl State {
 }
 
 /// The chosen page and an edit to apply after the panel releases its document borrow.
-pub(crate) fn panel(ui: &mut Ui, t: &Tokens, doc: DocId, tags: &[TagInfo], state: &mut State, can_edit: bool) -> (Option<usize>, Option<Edit>) {
+pub(crate) fn panel(
+    ui: &mut Ui,
+    t: &Tokens,
+    doc: DocId,
+    tags: &[TagInfo],
+    roles: &[RoleMapEntry],
+    state: &mut State,
+    can_edit: bool,
+) -> (Option<usize>, Option<Edit>) {
     if state.doc != Some(doc) {
         state.doc = Some(doc);
         state.selected = None;
         state.draft = Draft::default();
         state.query.clear();
+        state.role_custom.clear();
+        state.role_standard.clear();
         state.collapsed.clear();
     }
     if tags.is_empty() {
@@ -191,6 +203,25 @@ pub(crate) fn panel(ui: &mut Ui, t: &Tokens, doc: DocId, tags: &[TagInfo], state
             state.draft = Draft::from_tag(tag);
         }
     });
+    let mut role_edit = None;
+    egui::CollapsingHeader::new(tl!("Role map")).show(ui, |ui| {
+        for role in roles {
+            ui.horizontal(|ui| {
+                ui.label(format!("{} → {}", role.custom, role.standard));
+                if ui.add_enabled(can_edit && !dirty, egui::Button::new(tl!("Remove"))).clicked() {
+                    role_edit = Some(Edit::SetRoleMap { custom: role.custom.clone(), standard: None });
+                }
+            });
+        }
+        ui.add_enabled_ui(can_edit && !dirty, |ui| {
+            field(ui, tl!("Custom role"), &mut state.role_custom, false);
+            field(ui, tl!("Maps to standard role"), &mut state.role_standard, false);
+            if ui.add_enabled(!state.role_custom.is_empty() && !state.role_standard.is_empty(), egui::Button::new(tl!("Set role mapping"))).clicked()
+            {
+                role_edit = Some(Edit::SetRoleMap { custom: state.role_custom.clone(), standard: Some(state.role_standard.clone()) });
+            }
+        });
+    });
     let (mut earlier, mut later) = (false, false);
     ui.horizontal(|ui| {
         earlier = ui.add_enabled(can_edit && !dirty && before.is_some(), egui::Button::new(tl!("Move tag earlier"))).clicked();
@@ -200,6 +231,8 @@ pub(crate) fn panel(ui: &mut Ui, t: &Tokens, doc: DocId, tags: &[TagInfo], state
         page,
         if save {
             edit
+        } else if let Some(edit) = role_edit {
+            Some(edit)
         } else if earlier {
             before.map(|anchor| Edit::MoveTag { object: tag.object, anchor: anchor.object, placement: TagPlacement::Before })
         } else if later {

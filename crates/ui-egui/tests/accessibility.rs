@@ -338,6 +338,33 @@ fn tags_panel_moves_a_tag_within_its_siblings() {
 }
 
 #[test]
+fn tags_panel_edits_role_map_entries() {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("figures.pdf", None, FIGURES.to_vec()).unwrap();
+        app
+    });
+    h.run_steps(4);
+    assert!(h.state_mut().execute("a11y.tags"));
+    h.run_steps(2);
+    h.get_by_label("Role map").click();
+    h.run_steps(1);
+    let custom = h.get_by_role_and_label(Role::TextInput, "Custom role");
+    custom.focus();
+    custom.type_text("Heading1");
+    let standard = h.get_by_role_and_label(Role::TextInput, "Maps to standard role");
+    standard.focus();
+    standard.type_text("H1");
+    h.run_steps(1);
+    h.get_by_label("Set role mapping").click();
+    h.run_steps(3);
+    let doc = h.state().session.get(h.state().views[0].id).unwrap();
+    assert!(doc.role_map().iter().any(|role| role.custom == "Heading1" && role.standard == "H1"));
+    assert_eq!(doc.can_undo(), Some("Change role map"));
+}
+
+#[test]
 fn checker_finding_opens_its_structure_tag() {
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
