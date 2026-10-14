@@ -96,6 +96,7 @@ mod print_ui;
 mod signature_drag;
 pub mod units;
 mod web_print;
+mod word_count_ui;
 pub use print_ui::{Handling as PrintHandling, PrintDraft, PrinterSource, Which as PrintWhich, system_printers};
 mod redact_ui;
 pub use redact_ui::{HiddenDraft, PagesDraft as RedactPagesDraft, RedactPrefs, SearchDraft as RedactSearchDraft, SearchMode as RedactSearchMode};
@@ -260,6 +261,7 @@ struct GridDrop {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dialog {
+    WordCount,
     CreateImages,
     Properties(PropsTab),
     About,
@@ -738,6 +740,7 @@ pub struct PdfCraftApp {
     pub bookmark_rename: Option<(Vec<usize>, String)>,
     /// Number pages dialog settings (1-based pages).
     pub number_draft: NumberDraft,
+    pub(crate) word_count_draft: word_count_ui::Draft,
     /// Protect Using Password dialog state.
     pub protect_draft: protect::ProtectDraft,
     /// Set Page Boxes dialog state.
@@ -1040,6 +1043,7 @@ impl PdfCraftApp {
             text_style: content_ui::default_style(),
             replace_draft: None,
             number_draft: NumberDraft { from: 1, to: 1, style: pdfcraft_engine::LabelStyle::Decimal, prefix: String::new(), start: 1 },
+            word_count_draft: word_count_ui::Draft::default(),
         }
     }
 
@@ -2391,6 +2395,7 @@ impl PdfCraftApp {
                     "watermark" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Watermark)),
                     "background" => Some(Dialog::Marks(pdfcraft_engine::MarkKind::Background)),
                     "export-image" => Some(Dialog::Export(export_ui::ExportKind::Image)),
+                    "word-count" => Some(Dialog::WordCount),
                     "export-text" => Some(Dialog::Export(export_ui::ExportKind::Text)),
                     "export-all-images" => Some(Dialog::Export(export_ui::ExportKind::AllImages)),
                     "accessibility-options" => Some(Dialog::AccessibilityOptions),

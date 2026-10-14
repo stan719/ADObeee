@@ -2355,3 +2355,19 @@ animation effects	Off	Aus
 	This document is trying to open a local file:	Dieses Dokument versucht, eine lokale Datei zu öffnen:
 	Move tag earlier	Tag früher verschieben
 	Move tag later	Tag später verschieben
+@id	file.word_count	Wörter zählen…
+	Word count	Wörter zählen
+	Word count…	Wörter zählen…
+	Current page only	Nur aktuelle Seite
+	Exclude tagged tables	Als Tabellen gekennzeichnete Inhalte ausschließen
+	Exclude tagged code blocks	Als Codeblöcke gekennzeichnete Inhalte ausschließen
+	Exclude image/OCR text	Bildtext und OCR-Text ausschließen
+	Exclusions use PDF tags. Untagged tables and code remain included. Image exclusion also removes invisible text.	Ausschlüsse verwenden PDF-Tags. Tabellen und Code ohne Tags werden weiterhin gezählt. Beim Ausschluss von Bildtext wird auch unsichtbarer Text ausgeschlossen.
+	Words	Wörter
+	Characters	Zeichen
+	Characters without spaces	Zeichen ohne Leerzeichen
+	Pages counted	Gezählte Seiten
+	Some pages contain no countable text. Scanned images need OCR first.	Einige Seiten enthalten keinen zählbaren Text. Führen Sie für gescannte Bilder zuerst eine Texterkennung durch.
+	Some content could not be classified safely and was kept in the count.	Einige Inhalte konnten nicht sicher zugeordnet werden und wurden mitgezählt.
+	Counting words… {n} pages read	Wörter werden gezählt… {n} Seiten gelesen
+	Word counting stopped unexpectedly.	Die Wortzählung wurde unerwartet beendet.

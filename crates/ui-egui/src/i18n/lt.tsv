@@ -2598,3 +2598,19 @@ key	Space	Tarpas
 	This document is trying to open a local file:	Šis dokumentas bando atverti vietinį failą:
 	Move tag earlier	Perkelti žymą anksčiau
 	Move tag later	Perkelti žymą vėliau
+	Word count	Žodžių skaičius
+	Current page only	Tik dabartinis puslapis
+	Exclude tagged tables	Neįtraukti pažymėtų lentelių
+	Exclude tagged code blocks	Neįtraukti pažymėtų kodo blokų
+	Exclude image/OCR text	Neįtraukti vaizdų ir OCR teksto
+	Exclusions use PDF tags. Untagged tables and code remain included. Image exclusion also removes invisible text.	Išimtys naudoja PDF žymas. Nepažymėtos lentelės ir kodas lieka įtraukti. Vaizdų išimtis pašalina ir nematomą tekstą.
+	Words	Žodžiai
+	Characters	Simboliai
+	Characters without spaces	Simboliai be tarpų
+	Pages counted	Suskaičiuoti puslapiai
+	Some pages contain no countable text. Scanned images need OCR first.	Kai kuriuose puslapiuose nėra skaičiuojamo teksto. Nuskaitytiems vaizdams pirmiausia reikia OCR.
+	Some content could not be classified safely and was kept in the count.	Dalies turinio nepavyko patikimai klasifikuoti, todėl jis liko įtrauktas į skaičių.
+	Counting words… {n} pages read	Skaičiuojami žodžiai… perskaityta puslapių: {n}
+	Word counting stopped unexpectedly.	Žodžių skaičiavimas netikėtai sustojo.
+	Word count…	Žodžių skaičius…
+@id	file.word_count	Žodžių skaičius…

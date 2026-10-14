@@ -2368,3 +2368,19 @@ animation effects	Off	Desativados
 	This document is trying to open a local file:	Este documento está tentando abrir um arquivo local:
 	Move tag earlier	Mover tag para antes
 	Move tag later	Mover tag para depois
+	Word count	Contagem de palavras
+	Current page only	Somente a página atual
+	Exclude tagged tables	Excluir tabelas com tags
+	Exclude tagged code blocks	Excluir blocos de código com tags
+	Exclude image/OCR text	Excluir texto de imagens/OCR
+	Exclusions use PDF tags. Untagged tables and code remain included. Image exclusion also removes invisible text.	As exclusões usam tags de PDF. Tabelas e código sem tags continuam incluídos. A exclusão de imagens também remove o texto invisível.
+	Words	Palavras
+	Characters	Caracteres
+	Characters without spaces	Caracteres sem espaços
+	Pages counted	Páginas contadas
+	Some pages contain no countable text. Scanned images need OCR first.	Algumas páginas não contêm texto para contar. As imagens digitalizadas precisam primeiro de OCR.
+	Some content could not be classified safely and was kept in the count.	Parte do conteúdo não pôde ser classificada de forma confiável e foi mantida na contagem.
+	Counting words… {n} pages read	Contando palavras… {n} páginas lidas
+	Word counting stopped unexpectedly.	A contagem de palavras parou inesperadamente.
+	Word count…	Contagem de palavras…
+@id	file.word_count	Contagem de palavras…
