@@ -780,6 +780,9 @@ pub struct PdfCraftApp {
     pub last_opened_url: Option<String>,
     /// A document asked to open this address; the user hasn't answered yet (#90, #91).
     pub pending_link: Option<PendingLink>,
+    /// A document just opened asks to be shown in Full Screen mode (`/PageMode /FullScreen`):
+    /// the person is asked first, as in Acrobat, and this is the document waiting for the answer.
+    pub pending_full_screen: Option<DocId>,
     /// An absolute GoToR target waiting for approval, before any target-file I/O (#1364).
     pub pending_remote_link: Option<PendingRemoteLink>,
 }
@@ -1012,6 +1015,7 @@ impl PdfCraftApp {
             bookmark_rename: None,
             last_opened_url: None,
             pending_link: None,
+            pending_full_screen: None,
             pending_remote_link: None,
             protect_draft: Default::default(),
             boxes_draft: Default::default(),
@@ -1296,6 +1300,11 @@ impl PdfCraftApp {
             self.active = Some(self.views.len() - 1);
         }
         self.apply_initial_view(self.views.len() - 1, &initial);
+        // Full screen is asked for, never taken: a document can't put the app in full screen on
+        // its own (the prompt is `dialogs::full_screen_prompt`).
+        if activate && initial.full_screen {
+            self.pending_full_screen = Some(id);
+        }
         if activate
             && self.left_open
             && self.left == LeftPanel::Tool("organize")
@@ -1497,6 +1506,15 @@ impl PdfCraftApp {
     pub fn set_full_screen(&mut self, ctx: &egui::Context, on: bool) {
         self.full_screen = on;
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(on));
+    }
+
+    /// Answer the Full Screen mode prompt a document raised on opening: enter it, or leave the
+    /// window as it is.
+    pub fn resolve_full_screen_prompt(&mut self, ctx: &egui::Context, allow: bool) {
+        let Some(id) = self.pending_full_screen.take() else { return };
+        if allow && self.session.get(id).is_some() {
+            self.set_full_screen(ctx, true);
+        }
     }
 
     /// Answer the password prompt (`None` cancels).
