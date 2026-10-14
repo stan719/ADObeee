@@ -401,6 +401,15 @@ fn may_paint_rect(rect: Rect, transform: Affine, width: u16, height: u16) -> boo
     paints_canvas(device, width, height)
 }
 
+/// PdfCraft patch: the decode size hint for an image drawn `width` x `height` device pixels
+/// across, or `None` (decode at full size) when either length is not a finite positive number.
+/// A huge `cm` operand makes the lengths NaN; `NaN as u32` is 0, which the JPEG 2000 decoder
+/// divides by.
+fn decode_target_size(width: f64, height: f64) -> Option<(u32, u32)> {
+    let valid = |v: f64| v.is_finite() && v > 0.0;
+    (valid(width) && valid(height)).then(|| (width.ceil() as u32, height.ceil() as u32))
+}
+
 /// PdfCraft patch: the whole-pixel device rectangle of a shrunk, axis-aligned image, as
 /// `(width, height, x0, y0)`. `transform` maps source pixels to device pixels and `planned` is the
 /// size [`image_resampling_size`] chose; `None` (draw as before) for rotated, skewed or flipped
@@ -1355,14 +1364,9 @@ impl<'a> Device<'a> for Renderer {
         self.ctx.set_paint_transform(Affine::IDENTITY);
         self.ctx.set_aliasing_threshold(Some(1));
 
-        let target_width = (transform * Point::new(image.width() as f64, 0.0))
-            .to_vec2()
-            .length()
-            .ceil() as u32;
-        let target_height = (transform * Point::new(0.0, image.height() as f64))
-            .to_vec2()
-            .length()
-            .ceil() as u32;
+        let target_width = (transform * Point::new(image.width() as f64, 0.0)).to_vec2().length();
+        let target_height = (transform * Point::new(0.0, image.height() as f64)).to_vec2().length();
+        let decode_target = decode_target_size(target_width, target_height);
 
         // PdfCraft patch: previews skip images that would cover only a few device pixels.
         // Final renders always draw them. (Measured as axis lengths: the `target_*` above
@@ -1507,7 +1511,7 @@ impl<'a> Device<'a> for Renderer {
                             }
                         };
                     },
-                    Some((target_width, target_height)),
+                    decode_target,
                 );
             }
             hayro_interpret::Image::Raster(r) => {
@@ -1518,7 +1522,7 @@ impl<'a> Device<'a> for Renderer {
                         self.ctx.set_transform(transform);
                         self.draw_image(image, alpha);
                     },
-                    Some((target_width, target_height)),
+                    decode_target,
                 );
             }
         }
@@ -1875,5 +1879,24 @@ pub fn tiling_cell_scale(scale: f32, step: f32, max_pixels: f32) -> f32 {
         max_pixels / step
     } else {
         scale
+    }
+}
+
+// PdfCraft patch: the decode size hint must never be zero (issue #1761).
+#[cfg(test)]
+mod decode_target_tests {
+    use super::decode_target_size;
+
+    #[test]
+    fn non_finite_or_empty_lengths_give_no_hint() {
+        assert_eq!(decode_target_size(f64::NAN, 10.0), None);
+        assert_eq!(decode_target_size(10.0, f64::NAN), None);
+        assert_eq!(decode_target_size(f64::INFINITY, 10.0), None);
+        assert_eq!(decode_target_size(0.0, 10.0), None);
+    }
+
+    #[test]
+    fn finite_lengths_round_up() {
+        assert_eq!(decode_target_size(10.2, 0.5), Some((11, 1)));
     }
 }
