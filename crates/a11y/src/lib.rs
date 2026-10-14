@@ -14,6 +14,7 @@ use pdfcraft_cos::Document;
 
 mod alt;
 mod autotag;
+mod autotag_fields;
 mod content;
 mod headings;
 mod report;
@@ -22,6 +23,7 @@ mod tags;
 
 pub use alt::{AltError, Figure, figures, mark_decorative, set_alt};
 pub use autotag::{AutoTagError, AutoTagResult, autotag_text};
+pub use autotag_fields::tag_form_fields;
 pub use headings::{Heading, headings};
 pub use report::{REPORT_WORDS, report_html};
 pub use tags::{TagError, TagInfo, TagPlacement, TagProperty, move_tag, set_tag_property, tags};
