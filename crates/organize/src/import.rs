@@ -12,7 +12,8 @@
 //! - form-field widgets keep their field hierarchy, and the top-level fields are registered in the
 //!   destination `/AcroForm`;
 //! - structure-tree links (`/StructParent(s)`) and article beads (`/B`) are removed, because the
-//!   source structure tree is not copied;
+//!   source structure tree is not copied (Combine Files copies it afterwards and puts them back:
+//!   see `structure`);
 //! - named destinations are resolved against the source's name tree and become explicit ones;
 //! - layers (optional content groups) used by the pages are registered in the destination's
 //!   `/OCProperties`, keeping their default on/off state.
@@ -28,7 +29,7 @@ use crate::{INHERITABLE, OrganizeError, pages_root, rebuild, walk};
 const SKIP_ON_PAGE: &[&[u8]] = &[b"Parent", b"B", b"StructParents", b"Thumb", b"PieceInfo"];
 const SKIP_ON_ANNOT: &[&[u8]] = &[b"StructParent", b"P"];
 
-struct Copier<'a> {
+pub(crate) struct Copier<'a> {
     src: &'a Document,
     map: HashMap<ObjRef, ObjRef>,
     /// Source page → destination page, for rewriting `/P` and destinations.
@@ -41,7 +42,13 @@ struct Copier<'a> {
     ocgs: Vec<(ObjRef, ObjRef)>,
 }
 
-impl Copier<'_> {
+impl<'a> Copier<'a> {
+    /// A copier from `src` that already knows `map` (source object → copy) and `pages` (source
+    /// page → copy): what it meets there is not copied again.
+    pub(crate) fn seeded(src: &'a Document, map: HashMap<ObjRef, ObjRef>, pages: HashMap<ObjRef, ObjRef>) -> Self {
+        Copier { src, map, pages, annots: Vec::new(), fields: Vec::new(), ocgs: Vec::new() }
+    }
+
     /// Copy an indirect object (once), returning its destination reference.
     fn copy_ref(&mut self, dst: &mut Document, r: ObjRef) -> ObjRef {
         if let Some(d) = self.map.get(&r) {
@@ -59,7 +66,7 @@ impl Copier<'_> {
         new
     }
 
-    fn copy_value(&mut self, dst: &mut Document, o: &Object, this: Option<ObjRef>) -> Object {
+    pub(crate) fn copy_value(&mut self, dst: &mut Document, o: &Object, this: Option<ObjRef>) -> Object {
         match o {
             Object::Ref(r) => Object::Ref(self.copy_ref(dst, *r)),
             Object::Array(a) => Object::Array(a.iter().map(|x| self.copy_value(dst, x, None)).collect()),
@@ -832,7 +839,8 @@ pub struct CombineOutcome {
 /// bookmark (its `title`) pointing to its first page, like Acrobat's Combine Files.
 /// The source's own bookmarks are nested (collapsed) under its entry, and its document-level
 /// attachments are carried over. When every source declares the same print standard (PDF/X
-/// with the same output intent), so does the result.
+/// with the same output intent), so does the result. Tagged sources keep their tags (one
+/// structure tree, see `structure`), and the result takes the first source's language.
 pub fn combine(sources: &[(&str, &Document)]) -> Result<Document, OrganizeError> {
     combine_with(sources, FieldConflicts::Rename).map(|o| o.doc)
 }
@@ -875,6 +883,8 @@ pub struct Combiner {
     field_conflicts: FieldConflicts,
     /// What adding sources renamed (old → new fully-qualified field name), in order.
     renamed_fields: Vec<(String, String)>,
+    /// The sources' structure trees (tags), merged as they are added.
+    structure: crate::structure::Merged,
 }
 
 /// The first source's print standard (see [`Combiner`]).
@@ -908,6 +918,7 @@ impl Combiner {
             agreed: true,
             field_conflicts,
             renamed_fields: Vec::new(),
+            structure: crate::structure::Merged::default(),
         }
     }
 
@@ -931,6 +942,7 @@ impl Combiner {
         };
         let at = crate::page_count(&self.out)?;
         let imported = import_pages_mapped(&mut self.out, src, &pages, at, self.field_conflicts)?;
+        self.structure.add(&mut self.out, src, &imported.page_map, &imported.objects);
         self.renamed_fields.extend(imported.renamed_fields);
         if let Some(first) = imported.pages.first() {
             let outline = source_outline(src, imported.page_map);
@@ -956,7 +968,8 @@ impl Combiner {
 
     /// [`Combiner::finish`] reporting what the combine renamed.
     pub fn finish_with_renames(self) -> Result<CombineOutcome, OrganizeError> {
-        let Combiner { mut out, marks, attachments, standard, agreed, renamed_fields, .. } = self;
+        let Combiner { mut out, marks, attachments, standard, agreed, renamed_fields, structure, .. } = self;
+        structure.finish(&mut out)?;
         if let Some(first) = standard.filter(|_| agreed) {
             crate::pdfx::carry(&mut out, first.source.as_ref(), &first.declared, first.objects)?;
         }
@@ -1022,9 +1035,11 @@ pub fn combine_grouped_with(runs: &[Run<'_>], conflicts: FieldConflicts) -> Resu
     let mut renamed_fields = Vec::new();
     let mut standard: Option<(crate::pdfx::PrintStandard, &Document, HashMap<ObjRef, ObjRef>)> = None;
     let mut agreed = true;
+    let mut structure = crate::structure::Merged::default();
     for (_, file) in &files {
         let at = crate::page_count(&out)?;
         let imported = import_pages_mapped(&mut out, file.src, &file.pages, at, conflicts)?;
+        structure.add(&mut out, file.src, &imported.page_map, &imported.objects);
         copies.push(imported.pages.clone());
         renamed_fields.extend(imported.renamed_fields);
         if let Some(first) = imported.pages.first() {
@@ -1045,6 +1060,7 @@ pub fn combine_grouped_with(runs: &[Run<'_>], conflicts: FieldConflicts) -> Resu
         order.extend(run.iter().map(|r| (*r, Dict::new())));
     }
     rebuild(&mut out, &order)?;
+    structure.finish(&mut out)?;
     if let Some((declared, src, objects)) = standard.filter(|_| agreed) {
         crate::pdfx::carry(&mut out, Some(src), &declared, objects)?;
     }

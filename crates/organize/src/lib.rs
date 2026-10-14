@@ -20,6 +20,7 @@ mod labels;
 mod outline;
 mod pdfx;
 mod prune;
+mod structure;
 pub mod view;
 mod xmp;
 
