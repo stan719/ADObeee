@@ -125,7 +125,10 @@ impl PageText {
                 chars.push((c, i));
             }
         }
-        let word = |k: Option<&(char, usize)>| k.is_some_and(|c| c.0.is_alphanumeric());
+        // A neighbour bounds a word only in a script that puts spaces between words. Han, kana,
+        // Thai and the like run their words together, so a character of theirs next to the match
+        // is no reason to reject it: Acrobat finds 台北 inside 台北市 with Whole words only on.
+        let word = |k: Option<&(char, usize)>| k.is_some_and(|c| c.0.is_alphanumeric() && !unspaced_script(c.0));
         let mut out = Vec::new();
         let mut i = 0;
         while i + needle.len() <= chars.len() {
@@ -1269,6 +1272,30 @@ fn union(a: &mut [f32; 4], b: &[f32; 4]) {
     a[3] = a[3].max(b[3]);
 }
 
+/// Whether `c` is a letter of a script written without spaces between words (CJK ideographs,
+/// kana, bopomofo, Thai, Lao, Myanmar, Khmer, Tibetan), so that a whole-word search cannot take a
+/// neighbouring letter as a word boundary.
+fn unspaced_script(c: char) -> bool {
+    matches!(
+        u32::from(c),
+        0x0E00..=0x0EFF      // Thai, Lao
+        | 0x0F00..=0x0FFF    // Tibetan
+        | 0x1000..=0x109F    // Myanmar
+        | 0x1780..=0x17FF    // Khmer
+        | 0x2E80..=0x2FDF    // CJK and Kangxi radicals
+        | 0x3005..=0x3007    // 々 〆 〇
+        | 0x3040..=0x30FF    // hiragana, katakana
+        | 0x3100..=0x312F    // bopomofo
+        | 0x31A0..=0x31BF    // bopomofo extended
+        | 0x31F0..=0x31FF    // katakana phonetic extensions
+        | 0x3400..=0x4DBF    // CJK extension A
+        | 0x4E00..=0x9FFF    // CJK unified ideographs
+        | 0xF900..=0xFAFF    // CJK compatibility ideographs
+        | 0xFF66..=0xFF9F    // halfwidth katakana
+        | 0x20000..=0x3134F  // CJK extensions B to G
+    )
+}
+
 /// Reading-order layout. Glyphs are reordered so that `glyphs` is in reading order, lines are
 /// numbered in that order, and word gaps are inferred per line.
 ///
@@ -1780,6 +1807,31 @@ mod tests {
         }
         // A 90° page: the view's top-right corner is the upright top-left.
         assert_eq!(to_upright([290.0, 0.0, 300.0, 10.0], 1, 300.0, 200.0), [0.0, 0.0, 10.0, 10.0]);
+    }
+
+    #[test]
+    fn whole_words_ignore_neighbours_in_scripts_written_without_spaces() {
+        // "台北市的PDF檔案" in one run: Chinese writes no spaces between words, so "台北" is a
+        // whole word inside "台北市" and "PDF" inside "的PDF檔", as Acrobat finds them with Whole
+        // words only on. A Latin neighbour still bounds: "cat" is not a whole word in "category".
+        let mut v = Vec::new();
+        word(&mut v, "台北市的PDF檔案", 10.0, 10.0, 6.0);
+        word(&mut v, "category", 74.0, 10.0, 6.0);
+        let t = layout(v);
+        assert_eq!(t.plain_text(), "台北市的PDF檔案 category");
+        assert_eq!(t.find_opts("台北", false, true), vec![0..2], "a word inside a longer run of ideographs");
+        assert_eq!(t.find_opts("北市", false, true), vec![1..3]);
+        assert_eq!(t.find_opts("PDF", false, true), vec![4..7], "Latin between ideographs");
+        assert_eq!(t.find_opts("pdf檔", false, true), vec![4..8]);
+        assert!(t.find_opts("cat", false, true).is_empty(), "Latin neighbours still bound a word");
+        assert_eq!(t.find_opts("category", false, true), vec![9..17]);
+        // Thai and Japanese kana are written without spaces too.
+        let mut v = Vec::new();
+        word(&mut v, "ภาษาไทย", 10.0, 30.0, 6.0);
+        word(&mut v, "ひらがなとカタカナ", 62.0, 30.0, 6.0);
+        let t = layout(v);
+        assert_eq!(t.find_opts("ไทย", false, true), vec![4..7]);
+        assert_eq!(t.find_opts("カタカナ", false, true), vec![12..16]);
     }
 
     #[test]
