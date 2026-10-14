@@ -294,7 +294,12 @@ fn the_open_recent_menu_lists_files_and_opens_one() {
     h.run_steps(3);
     let original = h.state().views[0].id;
     h.get_by_label_contains("recent.pdf").click();
-    support::wait_until(&mut h, "recent document", |app| app.views.len() == 2 && app.password_prompt.is_none());
+    support::wait_until(&mut h, "recent document", |app| {
+        app.views.len() == 2
+            && app.password_prompt.is_none()
+            && app.active.and_then(|index| app.views.get(index)).and_then(|view| app.session.get(view.id)).and_then(|doc| doc.path.as_deref())
+                == Some(path.as_str())
+    });
     let app = h.state();
     assert_eq!(app.views.len(), 2, "the recent file opened in a new tab");
     let active = app.active.unwrap();
