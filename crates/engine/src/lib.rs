@@ -41,7 +41,7 @@ pub use signature_image::{ImageSignaturePreview, SignatureImage};
 pub use signature_scan::{PhotoRect, ScanError, SignaturePhoto, Turn};
 pub use text_preview::TextEditPreview;
 
-pub use pdfcraft_organize::{BoxSpec, FieldConflicts, PageBox, SplitBy, split_ranges};
+pub use pdfcraft_organize::{BoxSpec, FieldConflicts, FlipDirection, PageBox, SplitBy, split_ranges};
 
 /// One file produced by a split: (1-based first page, last page, PDF bytes).
 pub use pdfcraft_organize::LabelStyle;
@@ -1097,6 +1097,10 @@ impl Protection {
 /// Edits that can be applied to a document. Page indices are 0-based.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Edit {
+    FlipPages {
+        pages: Vec<usize>,
+        direction: FlipDirection,
+    },
     RotatePages {
         pages: Vec<usize>,
         degrees: i64,
@@ -1608,6 +1612,8 @@ impl std::fmt::Display for Label {
 /// here: its wording is only the hole, because a batch carries its name as text (see
 /// [`BATCH_LABELS`]).
 pub const EDIT_LABELS: &[&str] = &[
+    "Flip horizontal",
+    "Flip vertical",
     "Rotate page",
     "Change tag properties",
     "Rotate pages",
@@ -1751,6 +1757,10 @@ impl Edit {
     pub fn label(&self) -> Label {
         match self {
             Edit::RotatePages { pages, .. } => plural("Rotate page", "Rotate pages", pages.len()),
+            Edit::FlipPages { direction, .. } => Label::of(match direction {
+                FlipDirection::Horizontal => "Flip horizontal",
+                FlipDirection::Vertical => "Flip vertical",
+            }),
             Edit::DeletePages { pages } => plural("Delete page", "Delete pages", pages.len()),
             Edit::MovePages { pages, .. } => plural("Move page", "Move pages", pages.len()),
             Edit::InsertBlankPage { .. } => Label::of("Insert blank page"),
@@ -1974,7 +1984,8 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
                 Err(EditError::NotPermitted("changing security"))
             }
         }
-        Edit::SetInfo { .. }
+        Edit::FlipPages { .. }
+        | Edit::SetInfo { .. }
         | Edit::AddHeaderFooter { .. }
         | Edit::AddWatermark { .. }
         | Edit::AddBackground { .. }
@@ -2118,6 +2129,7 @@ impl EditCtx {
 fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> Result<(), EditError> {
     match edit {
         Edit::RotatePages { pages, degrees } => pdfcraft_organize::rotate_pages(doc, pages, *degrees)?,
+        Edit::FlipPages { pages, direction } => pdfcraft_organize::flip_pages(doc, pages, *direction)?,
         Edit::DeletePages { pages } => pdfcraft_organize::delete_pages(doc, pages)?,
         Edit::MovePages { pages, to } => pdfcraft_organize::move_pages(doc, pages, *to)?,
         Edit::InsertBlankPage { at, width, height } => {

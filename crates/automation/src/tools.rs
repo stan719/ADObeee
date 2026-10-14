@@ -187,6 +187,12 @@ pub fn tools() -> Vec<ToolDef> {
             .with(schema(json!({ "doc": doc(), "query": { "type": "string", "minLength": 1 }, "limit": { "type": "integer", "minimum": 1, "description": "Maximum matches (default 500). When another match exists, next holds start_page and skip to continue. complete is false for either additional matches or failed pages; an exhausted search with warnings has no next." },
                 "start_page": { "type": "integer", "minimum": 1, "description": "Page to start searching from (default 1)." },
                 "skip": { "type": "integer", "minimum": 0, "description": "Matches to pass over on start_page before returning any (default 0)." } }), &["doc", "query"])),
+        t("page_flip_horizontal", "Flip pages horizontally", "Mirror pages left-to-right as displayed, within the visible CropBox, including annotations and their appearances. Pages default to all; duplicate page numbers are flipped once. Preserves vectors and text, requires content-modification permission, and is undoable.")
+            .cmd("page.flip_horizontal")
+            .with(schema(json!({ "doc": doc(), "pages": pages("to flip horizontally (default: all)") }), &["doc"])),
+        t("page_flip_vertical", "Flip pages vertically", "Mirror pages top-to-bottom as displayed, within the visible CropBox, including annotations and their appearances. Pages default to all; duplicate page numbers are flipped once. Preserves vectors and text, requires content-modification permission, and is undoable.")
+            .cmd("page.flip_vertical")
+            .with(schema(json!({ "doc": doc(), "pages": pages("to flip vertically (default: all)") }), &["doc"])),
         t("page_rotate", "Rotate pages", "Rotate pages by a multiple of 90 degrees (positive is clockwise): the listed pages (default all), filtered like Acrobat's Rotate Pages by subset (all, even, odd page numbers) and orientation (all, landscape, portrait). Undoable.")
             .cmd("page.rotate")
             .with(schema(

@@ -500,6 +500,42 @@ fn edit_undo_redo_and_save_round_trip() {
     assert_eq!(after.windows(5).filter(|w| w == b"%%EOF").count(), 2);
 }
 
+#[test]
+fn page_flip_tools_validate_selection_and_save_mirrored_pages() {
+    let dir = workdir("page-flip");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let render_args = json!({"doc":doc,"page":1,"dpi":72});
+    let before = a.call("page_render", &render_args).unwrap();
+    let untouched = a.call("page_render", &json!({"doc":doc,"page":2,"dpi":72})).unwrap();
+    for tool in ["page_flip_horizontal", "page_flip_vertical"] {
+        for pages in [json!([]), json!([0]), json!([1, 999])] {
+            assert!(matches!(err(&mut a, tool, json!({"doc":doc,"pages":pages})), ToolError::InvalidArgs(_)));
+            assert_eq!(a.call("page_render", &render_args).unwrap(), before);
+        }
+        let result = ok(&mut a, tool, json!({"doc":doc,"pages":[1,1]}));
+        assert_eq!(result["flipped"], 1);
+        let flipped = a.call("page_render", &render_args).unwrap();
+        assert_ne!(flipped, before);
+        assert_eq!(a.call("page_render", &json!({"doc":doc,"page":2,"dpi":72})).unwrap(), untouched);
+        ok(&mut a, "edit_undo", json!({"doc":doc}));
+        assert_eq!(a.call("page_render", &render_args).unwrap(), before);
+        ok(&mut a, "edit_redo", json!({"doc":doc}));
+        assert_eq!(a.call("page_render", &render_args).unwrap(), flipped);
+        ok(&mut a, tool, json!({"doc":doc,"pages":[1]}));
+        assert_eq!(a.call("page_render", &render_args).unwrap(), before);
+    }
+    let result = ok(&mut a, "command_run", json!({"id":"page.flip_horizontal","params":{"doc":doc}}));
+    assert!(!result.is_null());
+    let flipped = a.call("page_render", &render_args).unwrap();
+    assert_ne!(flipped, before);
+    assert_ne!(a.call("page_render", &json!({"doc":doc,"page":2,"dpi":72})).unwrap(), untouched, "omitted selection means all pages");
+    ok(&mut a, "doc_save", json!({"doc":doc,"path":"out/flipped.pdf"}));
+    let reopened = ok(&mut a, "doc_open", json!({"path":"out/flipped.pdf"}))["doc"].as_u64().unwrap();
+    assert_eq!(a.call("page_render", &json!({"doc":reopened,"page":1,"dpi":72})).unwrap(), flipped);
+    assert_eq!(page_text(&mut a, reopened), ["Page 1", "Page 2", "Page 3"], "text is still extractable");
+}
+
 /// Issue #1329: an in-place save says it was incremental only when it kept the file it was
 /// saving over: protecting or sanitizing rewrites the file, and the result says so.
 #[test]

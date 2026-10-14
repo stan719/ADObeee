@@ -320,6 +320,11 @@ impl PdfCraftApp {
             "page.rotate_ccw" => {
                 self.apply_edit(Edit::RotatePages { pages: targets, degrees: -90 });
             }
+            "page.flip_horizontal" | "page.flip_vertical" => {
+                let direction =
+                    if id == "page.flip_horizontal" { pdfcraft_engine::FlipDirection::Horizontal } else { pdfcraft_engine::FlipDirection::Vertical };
+                self.apply_edit(Edit::FlipPages { pages: targets, direction });
+            }
             "page.delete" => {
                 self.apply_edit(Edit::DeletePages { pages: targets });
             }

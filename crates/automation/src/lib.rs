@@ -187,6 +187,23 @@ impl Automation {
             "comment_image_preview" => return self.comment_image_preview(&a),
             "text_extract" => self.text_extract(&a)?,
             "text_find" => self.text_find(&a)?,
+            "page_flip_horizontal" | "page_flip_vertical" => {
+                let mut pages = match a.opt_ints("pages")? {
+                    Some(_) => self.pages(&a, "pages")?,
+                    None => (0..self.doc(&a)?.info.pages.len()).collect(),
+                };
+                pages.sort_unstable();
+                pages.dedup();
+                let n = pages.len();
+                let direction = if name == "page_flip_horizontal" {
+                    pdfcraft_engine::FlipDirection::Horizontal
+                } else {
+                    pdfcraft_engine::FlipDirection::Vertical
+                };
+                let mut out = self.apply(&a, Edit::FlipPages { pages, direction })?;
+                out["flipped"] = json!(n);
+                out
+            }
             "page_rotate" => {
                 let degrees = a.int("degrees")?;
                 if degrees % 90 != 0 {

@@ -56,6 +56,41 @@ fn organize(pages: usize) -> Harness<'static, PdfCraftApp> {
     harness(pages, |app| app.set_option("organize", "on").unwrap())
 }
 
+#[test]
+fn organize_flip_buttons_and_commands_respect_selection_and_undo() {
+    let mut h = organize(3);
+    h.state_mut().set_option("select", "2").unwrap();
+    h.run_steps(2);
+    let render = |app: &PdfCraftApp, page| {
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let mut renderer = PageRenderer::new(doc.bytes.clone(), Default::default());
+        renderer.render(RenderRequest { page, scale: 1.0, ..Default::default() }).rgba
+    };
+    let original = render(h.state(), 1);
+    let untouched = render(h.state(), 0);
+    for (label, command) in [("Flip horizontal", "page.flip_horizontal"), ("Flip vertical", "page.flip_vertical")] {
+        h.get_by_role_and_label(Role::Button, label).click();
+        h.run_steps(3);
+        let flipped = render(h.state(), 1);
+        assert_ne!(flipped, original);
+        assert_eq!(render(h.state(), 0), untouched);
+        h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+        h.run_steps(3);
+        assert_eq!(render(h.state(), 1), original);
+        assert!(h.state_mut().execute(command));
+        h.run_steps(3);
+        assert_eq!(render(h.state(), 1), flipped, "toolbar and command use the same selection");
+        assert!(h.state_mut().execute(command));
+        h.run_steps(3);
+        assert_eq!(render(h.state(), 1), original);
+    }
+    if let Some(path) = std::env::var_os("PDFCRAFT_ORGANIZE_SNAPSHOT") {
+        h.state_mut().execute("page.flip_horizontal");
+        h.run_steps(8);
+        h.render().unwrap().save(std::path::Path::new(&path)).unwrap();
+    }
+}
+
 fn type_selection(h: &mut Harness<'static, PdfCraftApp>, text: &str) {
     use egui::accesskit::Role;
     h.get_by_role_and_label(Role::TextInput, "Selected pages").click();
@@ -230,6 +265,9 @@ fn organize_local_actions_respect_document_permissions() {
     assert!(h.get_by_label("Rotate page 2 clockwise").accesskit_node().is_disabled());
     assert!(h.get_by_label("Rotate page 2 counterclockwise").accesskit_node().is_disabled());
     assert!(h.get_by_label("Delete page 2").accesskit_node().is_disabled());
+    // The toolbar follows the tool panel, which also lists these actions.
+    assert!(h.get_all_by_label("Flip horizontal").last().unwrap().accesskit_node().is_disabled());
+    assert!(h.get_all_by_label("Flip vertical").last().unwrap().accesskit_node().is_disabled());
     let app = h.state();
     let view = &app.views[app.active.unwrap()];
     assert_eq!(view.target_pages(), [1]);

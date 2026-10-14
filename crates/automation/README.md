@@ -106,6 +106,13 @@ claude mcp add pdfcraft -- pdfcraft-cli mcp --root <dir>
 4. Add an end-to-end test in `tests/automation.rs`. `tool_table_is_well_formed` checks names, schemas and command links.
 
 
+## Mirroring pages
+
+`page_flip_horizontal {doc, pages?}` and `page_flip_vertical {doc, pages?}` mirror
+the selected pages in their displayed orientation. Omit `pages` for the whole
+document. Both are undoable and preserve vector/text content and interactive
+annotations. See [mirroring pages](../../docs/flipping-pages.md).
+
 ## Moving several page objects
 
 `object_list {doc, page}` inventories recognised paragraphs, Image/Form artwork and added items

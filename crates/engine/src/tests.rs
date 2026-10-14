@@ -2,6 +2,99 @@ use std::sync::Arc;
 
 use super::*;
 
+#[test]
+fn page_flip_renders_in_display_axes_and_survives_undo_save_and_reopen() {
+    use pdfcraft_cos::{Dict, Object, SaveOptions, Stream, write_full};
+    use pdfcraft_render::{PageRenderer, RenderRequest};
+    for rotation in [0, 90, 180, 270] {
+        for direction in [FlipDirection::Horizontal, FlipDirection::Vertical] {
+            let mut cos = pdfcraft_cos::Document::open(Arc::new(fixture(2))).unwrap();
+            let page = pdfcraft_organize::pages(&cos).unwrap()[0].obj;
+            let stream = cos.add(Stream::flate(Dict::new(), b"1 0 0 rg 25 35 30 40 re f 0 0 1 rg 130 205 20 30 re f"));
+            let nums = |v: [f64; 4]| Object::Array(v.into_iter().map(Object::Real).collect());
+            let mut appearance = Dict::new();
+            appearance.set(b"Type".to_vec(), Object::name("XObject"));
+            appearance.set(b"Subtype".to_vec(), Object::name("Form"));
+            appearance.set(b"BBox".to_vec(), nums([10.0, 20.0, 50.0, 80.0]));
+            let ap = cos.add(Stream::flate(appearance, b"0 1 0 rg 10 20 15 35 re f"));
+            let mut ap_dict = Dict::new();
+            ap_dict.set(b"N".to_vec(), Object::Ref(ap));
+            let mut stamp = Dict::new();
+            stamp.set(b"Type".to_vec(), Object::name("Annot"));
+            stamp.set(b"Subtype".to_vec(), Object::name("Stamp"));
+            stamp.set(b"Rect".to_vec(), nums([70.0, 100.0, 110.0, 160.0]));
+            stamp.set(b"AP".to_vec(), Object::Dict(ap_dict));
+            let stamp = cos.add(stamp);
+            cos.update_dict(page, |d| {
+                d.set(b"Contents".to_vec(), Object::Ref(stream));
+                d.set(b"MediaBox".to_vec(), nums([-50.0, -60.0, 250.0, 320.0]));
+                d.set(b"CropBox".to_vec(), nums([10.0, 20.0, 170.0, 260.0]));
+                d.set(b"Rotate".to_vec(), Object::Int(rotation));
+                d.set(b"UserUnit".to_vec(), Object::Int(2));
+                d.set(b"Annots".to_vec(), Object::Array(vec![Object::Ref(stamp)]));
+            })
+            .unwrap();
+            let original = Arc::new(write_full(&cos, &SaveOptions::default()).unwrap());
+            let mut s = Session::new();
+            let id = s.open("flip.pdf", None, original.clone(), None).unwrap();
+            let render = |s: &Session, page| {
+                let mut renderer = PageRenderer::new(s.get(id).unwrap().bytes.clone(), Default::default());
+                renderer.render(RenderRequest { page, scale: 1.0, ..Default::default() })
+            };
+            let before = render(&s, 0);
+            let untouched = render(&s, 1).rgba;
+            s.apply(id, Edit::FlipPages { pages: vec![0, 0], direction }).unwrap();
+            let after = render(&s, 0);
+            assert_eq!((after.width, after.height), (before.width, before.height));
+            assert_ne!(after.rgba, before.rgba);
+            for y in 0..before.height {
+                for x in 0..before.width {
+                    let (sx, sy) = match direction {
+                        FlipDirection::Horizontal => (before.width - 1 - x, y),
+                        FlipDirection::Vertical => (x, before.height - 1 - y),
+                    };
+                    let a = ((y * before.width + x) * 4) as usize;
+                    let b = ((sy * before.width + sx) * 4) as usize;
+                    assert_eq!(&after.rgba[a..a + 4], &before.rgba[b..b + 4], "{rotation} {direction:?} at {x},{y}");
+                }
+            }
+            assert_eq!(render(&s, 1).rgba, untouched);
+            s.undo(id).unwrap();
+            assert_eq!(render(&s, 0).rgba, before.rgba);
+            s.redo(id).unwrap();
+            assert_eq!(render(&s, 0).rgba, after.rgba);
+            let saved = s.save_bytes(id).unwrap();
+            assert_eq!(&saved[..original.len()], &original[..], "incremental save keeps the source");
+            let reopened = s.open("saved.pdf", None, saved, None).unwrap();
+            let mut renderer = PageRenderer::new(s.get(reopened).unwrap().bytes.clone(), Default::default());
+            assert_eq!(renderer.render(RenderRequest { page: 0, scale: 1.0, ..Default::default() }).rgba, after.rgba);
+            s.apply(id, Edit::FlipPages { pages: vec![0], direction }).unwrap();
+            assert_eq!(render(&s, 0).rgba, before.rgba, "two identical flips restore the page");
+        }
+    }
+}
+
+#[test]
+fn page_flip_requires_modification_permission_and_refuses_invalid_pages_atomically() {
+    let mut s = Session::new();
+    let bytes = protected("", "owner", 0b100_0000_0000); // assembly only
+    let id = s.open("restricted.pdf", None, bytes.clone(), None).unwrap();
+    assert!(s.get(id).unwrap().allows_assembly());
+    for direction in [FlipDirection::Horizontal, FlipDirection::Vertical] {
+        assert!(matches!(s.apply(id, Edit::FlipPages { pages: vec![0], direction }), Err(EditError::NotPermitted(_))));
+    }
+    for command in ["page.flip_horizontal", "page.flip_vertical"] {
+        assert!(!commands::is_enabled(commands::command(command).unwrap(), &s, Some(id)));
+    }
+    assert!(!s.get(id).unwrap().dirty);
+    let owner = s.open("owner.pdf", None, bytes, Some("owner")).unwrap();
+    let before = s.get(owner).unwrap().bytes.clone();
+    assert!(s.apply(owner, Edit::FlipPages { pages: vec![0, 999], direction: FlipDirection::Horizontal }).is_err());
+    assert_eq!(s.get(owner).unwrap().bytes, before);
+    assert!(!s.get(owner).unwrap().dirty);
+    s.apply(owner, Edit::FlipPages { pages: vec![0], direction: FlipDirection::Horizontal }).unwrap();
+}
+
 /// A minimal `n`-page document; page `i` shows "Page i+1".
 pub(crate) fn fixture(n: usize) -> Vec<u8> {
     let mut objs: Vec<Vec<u8>> = vec![b"<< /Type /Catalog /Pages 2 0 R >>".to_vec()];

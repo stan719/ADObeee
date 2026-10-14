@@ -15,6 +15,7 @@ use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString};
 
 mod boxes;
 mod dedupe;
+mod flip;
 mod import;
 mod labels;
 mod outline;
@@ -25,6 +26,7 @@ mod xmp;
 
 pub use boxes::{BoxSpec, PageBox, page_boxes, set_page_box};
 pub use dedupe::dedupe_resources;
+pub use flip::{FlipDirection, flip_pages};
 pub use import::{
     CombineOutcome, Combiner, FieldConflicts, ImportOutcome, Run, SplitBy, combine, combine_field_conflicts, combine_grouped, combine_grouped_with,
     combine_selected, combine_selected_with, combine_with, extract_pages, field_name_conflicts, import_pages, import_pages_with, page_as_form, split,

@@ -2636,6 +2636,18 @@ evidence = ["crates/ui-egui/tests/editing.rs::extract_options_and_rotate_pages_d
 notes = "Rotate Pages: all/selection/range; even/odd; landscape/portrait"
 
 [[feature]]
+id = "organize.flip-pages"
+title = "Mirror pages horizontally or vertically"
+area = "D"
+tier = "P1"
+milestone = "M4"
+status = "shipped"
+commands = ["page.flip_horizontal", "page.flip_vertical"]
+tools = ["page_flip_horizontal", "page_flip_vertical"]
+evidence = ["crates/engine/src/tests.rs::page_flip_renders_in_display_axes_and_survives_undo_save_and_reopen", "crates/engine/src/tests.rs::page_flip_requires_modification_permission_and_refuses_invalid_pages_atomically", "crates/automation/tests/automation.rs::page_flip_tools_validate_selection_and_save_mirrored_pages", "crates/ui-egui/tests/editing.rs::organize_flip_buttons_and_commands_respect_selection_and_undo"]
+notes = "#1534: lossless reflection within the visible CropBox in displayed axes, including rotated pages, annotation geometry and stored appearances. UI selection/current page; automation defaults to all pages. One undo step; two identical flips restore the appearance. Requires content-modification permission. Malformed geometry and annotations shared between pages are refused."
+
+[[feature]]
 id = "organize.delete-pages"
 title = "Delete pages"
 area = "D"

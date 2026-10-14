@@ -350,6 +350,8 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("bookmark.from_structure", "New bookmarks from structure", PAGES, None, Assembly, "list"),
     c("page.rotate", "Rotate pages clockwise", PAGES, None, Assembly, "rotate-cw"),
     c("page.rotate_ccw", "Rotate pages counterclockwise", PAGES, None, Assembly, "rotate-ccw"),
+    c("page.flip_horizontal", "Flip horizontal", PAGES, None, Modification, "flip-horizontal-2"),
+    c("page.flip_vertical", "Flip vertical", PAGES, None, Modification, "flip-vertical-2"),
     c("page.delete", "Delete pages", PAGES, None, Assembly, "trash-2"),
     c("page.insert_blank", "Insert blank page", PAGES, None, Assembly, "file-plus"),
     c("page.rotate_dialog", "Rotate pages…", PAGES, None, Assembly, "rotate-cw"),

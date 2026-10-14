@@ -179,6 +179,8 @@ pub static TOOL_GROUPS: &[ToolGroup] = &[
                 items: &[
                     item("Page grid", "layout-grid", "page.organize", Ready),
                     item("Rotate", "rotate-cw", "page.rotate", Ready),
+                    item("Flip horizontal", "flip-horizontal-2", "page.flip_horizontal", Ready),
+                    item("Flip vertical", "flip-vertical-2", "page.flip_vertical", Ready),
                     item("Delete", "trash-2", "page.delete", Ready),
                     item("Extract", "file-output", "page.extract", Ready),
                     item("Insert", "file-plus-2", "page.insert", Ready),
