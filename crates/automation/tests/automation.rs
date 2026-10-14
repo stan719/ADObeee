@@ -2224,6 +2224,22 @@ fn editing_page_images_through_tools() {
     assert_eq!(r["undo"], "Move image");
     let moved = ok(&mut a, "page_images", json!({ "doc": made, "page": 1 }))["images"][0]["rect"].clone();
     assert_eq!(moved, json!([5.0, 5.0, 25.0, 35.0]));
+    // Move it to another page instead: the source loses it, the target gains it, one undo step (#787).
+    ok(&mut a, "page_insert_blank", json!({ "doc": made, "at": 2 }));
+    ok(&mut a, "image_edit", json!({ "doc": made, "page": 1, "image": 1, "action": "move", "to": 2, "rect": [5, 5, 25, 35] }));
+    assert_eq!(ok(&mut a, "page_images", json!({ "doc": made, "page": 1 }))["count"], 0);
+    assert_eq!(ok(&mut a, "page_images", json!({ "doc": made, "page": 2 }))["images"][0]["rect"], json!([5.0, 5.0, 25.0, 35.0]));
+    ok(&mut a, "edit_undo", json!({ "doc": made }));
+    assert_eq!(ok(&mut a, "page_images", json!({ "doc": made, "page": 1 }))["images"][0]["rect"], json!([5.0, 5.0, 25.0, 35.0]));
+    assert_eq!(ok(&mut a, "page_images", json!({ "doc": made, "page": 2 }))["count"], 0);
+    assert!(matches!(
+        a.call("image_edit", &json!({ "doc": made, "page": 1, "image": 1, "action": "move", "to": 9, "rect": [1, 1, 2, 2] })),
+        Err(ToolError::InvalidArgs(_))
+    ));
+    assert!(matches!(
+        a.call("image_edit", &json!({ "doc": made, "page": 1, "image": 1, "action": "rotate", "to": 2 })),
+        Err(ToolError::InvalidArgs(_))
+    ));
     ok(&mut a, "image_edit", json!({ "doc": made, "page": 1, "image": 1, "action": "rotate" }));
     ok(&mut a, "image_edit", json!({ "doc": made, "page": 1, "image": 1, "action": "flip_horizontal" }));
     let saved = ok(&mut a, "image_save", json!({ "doc": made, "page": 1, "image": 1, "path": "out/picture" }));
@@ -3143,6 +3159,25 @@ fn adding_content_through_tools() {
         matches!(a.call("content_update", &json!({ "doc": doc, "page": 1, "index": 1, "rotate": 90 })), Err(ToolError::InvalidArgs(_))),
         "text doesn't rotate"
     );
+    // Move the picture to another page (#787): the source loses it, the target gains it, one undo.
+    ok(&mut a, "content_update", json!({ "doc": doc, "page": 1, "index": 2, "to": 3, "rect": [10, 10, 50, 30] }));
+    let images_on = |a: &mut Automation, page: i64| {
+        let list = ok(a, "content_list", json!({ "doc": doc }));
+        list["items"].as_array().unwrap().iter().filter(|v| v["page"] == json!(page) && v["type"] == "image").count()
+    };
+    assert_eq!(images_on(&mut a, 3), 1, "the picture is on page 3");
+    assert_eq!(images_on(&mut a, 1), 0, "page 1 lost it");
+    let list = ok(&mut a, "content_list", json!({ "doc": doc }));
+    let landed = list["items"].as_array().unwrap().iter().find(|v| v["page"] == json!(3)).cloned().unwrap();
+    assert_eq!(landed["rect"], json!([10.0, 10.0, 50.0, 30.0]));
+    ok(&mut a, "edit_undo", json!({ "doc": doc }));
+    assert_eq!(images_on(&mut a, 1), 1, "one undo puts it back");
+    assert_eq!(images_on(&mut a, 3), 0);
+    assert!(matches!(a.call("content_update", &json!({ "doc": doc, "page": 1, "index": 2, "to": 9 })), Err(ToolError::InvalidArgs(_))));
+    assert!(matches!(
+        a.call("content_update", &json!({ "doc": doc, "page": 1, "index": 2, "to": 3, "image": "logo.png" })),
+        Err(ToolError::InvalidArgs(_))
+    ));
     ok(&mut a, "content_delete", json!({ "doc": doc, "page": 1, "index": 2 }));
     assert_eq!(ok(&mut a, "content_list", json!({ "doc": doc }))["count"], 1);
     assert!(matches!(a.call("content_delete", &json!({ "doc": doc, "page": 1, "index": 5 })), Err(ToolError::Failed(_))));

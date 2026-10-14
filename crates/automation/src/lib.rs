@@ -455,15 +455,35 @@ impl Automation {
                     json!({ "path": path.to_string_lossy(), "format": ext, "bytes": bytes.len() })
                 } else {
                     use pdfcraft_engine::ImageEdit;
+                    if a.opt_int("to")?.is_some() && a.str("action")? != "move" {
+                        return Err(ToolError::InvalidArgs("to only applies to action move".into()));
+                    }
                     let change = match a.str("action")? {
                         "move" => {
                             let r: Vec<f64> =
                                 a.get("rect").and_then(Value::as_array).map(|x| x.iter().filter_map(Value::as_f64).collect()).unwrap_or_default();
                             let r = <[f64; 4]>::try_from(r).map_err(|_| ToolError::InvalidArgs("move needs rect: 4 numbers".into()))?;
-                            // Top-left-origin points → user space.
-                            let info = &self.doc(&a)?.info.pages[page];
+                            let doc = self.doc(&a)?;
+                            let to = match a.opt_int("to")? {
+                                Some(t) if t < 1 || t as usize > doc.info.pages.len() => {
+                                    return Err(ToolError::InvalidArgs(format!(
+                                        "to page {t} is out of range: the document has {} pages",
+                                        doc.info.pages.len()
+                                    )));
+                                }
+                                Some(t) => Some(t as usize - 1),
+                                None => None,
+                            };
+                            // Top-left-origin points → user space, read on the page it lands on.
+                            let info = &doc.info.pages[to.unwrap_or(page)];
                             let (u0, u1) = (info.view_to_user(r[0] as f32, r[1] as f32), info.view_to_user(r[2] as f32, r[3] as f32));
-                            ImageEdit::Move([u0[0].min(u1[0]) as f64, u0[1].min(u1[1]) as f64, u0[0].max(u1[0]) as f64, u0[1].max(u1[1]) as f64])
+                            let rect = [u0[0].min(u1[0]) as f64, u0[1].min(u1[1]) as f64, u0[0].max(u1[0]) as f64, u0[1].max(u1[1]) as f64];
+                            match to {
+                                Some(t) if t != page => {
+                                    return self.apply(&a, Edit::MoveImageToPage { from: page, index, to: t, rect }).map(|v| vec![Content::Json(v)]);
+                                }
+                                _ => ImageEdit::Move(rect),
+                            }
                         }
                         "rotate" => ImageEdit::Rotate(a.opt_int("quarters")?.unwrap_or(1) as i32),
                         "flip_horizontal" => ImageEdit::Flip { horizontal: true },

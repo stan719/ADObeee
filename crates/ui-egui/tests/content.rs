@@ -68,6 +68,242 @@ fn texts(h: &Harness<'static, PdfCraftApp>) -> Vec<String> {
         .collect()
 }
 
+/// A two-page 300 × 400 document (#787).
+fn two_pages() -> Vec<u8> {
+    let objs = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 /MediaBox [0 0 300 400] >>",
+        "<< /Type /Page /Parent 2 0 R >>",
+        "<< /Type /Page /Parent 2 0 R >>",
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+#[test]
+fn an_added_image_drags_onto_the_next_page_and_undo_brings_it_back() {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("two.pdf", None, two_pages()).unwrap();
+        // Small enough that both pages are on screen.
+        app.set_option("zoom", "50").unwrap();
+        app
+    });
+    h.run_steps(4);
+    // No Add-text tool: add_image opens the Edit a PDF panel itself, as it does for a user
+    // placing a picture from the panel, and the drag must work with the plain Select tool.
+    // A 30 × 20 image lands centred on page 1: [135, 190, 165, 210].
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 30, 20);
+        enc.set_color(png::ColorType::Rgb);
+        let mut w = enc.write_header().unwrap();
+        w.write_image_data(&[200u8, 40, 40].repeat(600)).unwrap();
+    }
+    h.state_mut().add_image("logo.png".into(), png);
+    h.run_steps(3);
+    assert_eq!(added(&h).len(), 1);
+    let r0 = h.state().views[0].page_screen_rect(0).expect("page 1 on screen");
+    let r1 = h.state().views[0].page_screen_rect(1).expect("page 2 on screen");
+    // Drag from the picture to the middle of page 2 (#787).
+    let from = r0.center();
+    let to = r1.center();
+    h.hover_at(from);
+    h.run_steps(1);
+    h.drag_at(from);
+    h.run_steps(1);
+    for k in 1..=4 {
+        h.hover_at(from + (to - from) * (k as f32 / 4.0));
+        h.run_steps(1);
+    }
+    h.drop_at(to);
+    h.run_steps(4);
+    {
+        let a = added(&h);
+        assert_eq!(a.len(), 1, "still one item");
+        assert_eq!(a[0].page, 1, "it landed on page 2");
+        let r = a[0].content.rect();
+        assert!(r.iter().zip([135.0, 190.0, 165.0, 210.0]).all(|(x, y)| (x - y).abs() < 3.0), "centred on page 2: {r:?}");
+        let s = h.state();
+        assert_eq!(s.session.get(s.views[0].id).unwrap().can_undo(), Some("Move content"));
+    }
+    // One undo step puts it back.
+    h.state_mut().execute("edit.undo");
+    h.run_steps(4);
+    assert_eq!(added(&h)[0].page, 0, "back on page 1");
+}
+
+/// A two-page document with words on each page (#787): "Page N" at 24 pt from (20, 150),
+/// so the text layer has glyphs to select.
+fn text_pages() -> Vec<u8> {
+    let mut objs: Vec<String> = vec!["<< /Type /Catalog /Pages 2 0 R >>".into()];
+    let kids: Vec<String> = (0..2).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
+    objs.push(format!("<< /Type /Pages /Kids [{}] /Count 2 /MediaBox [0 0 200 300] >>", kids.join(" ")));
+    objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
+    for i in 0..2 {
+        objs.push(format!("<< /Type /Page /Parent 2 0 R /Contents {} 0 R /Resources << /Font << /F1 3 0 R >> >> >>", 5 + 2 * i));
+        let body = format!("BT /F1 24 Tf 20 150 Td (Page {}) Tj ET", i + 1);
+        objs.push(format!("<< /Length {} >>\nstream\n{body}\nendstream", body.len()));
+    }
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{o}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+#[test]
+fn an_added_image_sitting_on_words_still_drags_onto_the_next_page() {
+    // #787: dragging an attached picture that covers the page's words must move the
+    // picture, not start a text selection. A control drag first proves the words are
+    // extracted and selectable.
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("text.pdf", None, text_pages()).unwrap();
+        app.set_option("zoom", "50").unwrap();
+        app
+    });
+    for _ in 0..60 {
+        h.run_steps(2);
+        if !h.state().render_pending() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let r0 = h.state().views[0].page_screen_rect(0).expect("page 1 on screen");
+    let r1 = h.state().views[0].page_screen_rect(1).expect("page 2 on screen");
+    // User space is y-up on the 200 × 300 page; the screen is y-down.
+    let sp = |u: [f32; 2]| egui::pos2(r0.left() + r0.width() * u[0] / 200.0, r0.top() + r0.height() * (300.0 - u[1]) / 300.0);
+    // Control: with no picture, dragging from on the words out into empty space selects them.
+    h.hover_at(sp([80.0, 155.0]));
+    h.run_steps(1);
+    h.drag_at(sp([80.0, 155.0]));
+    h.run_steps(1);
+    h.hover_at(sp([150.0, 140.0]));
+    h.run_steps(1);
+    h.drop_at(sp([150.0, 140.0]));
+    h.run_steps(2);
+    assert!(h.state().views[0].selected_text().is_some(), "the words are extracted and selectable");
+    quick_click(&mut h, sp([150.0, 60.0]));
+    assert!(h.state().views[0].selected_text().is_none(), "the control selection is cleared");
+    // A 60 × 40 picture centred on the page lands at [70, 130, 130, 170] — on the words.
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 60, 40);
+        enc.set_color(png::ColorType::Rgb);
+        let mut w = enc.write_header().unwrap();
+        w.write_image_data(&[200u8, 40, 40].repeat(60 * 40)).unwrap();
+    }
+    h.state_mut().add_image("logo.png".into(), png);
+    h.run_steps(3);
+    assert_eq!(added(&h).len(), 1);
+    // The same drag in Edit text & images: its object and text handlers run ahead of the
+    // added-content one, so the picture must still win the press.
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    // Drag it from on top of the words to the middle of page 2.
+    h.hover_at(sp([80.0, 155.0]));
+    h.run_steps(1);
+    h.drag_at(sp([80.0, 155.0]));
+    h.run_steps(1);
+    let to = r1.center();
+    for k in 1..=4 {
+        h.hover_at(sp([80.0, 155.0]) + (to - sp([80.0, 155.0])) * (k as f32 / 4.0));
+        h.run_steps(1);
+    }
+    h.drop_at(to);
+    h.run_steps(4);
+    {
+        let a = added(&h);
+        assert_eq!(a.len(), 1, "the picture came along");
+        assert_eq!(a[0].page, 1, "the picture landed on page 2");
+    }
+    assert!(h.state().views[0].selected_text().is_none(), "the words under it were not selected");
+}
+
+#[test]
+fn an_unselected_added_image_over_words_still_drags_in_edit_text_and_images() {
+    // #787: in Edit text & images the object and paragraph handlers run ahead of the
+    // added-content one. With the picture covering the words and not selected (as when a
+    // document with it is opened), the press must still move the picture.
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("text.pdf", None, text_pages()).unwrap();
+        app.set_option("zoom", "50").unwrap();
+        app
+    });
+    for _ in 0..60 {
+        h.run_steps(2);
+        if !h.state().render_pending() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    // The picture sits on the words, placed the way an opened document has it: unselected.
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 60, 40);
+        enc.set_color(png::ColorType::Rgb);
+        let mut w = enc.write_header().unwrap();
+        w.write_image_data(&[200u8, 40, 40].repeat(60 * 40)).unwrap();
+    }
+    let edit = pdfcraft_engine::Edit::AddImage {
+        page: 0,
+        rect: Some([70.0, 130.0, 130.0, 170.0]),
+        name: "logo.png".into(),
+        bytes: std::sync::Arc::new(png),
+    };
+    assert!(h.state_mut().apply_edit(edit));
+    h.run_steps(3);
+    assert!(h.state().views[0].content.selected.is_none(), "unselected, as opened from a file");
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let r0 = h.state().views[0].page_screen_rect(0).expect("page 1 on screen");
+    let r1 = h.state().views[0].page_screen_rect(1).expect("page 2 on screen");
+    let sp = |u: [f32; 2]| egui::pos2(r0.left() + r0.width() * u[0] / 200.0, r0.top() + r0.height() * (300.0 - u[1]) / 300.0);
+    // User (80, 155) is inside the picture and on the words underneath it.
+    let from = sp([80.0, 155.0]);
+    let to = r1.center();
+    h.hover_at(from);
+    h.run_steps(1);
+    h.drag_at(from);
+    h.run_steps(1);
+    for k in 1..=4 {
+        h.hover_at(from + (to - from) * (k as f32 / 4.0));
+        h.run_steps(1);
+    }
+    h.drop_at(to);
+    h.run_steps(4);
+    {
+        let a = added(&h);
+        assert_eq!(a.len(), 1, "the picture came along");
+        assert_eq!(a[0].page, 1, "the picture landed on page 2");
+    }
+    assert!(h.state().views[0].selected_text().is_none(), "the words under it were not selected");
+}
+
 #[test]
 fn clicking_elsewhere_keeps_the_text_and_starts_a_new_box() {
     // #74: a click elsewhere on the page threw away the text being typed and opened a new box.

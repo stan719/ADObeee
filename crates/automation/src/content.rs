@@ -146,6 +146,24 @@ impl Automation {
 
     pub(crate) fn content_update(&mut self, a: &Args) -> Result<Value> {
         let (page, index, content, ph) = self.item(a)?;
+        let to = {
+            let doc = self.doc(a)?;
+            match a.opt_int("to")? {
+                Some(t) if t < 1 || t as usize > doc.info.pages.len() => {
+                    return Err(ToolError::InvalidArgs(format!("to page {t} is out of range: the document has {} pages", doc.info.pages.len())));
+                }
+                Some(t) => Some(t as usize - 1),
+                None => None,
+            }
+        };
+        if to.is_some_and(|t| t != page) && a.get("image").is_some() {
+            return Err(bad("image and to can't be combined: move the item with to first, then replace its picture"));
+        }
+        // rect is read on the page the item lands on: the target's when moving there (#787).
+        let ph = match to {
+            Some(t) if t != page => self.doc(a)?.info.pages[t].height as f64,
+            _ => ph,
+        };
         let mut content = match rect_arg(a, "rect")? {
             Some(r) => content.with_rect(to_display(r, ph)),
             None => content,
@@ -195,7 +213,10 @@ impl Automation {
                 }
             }
         }
-        self.apply(a, Edit::UpdateContent { page, index, content })
+        match to {
+            Some(t) if t != page => self.apply(a, Edit::MoveContentToPage { from: page, index, to: t, content }),
+            _ => self.apply(a, Edit::UpdateContent { page, index, content }),
+        }
     }
 
     pub(crate) fn content_delete(&mut self, a: &Args) -> Result<Value> {

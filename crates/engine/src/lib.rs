@@ -1402,6 +1402,14 @@ pub enum Edit {
         index: usize,
         change: ImageEdit,
     },
+    /// Edit a PDF ▸ an existing image moved to another page: `index` from
+    /// `Document::page_images` on `from`, drawn in the user-space box `rect` on `to`.
+    MoveImageToPage {
+        from: usize,
+        index: usize,
+        to: usize,
+        rect: [f64; 4],
+    },
     /// Move mixed existing and added objects together. References resolve before any change;
     /// offset is a user-space vector. No retyping, reflow or font substitution is involved.
     MoveObjects {
@@ -1469,6 +1477,14 @@ pub enum Edit {
     UpdateContent {
         page: usize,
         index: usize,
+        content: AddedContent,
+    },
+    /// Move an added item to another page (#787): `index` among `from`'s added items, drawn as
+    /// `content` on `to` (its box in that page's display space). One undo step.
+    MoveContentToPage {
+        from: usize,
+        index: usize,
+        to: usize,
         content: AddedContent,
     },
     DeleteContent {
@@ -1829,6 +1845,7 @@ impl Edit {
             Edit::EditTextLine { .. } | Edit::EditTextBlock { .. } => Label::of("Edit text"),
             Edit::RegisterTextFont { .. } => Label::of("Load document font"),
             Edit::MoveObjects { objects, .. } => plural("Move object", "Move objects", objects.len()),
+            Edit::MoveImageToPage { .. } => Label::of("Move image"),
             Edit::EditPageImage { change, .. } => Label::of(match change {
                 ImageEdit::Move(_) => "Move image",
                 ImageEdit::Rotate(_) => "Rotate image",
@@ -1848,6 +1865,7 @@ impl Edit {
             Edit::AddText { .. } => Label::of("Add text"),
             Edit::AddImage { .. } => Label::of("Add image"),
             Edit::UpdateContent { .. } => Label::of("Edit content"),
+            Edit::MoveContentToPage { .. } => Label::of("Move content"),
             Edit::DeleteContent { .. } => Label::of("Delete content"),
             Edit::ReplaceImage { .. } => Label::of("Replace image"),
             Edit::ApplyRedactions { .. } => Label::of("Apply redactions"),
@@ -1984,6 +2002,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::AddText { .. }
         | Edit::AddImage { .. }
         | Edit::UpdateContent { .. }
+        | Edit::MoveContentToPage { .. }
         | Edit::MoveObjects { .. }
         | Edit::DeleteContent { .. }
         | Edit::ReplaceImage { .. }
@@ -2015,6 +2034,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::EditTextBlock { .. }
         | Edit::RegisterTextFont { .. }
         | Edit::EditPageImage { .. }
+        | Edit::MoveImageToPage { .. }
         | Edit::Flatten { .. }
         | Edit::FlattenFillSign => {
             if p.modify() {
@@ -2335,6 +2355,7 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             };
             pdfcraft_edit::change_image(doc, *page, *index, &c)?;
         }
+        Edit::MoveImageToPage { from, index, to, rect } => pdfcraft_edit::move_image(doc, *from, *index, *to, *rect)?,
         Edit::MoveObjects { page, objects, offset } => pdfcraft_edit::move_objects(doc, *page, objects, *offset)?,
         Edit::EditTextBlock { page, block, text, style } => {
             pdfcraft_edit::rewrite_block(doc, *page, *block, Some(text), style)?;
@@ -2388,6 +2409,7 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             pdfcraft_edit::add_content(doc, *page, &AddedContent::Image(pdfcraft_edit::AddedImage::new(rect, image)))?;
         }
         Edit::UpdateContent { page, index, content } => pdfcraft_edit::update_content(doc, *page, *index, content)?,
+        Edit::MoveContentToPage { from, index, to, content } => pdfcraft_edit::move_content(doc, *from, *index, *to, content)?,
         Edit::DeleteContent { page, index } => pdfcraft_edit::delete_content(doc, *page, *index)?,
         Edit::ReplaceImage { page, index, name, bytes } => {
             let item = pdfcraft_edit::list_added(doc).into_iter().filter(|a| a.page == *page).nth(*index);

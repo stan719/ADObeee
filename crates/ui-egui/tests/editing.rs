@@ -2549,6 +2549,92 @@ fn check_existing_artwork(name: &'static str, bytes: Vec<u8>) {
 }
 
 #[test]
+fn an_image_drags_onto_the_next_page_and_undo_brings_it_back() {
+    use pdfcraft_cos::{Dict, Document, Object, SaveOptions, Stream, write_incremental};
+    // Page 1 of a two-page document also draws a red 100 × 70 image at 20,210–120,280 (#787).
+    let mut doc = Document::open(std::sync::Arc::new(fixture(2))).unwrap();
+    let page = pdfcraft_model::pages(&doc)[0].clone();
+    let mut picture = Dict::new();
+    picture.set(b"Subtype".to_vec(), Object::name("Image"));
+    picture.set(b"Width".to_vec(), Object::Int(2));
+    picture.set(b"Height".to_vec(), Object::Int(2));
+    picture.set(b"ColorSpace".to_vec(), Object::name("DeviceRGB"));
+    picture.set(b"BitsPerComponent".to_vec(), Object::Int(8));
+    let artwork = doc.add(Object::Stream(Stream::flate(picture, &[200, 40, 40, 200, 40, 40, 200, 40, 40, 200, 40, 40])));
+    let placement = doc.add(Object::Stream(Stream::flate(Dict::new(), b"q 100 0 0 70 20 210 cm /Im0 Do Q")));
+    doc.update_dict(page.obj, |d| {
+        let old = d.get(b"Contents").cloned().unwrap_or(Object::Null);
+        d.set(b"Contents".to_vec(), Object::Array(vec![old, Object::Ref(placement)]));
+        let mut resources = match d.get(b"Resources") {
+            Some(Object::Dict(r)) => r.clone(),
+            _ => Dict::new(),
+        };
+        let mut xo = match resources.get(b"XObject") {
+            Some(Object::Dict(x)) => x.clone(),
+            _ => Dict::new(),
+        };
+        xo.set(b"Im0".to_vec(), Object::Ref(artwork));
+        resources.set(b"XObject".to_vec(), Object::Dict(xo));
+        d.set(b"Resources".to_vec(), Object::Dict(resources));
+    })
+    .unwrap();
+    let bytes = write_incremental(&doc, &SaveOptions::default()).unwrap();
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |_cc| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("two.pdf", None, bytes).expect("fixture opens");
+        app
+    });
+    h.run_steps(4);
+    let id = h.state().views[0].id;
+    assert_eq!(h.state().session.get(id).unwrap().page_images(0).len(), 1);
+    // Zoom out so both pages are on screen at once.
+    h.state_mut().views[0].set_zoom(0.4);
+    assert!(h.state_mut().execute("edit.edit_text"));
+    h.run_steps(2);
+    let (r0, r1) =
+        (h.state().views[0].page_screen_rect(0).expect("page 1 on screen"), h.state().views[0].page_screen_rect(1).expect("page 2 on screen"));
+    // The image's centre is user (70, 245) on the 200 × 300 page.
+    let from = egui::pos2(r0.left() + r0.width() * 70.0 / 200.0, r0.top() + r0.height() * 55.0 / 300.0);
+    let to = r1.center();
+    // Select it, then drag it down and release over page 2.
+    h.hover_at(from);
+    h.run_steps(1);
+    h.drag_at(from);
+    h.run_steps(1);
+    h.drop_at(from);
+    h.run_steps(2);
+    assert!(h.state().views[0].image_selection.is_some(), "selected");
+    h.hover_at(from);
+    h.run_steps(1);
+    h.drag_at(from);
+    h.run_steps(1);
+    for k in 1..=4 {
+        h.hover_at(from + (to - from) * (k as f32 / 4.0));
+        h.run_steps(1);
+    }
+    h.drop_at(to);
+    h.run_steps(4);
+    {
+        let doc = h.state().session.get(id).unwrap();
+        assert_eq!(doc.can_undo(), Some("Move image"));
+        assert!(doc.page_images(0).is_empty(), "it left page 1");
+        let imgs = doc.page_images(1);
+        assert_eq!(imgs.len(), 1, "it arrived on page 2");
+        // Dropped centred on page 2, the size it was: [50, 115, 150, 185] (screen rounding).
+        let [x0, y0, x1, y1] = imgs[0].rect;
+        assert!((x0 - 50.0).abs() < 5.0 && (y0 - 115.0).abs() < 5.0, "lands at {x0},{y0}");
+        assert!((x1 - 150.0).abs() < 5.0 && (y1 - 185.0).abs() < 5.0, "to {x1},{y1}");
+    }
+    // One undo step puts it back.
+    h.state_mut().execute("edit.undo");
+    h.run_steps(4);
+    let doc = h.state().session.get(id).unwrap();
+    assert_eq!(doc.page_images(0).len(), 1);
+    assert!(doc.page_images(1).is_empty());
+}
+
+#[test]
 fn the_format_panel_restyles_the_paragraph_being_edited() {
     let mut h = harness(1, |_| {});
     assert!(h.state_mut().execute("edit.edit_text"));

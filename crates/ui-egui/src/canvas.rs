@@ -2430,6 +2430,15 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             // Set again below when the right-click lands on a link.
             view.links.context = None;
         }
+        // Where a drag would drop (#787): the page under the pointer, with its mapping. Found
+        // here, before the loop, so it covers pages the loop has not reached this frame.
+        let drop_target = pointer.and_then(|p| {
+            visible_pages.iter().copied().find_map(|i| {
+                let r = snap_to_pixels(rects[i].translate(origin.to_vec2()), ppp);
+                r.contains(p)
+                    .then(|| (i, PageXform { rect: r, rot: view.rotation, pw: info.pages[i].width.max(1.0), ph: info.pages[i].height.max(1.0) }))
+            })
+        });
         for &i in &visible_pages {
             let r = snap_to_pixels(rects[i].translate(origin.to_vec2()), ppp);
             if !r.intersects(visible.expand(400.0)) {
@@ -2698,14 +2707,21 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                 crate::redact_ui::page_input(ui, &resp, &xf, i, info, over_text, view)
             };
             let image_owns_pointer = tool == QuickTool::EditText && crate::edit_text_ui::image_owns_pointer(ui, &xf, i, info, view);
-            let on_objects =
-                !image_owns_pointer && tool == QuickTool::EditText && can_modify && crate::object_ui::page_input(ui, &resp, &xf, i, doc, view);
+            // A press on an added item goes to the added-content handler whatever the tool:
+            // it sits above the page's own artwork, so the object and paragraph handlers must
+            // not claim a gesture over the picture (#787).
+            let content_press = editing_content && can_modify && crate::content_ui::press_on_item(ui, &xf, i, info, &added);
+            let on_objects = !content_press
+                && !image_owns_pointer
+                && tool == QuickTool::EditText
+                && can_modify
+                && crate::object_ui::page_input(ui, &resp, &xf, i, doc, view);
             let on_content = !on_objects && editing_content && can_modify && {
-                crate::content_ui::page_input(ui, &resp, &xf, i, info, &added, tool == QuickTool::AddText, &text_style, view)
+                crate::content_ui::page_input(ui, &resp, &xf, i, info, &added, tool == QuickTool::AddText, &text_style, view, drop_target)
                     || tool == QuickTool::AddText
             };
             // Added content owns its gesture; its source text must not queue a second edit.
-            let on_edit_text = !on_objects && !on_content && tool == QuickTool::EditText && can_modify && {
+            let on_edit_text = !on_objects && !on_content && !content_press && tool == QuickTool::EditText && can_modify && {
                 let generation = doc.edit_generation();
                 let lines = match view.edit_lines.get(&i) {
                     Some((g, l)) if *g == generation => l.clone(),
@@ -2726,8 +2742,18 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                 // Editable text takes precedence over background/overlapping artwork. Both
                 // inventories are painted every frame, even when text owns the pointer.
                 let text_used = crate::edit_text_ui::page_input(ui, &resp, &xf, i, doc, &lines, view, !image_owns_pointer);
-                let image_used =
-                    crate::edit_text_ui::image_input(ui, &resp, &xf, i, info, &images, view, &mut image_action, image_owns_pointer || !text_used);
+                let image_used = crate::edit_text_ui::image_input(
+                    ui,
+                    &resp,
+                    &xf,
+                    i,
+                    info,
+                    &images,
+                    view,
+                    &mut image_action,
+                    image_owns_pointer || !text_used,
+                    drop_target,
+                );
                 text_used || image_used
             };
             let on_link = tool == QuickTool::Link && can_modify && crate::link_ui::page_input(ui, &resp, &xf, i, info, &doc_links, view);
@@ -3025,6 +3051,18 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             let delta = ui.input_mut(|input| std::mem::take(&mut input.smooth_scroll_delta));
             if delta != Vec2::ZERO {
                 ui.scroll_with_delta_animation(delta, egui::style::ScrollAnimation::none());
+            }
+        }
+        // Above every page: the image or added item being dragged and the page under the
+        // pointer it would land on (#787). Each page's handlers paint inside the loop, so a
+        // preview or outline reaching the next page would be covered by that page's paper.
+        if let Some(p) = pointer {
+            let moved = crate::edit_text_ui::move_preview(view, info, p).or_else(|| crate::content_ui::move_preview(view, info, &added, p));
+            if let Some((from, preview)) = moved {
+                if let Some((_, txf)) = drop_target.filter(|(t, _)| *t != from) {
+                    painter.rect_stroke(txf.rect, CornerRadius::ZERO, Stroke::new(1.5, crate::content_ui::SELECT_BLUE), egui::StrokeKind::Outside);
+                }
+                painter.rect_stroke(preview, CornerRadius::ZERO, Stroke::new(1.0, crate::content_ui::SELECT_BLUE), egui::StrokeKind::Middle);
             }
         }
         // The page navigated to stays current while no page shows more of itself, so the next

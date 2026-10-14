@@ -476,6 +476,68 @@ pub fn change_image(doc: &mut Document, page: usize, index: usize, change: &Imag
     Ok(())
 }
 
+/// Move image `index` (from [`page_images`]) on page `from` to page `to`, drawn in the
+/// user-space box `rect` there. The XObject itself is untouched: it gains a resource name on
+/// the target page and one placement there, then its placement is removed from the source, so
+/// Form artwork stays grouped and both pages change as one operation.
+pub fn move_image(doc: &mut Document, from: usize, index: usize, to: usize, rect: [f64; 4]) -> Result<(), EditError> {
+    if !rect.iter().all(|v| v.is_finite()) || rect[2] <= rect[0] || rect[3] <= rect[1] {
+        return Err(EditError::Invalid("the target box must be finite and non-empty".into()));
+    }
+    let src =
+        page_images(doc, from)?.get(index).cloned().ok_or_else(|| EditError::Invalid(format!("page {} has no image {}", from + 1, index + 1)))?;
+    if from == to {
+        return change_image(doc, from, index, &ImageChange::Transform(rect_to_rect(src.rect, rect)));
+    }
+    let source = page_of(doc, from)?;
+    let target = page_of(doc, to)?;
+    // What the target must draw with: the source placement (the CTM its `Do` ran under, so a
+    // Form's own Matrix is not applied twice), then the box mapping onto `rect`.
+    let m = Matrix(src.draw_matrix).then(&Matrix(rect_to_rect(src.rect, rect)));
+    if !m.0.iter().all(|v| v.is_finite() && v.abs() <= 1e12) {
+        return Err(EditError::Invalid("the move is too large".into()));
+    }
+    // The XObject: its reference, or the stream itself made indirect (rare; direct resources).
+    let object = match src.object {
+        Some(r) => r,
+        None => {
+            let object = xobjects(doc, &source.dict)
+                .get(src.name.as_bytes())
+                .cloned()
+                .ok_or_else(|| EditError::Invalid("the image resource is missing".into()))?;
+            doc.add(object)
+        }
+    };
+    // The target's resources: the same XObject under a name free there.
+    let mut res = target.dict.get(b"Resources").map(|x| doc.resolve(x)).and_then(|x| x.as_dict().cloned()).unwrap_or_default();
+    let mut xo = res.get(b"XObject").map(|x| doc.resolve(x)).and_then(|x| x.as_dict().cloned()).unwrap_or_default();
+    let base = format!("PCImg{}", object.num);
+    let mut name = base.clone();
+    let mut clash = 0usize;
+    while xo.get(name.as_bytes()).is_some_and(|e| !matches!(e, Object::Ref(r) if *r == object)) {
+        clash += 1;
+        name = format!("{base}_{clash}");
+    }
+    xo.set(name.clone().into_bytes(), Object::Ref(object));
+    res.set(b"XObject".to_vec(), Object::Dict(xo));
+    // One placement on the target page, in its own stream.
+    let ops = [
+        Op::new("q", vec![]),
+        Op::new("cm", m.0.iter().map(|v| pdfcraft_content::num(*v)).collect()),
+        Op::new("Do", vec![Object::name(&name)]),
+        Op::new("Q", vec![]),
+    ];
+    let new = doc.add(Object::Stream(Stream::flate(Dict::new(), &serialize_ops(&ops))));
+    let mut contents: Vec<Object> = streams(doc, &target.dict).into_iter().map(|(o, _)| o).collect();
+    contents.push(Object::Ref(new));
+    doc.update_dict(target.obj, |d| {
+        d.set(b"Contents".to_vec(), if let [one] = contents.as_slice() { one.clone() } else { Object::Array(contents) });
+        d.set(b"Resources".to_vec(), Object::Dict(res));
+    })?;
+    // The source page loses that placement; the index still names it there.
+    change_image(doc, from, index, &ImageChange::Delete)
+}
+
 /// Inventory indexes exclude the streams that belong to added content.
 pub(crate) fn selectable_images(
     doc: &Document,

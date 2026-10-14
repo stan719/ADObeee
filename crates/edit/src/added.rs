@@ -1049,6 +1049,24 @@ pub fn update_content(doc: &mut Document, page: usize, index: usize, c: &Content
     Ok(())
 }
 
+/// Move added item `index` of page `from` to page `to`, drawn there as `c` (its box in the
+/// target page's display space). The item is written on the target page with its own resources
+/// and removed from the source, as one operation (#787).
+pub fn move_content(doc: &mut Document, from: usize, index: usize, to: usize, c: &Content) -> Result<(), EditError> {
+    let a = find(doc, from, index)?;
+    if std::mem::discriminant(&a.content) != std::mem::discriminant(c) {
+        return Err(EditError::Invalid("an item can't change between text and image".into()));
+    }
+    if from == to {
+        return update_content(doc, from, index, c);
+    }
+    // The target page exists and the content is valid before anything is written.
+    check(&[to], page_list(doc).len())?;
+    validate(c)?;
+    write(doc, to, c, None)?;
+    delete_content(doc, from, index)
+}
+
 /// Remove item `index` of `page`.
 pub fn delete_content(doc: &mut Document, page: usize, index: usize) -> Result<(), EditError> {
     let a = find(doc, page, index)?;

@@ -36,6 +36,64 @@ fn session_with(n: usize) -> (Session, DocId) {
     (s, id)
 }
 
+/// Two 200×300 pages; the first draws a red 100×70 image at 20,210–120,280 (#787).
+fn image_fixture() -> Vec<u8> {
+    let content = b"q 100 0 0 70 20 210 cm /Im0 Do Q";
+    let mut image =
+        b"<< /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length 12 >>\nstream\n".to_vec();
+    image.extend_from_slice(&[255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0]);
+    image.extend_from_slice(b"\nendstream");
+    let objs: Vec<Vec<u8>> = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 /MediaBox [0 0 200 300] >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /XObject << /Im0 6 0 R >> >> >>".to_vec(),
+        [format!("<< /Length {} >>\nstream\n", content.len()).into_bytes(), content.to_vec(), b"\nendstream".to_vec()].concat(),
+        b"<< /Type /Page /Parent 2 0 R >>".to_vec(),
+        image,
+    ];
+    let mut out = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, o) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n", i + 1).as_bytes());
+        out.extend_from_slice(o);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objs.len() + 1).as_bytes());
+    out
+}
+
+#[test]
+fn an_image_moved_to_another_page_draws_there_and_undo_puts_it_back() {
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let id = s.open("img.pdf", None, Arc::new(image_fixture()), None).expect("opens");
+    let near = |a: [f64; 4], b: [f64; 4]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-6);
+    assert!(near(s.get(id).unwrap().page_images(0)[0].rect, [20.0, 210.0, 120.0, 280.0]));
+    s.apply(id, Edit::MoveImageToPage { from: 0, index: 0, to: 1, rect: [40.0, 40.0, 140.0, 110.0] }).unwrap();
+    {
+        let d = s.get(id).unwrap();
+        assert!(d.page_images(0).is_empty(), "the source page lost it");
+        let imgs = d.page_images(1);
+        assert_eq!(imgs.len(), 1, "the target page gained it");
+        assert!(near(imgs[0].rect, [40.0, 40.0, 140.0, 110.0]), "{:?}", imgs[0].rect);
+        assert_eq!(d.can_undo(), Some("Move image"));
+    }
+    let (red, white) = (pixel(&s, id, 1, 80, 60), pixel(&s, id, 0, 60, 250));
+    assert!(red[0] > 200 && red[1] < 60, "red where it landed: {red:?}");
+    assert!(white[0] > 200 && white[1] > 200 && white[2] > 200, "white where it was: {white:?}");
+    // One undo step puts it back.
+    s.undo(id).unwrap();
+    let d = s.get(id).unwrap();
+    assert_eq!(d.page_images(0).len(), 1);
+    assert!(d.page_images(1).is_empty());
+    assert!(near(d.page_images(0)[0].rect, [20.0, 210.0, 120.0, 280.0]));
+}
+
 #[test]
 fn prepared_open_does_not_mutate_the_session_until_commit() {
     fn assert_send<T: Send>() {}
@@ -48,6 +106,39 @@ fn prepared_open_does_not_mutate_the_session_until_commit() {
     let id = session.commit_open(prepared);
     assert_eq!(id, DocId(1));
     assert_eq!(session.get(id).expect("committed document").info.pages.len(), 3);
+}
+
+#[test]
+fn an_added_image_moves_to_another_page_in_one_undo_step() {
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 20, 10);
+        enc.set_color(png::ColorType::Rgb);
+        let mut w = enc.write_header().unwrap();
+        w.write_image_data(&[200u8, 40, 40].repeat(200)).unwrap();
+    }
+    let (mut s, id) = session_with(2);
+    // A red 100 × 50 box at 40,40 on page 1 (display space).
+    s.apply(id, Edit::AddImage { page: 0, rect: Some([40.0, 40.0, 140.0, 90.0]), name: "red.png".into(), bytes: Arc::new(png) }).unwrap();
+    let content = s.get(id).unwrap().added[0].content.clone();
+    s.apply(id, Edit::MoveContentToPage { from: 0, index: 0, to: 1, content: content.with_rect([60.0, 150.0, 160.0, 200.0]) }).unwrap();
+    {
+        let d = s.get(id).unwrap();
+        assert_eq!(d.added.len(), 1, "one item, moved not copied");
+        assert_eq!(d.added[0].page, 1, "on page 2 now");
+        assert_eq!(d.added[0].content.rect(), [60.0, 150.0, 160.0, 200.0]);
+        assert_eq!(d.can_undo(), Some("Move content"));
+    }
+    let (there, gone) = (pixel(&s, id, 1, 100, 175), pixel(&s, id, 0, 80, 60));
+    assert!(there[0] > 150 && there[1] < 90, "red where it landed: {there:?}");
+    assert!(gone[0] > 200 && gone[1] > 200 && gone[2] > 200, "white where it was: {gone:?}");
+    // One undo step puts it back.
+    s.undo(id).unwrap();
+    let d = s.get(id).unwrap();
+    assert_eq!(d.added[0].page, 0);
+    assert_eq!(d.added[0].content.rect(), [40.0, 40.0, 140.0, 90.0]);
+    let back = pixel(&s, id, 0, 80, 60);
+    assert!(back[0] > 150 && back[1] < 90, "red back on page 1: {back:?}");
 }
 
 #[test]

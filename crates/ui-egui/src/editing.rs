@@ -44,7 +44,13 @@ impl PdfCraftApp {
                 let view = &mut self.views[i];
                 view.signature_drag.committed(&edit, doc.edit_generation());
                 view.move_background.committed(&edit, doc.edit_generation());
-                if let Some(page) = comment_page(&edit).or_else(|| content_page(&edit)) {
+                if let Edit::MoveImageToPage { from, to, .. } | Edit::MoveContentToPage { from, to, .. } = &edit {
+                    // A cross-page move touches exactly two pages: the source loses the item,
+                    // the target gains it. Re-rendering only those keeps the target's raster
+                    // from queueing behind a full-document refresh (#787).
+                    view.page_changed(*from);
+                    view.page_changed(*to);
+                } else if let Some(page) = comment_page(&edit).or_else(|| content_page(&edit)) {
                     // Comment and content edits change one page: keep every other raster.
                     view.page_changed(page);
                 } else if let Some(form_before) = form_before

@@ -55,7 +55,20 @@ pub(crate) fn undrawn_message(n: &pdfcraft_engine::TextNotice) -> String {
     crate::i18n::fmt(template, &[("c", &n.ch.to_string()), ("code", &format!("U+{:04X}", u32::from(n.ch)))])
 }
 
-const SELECT_BLUE: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+pub(crate) const SELECT_BLUE: Color32 = Color32::from_rgb(0x14, 0x73, 0xE6);
+
+/// The added item being moved: (source page, its box at the pointer), for the overlay the
+/// canvas draws above every page (#787). A corner resize stays on its own page.
+pub(crate) fn move_preview(view: &DocView, info: &DocInfo, added: &[Added], pointer: Pos2) -> Option<(usize, Rect)> {
+    let (page, grab, start) = view.content.grab?;
+    if grab != Grab::Move {
+        return None;
+    }
+    let (_, si) = view.content.selected.filter(|(p, _)| *p == page)?;
+    let item = on_page(added, page).into_iter().find(|(i, _)| *i == si)?.1;
+    let xf = view.page_xform(page)?;
+    Some((page, screen_rect(&xf, info, page, item.content.rect()).translate(pointer - start)))
+}
 
 /// The text being typed or retyped in place.
 #[derive(Clone, Debug, PartialEq)]
@@ -244,6 +257,14 @@ fn to_display(xf: &PageXform, info: &DocInfo, page: usize, p: Pos2) -> [f64; 2] 
     [vx as f64, info.pages[page].height as f64 - vy as f64]
 }
 
+/// Whether the press lands on one of the page's added items. They sit above the page's own
+/// artwork, so that press belongs to the added-content handler whatever the tool: the object
+/// and paragraph handlers must not claim it first (#787).
+pub(crate) fn press_on_item(ui: &egui::Ui, xf: &PageXform, page: usize, info: &DocInfo, added: &[Added]) -> bool {
+    let Some(p) = ui.input(|i| i.pointer.press_origin().or(i.pointer.hover_pos())) else { return false };
+    on_page(added, page).iter().any(|(_, a)| screen_rect(xf, info, page, a.content.rect()).expand(2.0).contains(p))
+}
+
 fn on_page(added: &[Added], page: usize) -> Vec<(usize, &Added)> {
     added.iter().filter(|a| a.page == page).enumerate().collect()
 }
@@ -280,7 +301,8 @@ fn dragged(r: Rect, grab: Grab, d: egui::Vec2, keep_aspect: bool) -> Rect {
 }
 
 /// Pointer input on one page in Edit mode (`adding_text` with the Text tool). `true` when it
-/// used the input.
+/// used the input. `drop_target` is the page under the pointer this frame, if any: a Move
+/// released there takes the item onto it (#787).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn page_input(
     ui: &egui::Ui,
@@ -292,6 +314,7 @@ pub(crate) fn page_input(
     adding_text: bool,
     style: &AddedText,
     view: &mut DocView,
+    drop_target: Option<(usize, PageXform)>,
 ) -> bool {
     let mut consumed = false;
     let pointer = ui.input(|i| i.pointer.hover_pos().or(i.pointer.interact_pos()));
@@ -310,7 +333,10 @@ pub(crate) fn page_input(
             {
                 let keep = matches!(a.content, AddedContent::Image(_));
                 let r = dragged(screen_rect(xf, info, page, a.content.rect()), grab, end - start, keep);
-                let (p0, p1) = (to_display(xf, info, page, r.left_bottom()), to_display(xf, info, page, r.right_top()));
+                // Releasing over another page takes the item there (#787); a resize stays put.
+                let target = (grab == Grab::Move).then_some(drop_target).flatten().filter(|(t, _)| *t != page);
+                let (land, lxf) = target.unwrap_or((page, *xf));
+                let (p0, p1) = (to_display(&lxf, info, land, r.left_bottom()), to_display(&lxf, info, land, r.right_top()));
                 let mut rect = [p0[0], p0[1], p1[0], p1[1]];
                 if let AddedContent::Text(t) = &a.content
                     && grab == Grab::Move
@@ -318,7 +344,16 @@ pub(crate) fn page_input(
                     // Text height follows its lines: keep the top edge's offset only.
                     rect = [rect[0], rect[3] - (t.rect[3] - t.rect[1]), rect[2], rect[3]];
                 }
-                view.pending_edit = Some(Edit::UpdateContent { page, index: si, content: a.content.with_rect(rect) });
+                let content = a.content.with_rect(rect);
+                let edit = match target {
+                    Some((t, _)) => {
+                        // The index now names an item on the target page; drop the old one.
+                        view.content.selected = None;
+                        Edit::MoveContentToPage { from: page, index: si, to: t, content }
+                    }
+                    None => Edit::UpdateContent { page, index: si, content },
+                };
+                view.pending_edit = Some(edit);
             }
         }
         return consumed;

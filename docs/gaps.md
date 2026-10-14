@@ -103,7 +103,6 @@ update the numbers.
   [#766](https://github.com/storytold/pdfcraft/issues/766) (editing Arabic text),
   [#844](https://github.com/storytold/pdfcraft/issues/844) (several elements now move together on
   one page, not across pages),
-  [#787](https://github.com/storytold/pdfcraft/issues/787) (move images between pages),
   [#791](https://github.com/storytold/pdfcraft/issues/791).
 - **Impact:** "Edit PDF" is one of Acrobat Pro's top reasons to buy. Substituting Helvetica changes
   how a document looks.
