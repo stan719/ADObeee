@@ -864,11 +864,16 @@ impl Automation {
     fn doc_save_with(&mut self, a: &Args, write: impl FnOnce(&Path, &[u8]) -> Result<()>) -> Result<Value> {
         let doc = self.doc(a)?;
         let id = doc.id;
-        let target = match a.opt_str("path")? {
+        let explicit = a.opt_str("path")?;
+        let target = match explicit {
             Some(p) => self.resolve(p, true)?,
-            None => PathBuf::from(doc.path.clone().ok_or_else(|| failed("the document has never been saved: pass a path"))?),
+            // The remembered path gets the same root check as one passed in (a folder on it may have become a link out).
+            None => {
+                let cached = doc.path.clone().ok_or_else(|| failed("the document has never been saved: pass a path"))?;
+                self.resolve(&cached, true)?
+            }
         };
-        let same_file = doc.path.as_deref().is_some_and(|p| Path::new(p) == target);
+        let same_file = explicit.is_none() || doc.path.as_deref().is_some_and(|p| Path::new(p) == target);
         // Saving to a new file is a full rewrite unless asked otherwise, like Save As.
         let full = a.opt_bool("full")?.unwrap_or(!same_file);
         let flatten_fill_sign = a.opt_bool("flatten_fill_sign")?.unwrap_or(false);
@@ -2550,6 +2555,30 @@ mod tests {
         assert_eq!((few["count"].clone(), few["complete"].clone()), (json!(1), json!(true)));
         assert!(a.call("text_find", &json!({ "doc": doc, "query": "x", "start_page": 201 })).is_err());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_save_without_a_path_stays_inside_the_root() {
+        let base = std::env::temp_dir().join(format!("pdfcraft-automation-save-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("root");
+        let outside = base.join("outside");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        let mut a = Automation::new().with_root(&root).unwrap();
+        let bytes = Arc::new(numbered_pages(1));
+        // Remembered path inside the root: still saves.
+        let inside = root.canonicalize().unwrap().join("in.pdf");
+        let id = a.session.open("in.pdf", Some(inside.to_string_lossy().into_owned()), bytes.clone(), None).unwrap();
+        json(&mut a, "doc_save", json!({ "doc": id.0 }));
+        assert!(inside.exists());
+        // Remembered path outside the root: refused, and nothing is written there.
+        let escaped = outside.join("out.pdf");
+        let id = a.session.open("out.pdf", Some(escaped.to_string_lossy().into_owned()), bytes, None).unwrap();
+        let error = a.call("doc_save", &json!({ "doc": id.0 })).unwrap_err();
+        assert!(error.to_string().contains("outside the allowed directory"), "{error}");
+        assert!(!escaped.exists());
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
