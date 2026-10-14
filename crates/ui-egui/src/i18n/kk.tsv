@@ -2352,3 +2352,21 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+
+# Scan correction integration; contributor-original translations, native review pending.
+	; 1 page skipped	; 1 бет өткізіп жіберілді
+	; corrected {n} pages	; {n} бет түзетілді
+	; {n} pages skipped	; {n} бет өткізіп жіберілді
+	Add searchable text	Іздеуге болатын мәтін қосу
+	Automatically rotate sideways and upside-down pages	Бүйірімен және төңкеріліп сканерленген беттерді автоматты түрде бұру
+	Correct scans	Сканерленген кескіндерді түзету
+	Corrected scan	Түзетілген сканерленген кескін
+	Crop scanner borders to the paper edge	Сканерленген кескін жиектерін қағаз шетіне дейін қию
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Тек анық қағаз шеттері қиылады. Ажыратылмайтын ақ жиектер сақталады.
+	Safety margin (pt)	Қауіпсіздік жиегі (pt)
+	Scan and text recognition	Сканерлеу және мәтінді тану
+	Scan correction	Сканерленген кескінді түзету
+	Scan processing cancelled	Сканерленген кескінді өңдеуден бас тартылды
+	Searchable Image	Іздеуге болатын сурет
+	Straighten skewed scans	Қиғаш сканерленген кескіндерді түзету
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Бағыты анықталмаған кескіндер өзгеріссіз қалады. Қисықтықты түзету кезінде бүкіл кескін бетке сыйғызылады.

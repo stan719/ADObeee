@@ -2304,6 +2304,30 @@ animation effects	Off	معطّلة
 	Original	الأصل
 	Greyscale	تدرج رمادي
 	Black and white	أبيض وأسود
+	; 1 page skipped	; تم تخطي صفحة واحدة
+	; corrected {n} pages	; تم تصحيح {n} صفحات
+	; {n} pages skipped	; تم تخطي {n} صفحات
+	Add searchable text	إضافة نص قابل للبحث
+	Add the PDFs to combine	أضف ملفات PDF المراد دمجها
+	Added the first {n} PDFs in {folder}	أُضيفت أول {n} ملفات PDF في {folder}
+	Automatically rotate sideways and upside-down pages	تدوير الصفحات الجانبية والمقلوبة تلقائيًا
+	Correct scans	تصحيح الصفحات الممسوحة
+	Corrected scan	مسح مصحح
+	Crop scanner borders to the paper edge	قص حواف المسح حتى حافة الورق
+	Drop PDFs or folders here, or choose them.	أفلت ملفات PDF أو مجلدات هنا، أو اخترها.
+	Every PDF in the folder	كل ملفات PDF في المجلد
+	Every PDF in the folder and the folders inside it	كل ملفات PDF في المجلد والمجلدات التي بداخله
+	No PDFs found in {folder}	لم يُعثر على ملفات PDF في {folder}
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	يتم قص حواف الورق الواضحة فقط. تُحفظ الحواف البيضاء التي لا يمكن تمييزها.
+	Only the document's owner can change its security (open it with the permissions password)	مالك المستند وحده يستطيع تغيير أمانه (افتحه بكلمة مرور الأذونات)
+	Safety margin (pt)	هامش الأمان (نقطة)
+	Save (M4)	حفظ (M4)
+	Scan and text recognition	المسح والتعرف على النص
+	Scan correction	تصحيح المسح
+	Scan processing cancelled	أُلغيت معالجة المسح
+	Searchable Image	صورة قابلة للبحث
+	Straighten skewed scans	تقويم الصفحات الممسوحة المائلة
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	تبقى الاتجاهات غير المؤكدة دون تغيير. يحافظ التقويم على الصورة كاملة داخل الصفحة.
 	Reading colours	ألوان القراءة
 	Replace document colours	استبدال ألوان المستند
 	Black on white	أسود على أبيض

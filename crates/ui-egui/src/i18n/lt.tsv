@@ -2598,3 +2598,21 @@ key	Space	Tarpas
 	This document is trying to open a local file:	Šis dokumentas bando atverti vietinį failą:
 	Move tag earlier	Perkelti žymą anksčiau
 	Move tag later	Perkelti žymą vėliau
+
+# Scan correction integration; contributor-original translations, native review pending.
+	; 1 page skipped	; praleistas 1 puslapis
+	; corrected {n} pages	; pataisyta puslapių: {n}
+	; {n} pages skipped	; praleista puslapių: {n}
+	Add searchable text	Pridėti tekstą, kuriame galima ieškoti
+	Automatically rotate sideways and upside-down pages	Automatiškai pasukti šonu arba aukštyn kojomis nuskaitytus puslapius
+	Correct scans	Taisyti nuskaitytus vaizdus
+	Corrected scan	Pataisytas nuskaitytas vaizdas
+	Crop scanner borders to the paper edge	Apkirpti nuskaityto vaizdo kraštus iki popieriaus krašto
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Apkerpami tik aiškiai matomi popieriaus kraštai. Neatskiriami balti kraštai paliekami.
+	Safety margin (pt)	Apsauginė paraštė (pt)
+	Scan and text recognition	Nuskaitymas ir teksto atpažinimas
+	Scan correction	Nuskaityto vaizdo taisymas
+	Scan processing cancelled	Nuskaityto vaizdo apdorojimas atšauktas
+	Searchable Image	Paveikslėlis su ieškomu tekstu
+	Straighten skewed scans	Ištiesinti įstrižai nuskaitytus vaizdus
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Neaiški orientacija nekeičiama. Tiesinant visas vaizdas sutalpinamas puslapyje.

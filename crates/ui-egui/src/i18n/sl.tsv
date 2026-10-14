@@ -2359,3 +2359,21 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+
+# Scan correction integration; contributor-original translations, native review pending.
+	; 1 page skipped	; 1 stran preskočena
+	; corrected {n} pages	; popravljene strani: {n}
+	; {n} pages skipped	; preskočene strani: {n}
+	Add searchable text	Dodaj besedilo za iskanje
+	Automatically rotate sideways and upside-down pages	Samodejno zasukaj postrani in na glavo obrnjene strani
+	Correct scans	Popravi skenirane slike
+	Corrected scan	Popravljena skenirana slika
+	Crop scanner borders to the paper edge	Obreži robove skenirane slike do roba papirja
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Obrežejo se samo jasno vidni robovi papirja. Nerazločljivi beli robovi se ohranijo.
+	Safety margin (pt)	Varnostni rob (pt)
+	Scan and text recognition	Skeniranje in prepoznavanje besedila
+	Scan correction	Popravljanje skenirane slike
+	Scan processing cancelled	Obdelava skenirane slike preklicana
+	Searchable Image	Iskalna slika
+	Straighten skewed scans	Poravnaj poševno skenirane slike
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Negotove usmerjenosti ostanejo nespremenjene. Pri poravnavi se celotna slika prilega strani.

@@ -11,7 +11,10 @@ fn result(auto: &mut Automation, args: Value) -> Value {
 
 // Fresh fixtures include the current timestamp; retain their bytes for output comparisons.
 fn pdf() -> Vec<u8> {
-    Session::new().create_from_text("Original", "Original text").unwrap().as_ref().clone()
+    // Creation metadata contains the current time. Preservation checks must compare with
+    // the original fixture bytes, not with a new PDF created in a later second.
+    static PDF: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    PDF.get_or_init(|| Session::new().create_from_text("Original", "Original text").unwrap().as_ref().clone()).clone()
 }
 
 #[test]

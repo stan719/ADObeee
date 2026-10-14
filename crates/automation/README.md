@@ -28,6 +28,22 @@ mcp::McpServer::new(a).serve(stdin, stdout)?             // newline-delimited JS
 - `doc_close` refuses to drop unsaved changes unless `discard_changes: true`. `doc_save` writes atomically, incrementally in place, and in full for a new path. Atomic output writes call `sync_all` on the staging file before replacing the destination. A write or sync error leaves the destination intact, removes staging and leaves the document dirty for retry. A filesystem that does not support syncing returns an error; there is no unsynced fallback. This flushes file contents, but does not guarantee persistence of the parent-directory rename across power loss.
 - With a root set, every read and write path must resolve inside it (symlinks and `..` included). Relative paths resolve inside the root, and `..` is resolved by name before the check. Every path outside the root gets the same refusal (`<path> is outside the allowed directory <root>`), whether or not it exists, so a confined agent can't probe the rest of the disk; on Windows another network share or device path (`\\host\share`, `\\?\UNC\…`, `\\.\…`) is refused without being contacted. "Not found" and other filesystem errors are reported only for paths inside the root. Tools that write several files into a folder name them after the document or input file, with separators, colons and control characters replaced by `_`, so a name can't lead them out of the folder. The root itself must be a folder.
 
+## PDF optimization
+
+`doc_optimize {"doc":1,"path":"compact.pdf","profile":"lossless"}` writes a full copy using
+the shared lossless profile: image streams, thumbnails, alternate images, document tags,
+print settings, links, named destinations and user data are retained. Non-image streams and
+document structure may be compressed; identical resources may be merged. A full rewrite can
+discard old revisions and update the modification date, and may not reduce the total size.
+The open document is unchanged; signed documents are refused.
+
+The lossless profile cannot be combined with custom optimization options. Omit `profile`
+(or use `"reduce"`) for the existing configurable image/downsampling options. The separate
+`doc_reduce` tool retains its existing 150-ppi/JPEG choices and writes nothing when the
+candidate is not smaller. Explicitly discarding an already absent hidden-information category
+now succeeds with an empty `discarded` result. `remove_unused_xobjects` defaults to true for
+custom/reduce optimization and is false in the lossless profile.
+
 ## Text search and cache limits
 
 Extracted page text is reused in a session-wide LRU cache: at most **64 MiB** of estimated owned
@@ -98,6 +114,16 @@ claude mcp add pdfcraft -- "C:\Program Files\PdfCraft\pdfcraft-cli.exe" mcp --ro
 claude mcp add pdfcraft -- pdfcraft-cli mcp --root <dir>
 ```
 
+## Security regression tests
+
+Run `cargo test -p pdfcraft-automation --test hostile_args -- --nocapture` for the
+hostile-argument and root-confinement sweep. On Windows without symbolic-link
+privileges (error 1314), the sweep reports that only its symlink cases are unavailable;
+all traversal and absolute-path cases still run. It never treats an ordinary path
+inside the root as a symlink escape. Windows CI sets `PDFCRAFT_REQUIRE_SYMLINK_TESTS=1`
+to require a real planted link and fail if that fixture cannot be created. Set the
+same environment variable locally when checking the full symlink coverage.
+
 ## Adding a tool
 
 1. Add the engine capability first, with its tests (the tool is a thin adapter).
@@ -113,6 +139,23 @@ with generation-scoped kind/index references. `object_move {doc, page, objects, 
 moves 1–1000 references atomically in displayed points (right/down), preserving source glyph bytes
 and fonts. A refusal changes nothing; success is one undo step. See
 [the selection and movement guide](../../docs/editing-multiple-objects.md) for limits and examples.
+
+## Hot Folder
+
+The native `hot_folder_configure`, `hot_folder_status`, `hot_folder_poll`, `hot_folder_retry`
+and `hot_folder_run_now` tools share the standalone application's durable engine. Configuration
+contains named tasks, existing disjoint folders, OCR options and interval or calendar schedules.
+All nested paths and sidecars honour `--root`. Poll does one bounded scheduler pass; no tool
+implicitly starts a service or background process. `hot_folder_project` writes ordered open
+project manifests; `hot_folder_source` provides explicit remote authentication and folder discovery.
+FTP passwords enter through named environment variables, never through replayable tool arguments.
+`hot_folder_service` explicitly controls an installed boot service and refuses mutations under
+`--root`. See [the configuration and scope guide](../../docs/hot-folder.md).
+PDF saving steps accept `optimization.mode` (`off`, the default; `lossless`; `reduce`; or
+`custom` with separate color/grayscale DPI and compression choices). All tools and the
+standalone UI use the same validation, cancellable optimizer and smaller-only publication
+rule. Status exposes the actual previous batch sizes in `last_optimization`; signed sources
+are refused before preprocessing and no source is changed before all outputs succeed.
 
 ## Accessibility review record
 
