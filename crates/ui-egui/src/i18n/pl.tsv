@@ -2334,3 +2334,6 @@ animation effects	Off	Wyłączone
 	This document is trying to open a local file:	Ten dokument próbuje otworzyć plik lokalny:
 	Move tag earlier	Przenieś znacznik wcześniej
 	Move tag later	Przenieś znacznik później
+	Find untagged content	Znajdź nieoznaczoną zawartość
+	No untagged content was found.	Nie znaleziono nieoznaczonej zawartości.
+	Found {n} untagged content problems.	Znaleziono problemów z nieoznaczoną zawartością: {n}.

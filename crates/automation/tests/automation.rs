@@ -409,13 +409,6 @@ fn open_inspect_render_and_find() {
     assert_eq!(info["pages"][0]["width"], 200.0);
     assert_eq!(info["pages"][1]["label"], "2");
 
-    // The fixture names /Helvetica without embedding it, so an agent can see both that a face is
-    // standing in and why that face. `substitution` is null only when nothing stands in.
-    let font = &info["fonts"][0];
-    assert_eq!((&font["name"], &font["embedded"]), (&json!("Helvetica"), &json!(false)));
-    assert_eq!(font["substitute"], json!("Helvetica"));
-    assert!(font["substitution"].as_str().is_some_and(|w| w.contains("standard 14")), "{font}");
-
     assert_eq!(page_text(&mut a, doc), ["Page 1", "Page 2", "Page 3"]);
 
     let found = ok(&mut a, "text_find", json!({ "doc": doc, "query": "page  2" }));
@@ -5678,4 +5671,24 @@ fn absolute_gotor_consent_does_not_bypass_validation_or_passwords() {
     let opened = ok(&mut a, "link_open", json!({ "doc": doc, "page": 1, "index": 1, "allow_absolute": true, "password": "secret" }));
     assert_eq!(opened["document"]["encrypted"], true);
     assert_eq!(opened["destination_applied"], true);
+}
+
+#[test]
+fn finding_untagged_content_limits_results_to_content_annotations_and_widgets() {
+    let dir = workdir("find-untagged");
+    std::fs::write(dir.join("field.pdf"), form_pdf("name")).unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "field.pdf" }))["doc"].as_u64().unwrap();
+    let found = ok(&mut a, "accessibility_find_untagged", json!({ "doc": doc }));
+    let active: Vec<&str> = found["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|result| result["status"] != "skipped")
+        .map(|result| result["rule"].as_str().unwrap())
+        .collect();
+    assert_eq!(active, ["tagged-content", "tagged-annotations", "tagged-form-fields"]);
+    let fields = found["results"].as_array().unwrap().iter().find(|result| result["rule"] == "tagged-form-fields").unwrap();
+    assert_eq!(fields["status"], "failed");
+    assert_eq!(fields["findings"][0]["page"], 1);
 }

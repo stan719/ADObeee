@@ -2359,3 +2359,6 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+	Find untagged content	Poišči neoznačeno vsebino
+	No untagged content was found.	Neoznačene vsebine ni bilo mogoče najti.
+	Found {n} untagged content problems.	Najdenih je {n} težav z neoznačeno vsebino.

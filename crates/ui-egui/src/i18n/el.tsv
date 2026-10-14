@@ -2364,3 +2364,6 @@ animation effects	Off	Ανενεργά
 	This document is trying to open a local file:	Αυτό το έγγραφο προσπαθεί να ανοίξει ένα τοπικό αρχείο:
 	Move tag earlier	Μετακίνηση ετικέτας νωρίτερα
 	Move tag later	Μετακίνηση ετικέτας αργότερα
+	Find untagged content	Εύρεση μη επισημασμένου περιεχομένου
+	No untagged content was found.	Δεν βρέθηκε μη επισημασμένο περιεχόμενο.
+	Found {n} untagged content problems.	Βρέθηκαν {n} προβλήματα μη επισημασμένου περιεχομένου.

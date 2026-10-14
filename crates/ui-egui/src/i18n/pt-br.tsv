@@ -2368,3 +2368,6 @@ animation effects	Off	Desativados
 	This document is trying to open a local file:	Este documento está tentando abrir um arquivo local:
 	Move tag earlier	Mover tag para antes
 	Move tag later	Mover tag para depois
+	Find untagged content	Encontrar conteúdo sem marcação
+	No untagged content was found.	Nenhum conteúdo sem marcação foi encontrado.
+	Found {n} untagged content problems.	Foram encontrados {n} problemas de conteúdo sem marcação.

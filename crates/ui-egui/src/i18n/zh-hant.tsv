@@ -2228,3 +2228,6 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	Find untagged content	尋找未標記的內容
+	No untagged content was found.	找不到未標記的內容。
+	Found {n} untagged content problems.	發現 {n} 個未標記內容問題。

@@ -2354,3 +2354,6 @@ animation effects	Off	Désactivés
 	This document is trying to open a local file:	Ce document tente d’ouvrir un fichier local :
 	Move tag earlier	Déplacer la balise plus tôt
 	Move tag later	Déplacer la balise plus tard
+	Find untagged content	Rechercher le contenu non balisé
+	No untagged content was found.	Aucun contenu non balisé n’a été trouvé.
+	Found {n} untagged content problems.	{n} problèmes de contenu non balisé trouvés.
