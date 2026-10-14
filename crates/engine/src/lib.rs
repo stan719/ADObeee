@@ -1354,6 +1354,10 @@ pub enum Edit {
     MarkDecorative {
         figure: u32,
     },
+    /// Tags panel ▸ Mark as artifact: retire a leaf tag and mark its content as an artifact.
+    MarkTagArtifact {
+        object: pdfcraft_cos::ObjRef,
+    },
     /// Document JavaScripts: add, replace (`script`) or remove (`None`) the document-level
     /// script `name`.
     SetDocumentScript {
@@ -1818,6 +1822,7 @@ impl Edit {
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
             Edit::MoveTag { .. } => Label::of("Move object"),
             Edit::MarkDecorative { .. } => Label::of("Mark figure as decorative"),
+            Edit::MarkTagArtifact { .. } => Label::of("Mark content as artifact"),
             Edit::AddOcrText { .. } => Label::of("Recognize text"),
             Edit::ApplyScriptChanges { .. } => Label::of("Run JavaScript"),
             Edit::XfaEvent { .. } => Label::of("Run form script"),
@@ -2007,6 +2012,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetTagProperty { .. }
         | Edit::MoveTag { .. }
         | Edit::MarkDecorative { .. }
+        | Edit::MarkTagArtifact { .. }
         | Edit::AddOcrText { .. }
         | Edit::SetDocumentScript { .. }
         | Edit::SetFieldScript { .. }
@@ -2345,6 +2351,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         Edit::MarkDecorative { figure } => {
             let r = pdfcraft_cos::ObjRef::new(*figure, doc.generation(*figure));
             a11y::mark_decorative(doc, r).map_err(|e| EditError::Accessibility(e.to_string()))?;
+        }
+        Edit::MarkTagArtifact { object } => {
+            a11y::mark_tag_artifact(doc, *object).map_err(|e| EditError::Accessibility(e.to_string()))?;
         }
         Edit::AddHeaderFooter { pages, settings, replace } => {
             let date = cx.today;
