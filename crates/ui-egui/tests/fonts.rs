@@ -216,18 +216,18 @@ fn chinese_ui_uses_an_installed_chinese_face() {
         eprintln!("skipping chinese_ui_uses_an_installed_chinese_face: a Hans face is bundled");
         return;
     }
-    for (cjk, catalog) in [
-        (theme::CjkPreference::SimplifiedChinese, include_str!("../src/i18n/zh-hans.tsv")),
-        (theme::CjkPreference::TraditionalChinese, include_str!("../src/i18n/zh-hant.tsv")),
+    for (cjk, name, catalog) in [
+        (theme::CjkPreference::SimplifiedChinese, theme::SYSTEM_HANS_FALLBACK, include_str!("../src/i18n/zh-hans.tsv")),
+        (theme::CjkPreference::TraditionalChinese, theme::SYSTEM_HANT_FALLBACK, include_str!("../src/i18n/zh-hant.tsv")),
     ] {
         let defs = theme::installed_font_definitions(cjk);
-        if !defs.font_data.contains_key(theme::SYSTEM_FALLBACK) {
+        if !defs.font_data.contains_key(name) {
             eprintln!("skipping chinese_ui_uses_an_installed_chinese_face: no installed Chinese face (or PDFCRAFT_SYSTEM_FONTS=0)");
             return;
         }
         for (family, stack) in &defs.families {
-            let system = stack.iter().position(|n| n == theme::SYSTEM_FALLBACK).expect("in every family");
-            assert_eq!(stack.iter().filter(|n| *n == theme::SYSTEM_FALLBACK).count(), 1, "{family:?}");
+            let system = stack.iter().position(|n| n == name).expect("in every family");
+            assert_eq!(stack.iter().filter(|n| *n == name).count(), 1, "{family:?}");
             let own = stack.iter().position(|n| n.starts_with("Inter") || n == "JetBrainsMono").expect("the app's own font");
             assert!(own < system, "{family:?}: {stack:?}");
             if let Some(first_ja) = stack.iter().position(|n| n.starts_with("BIZ UDPGothic")) {
@@ -242,10 +242,51 @@ fn chinese_ui_uses_an_installed_chinese_face() {
             assert!(missing.is_empty(), "{cjk:?} {id:?} lacks {missing}");
         }
     }
-    // Other languages keep the installed face last, as before.
-    let defs = theme::installed_font_definitions(theme::CjkPreference::Default);
-    for stack in defs.families.values() {
-        assert!(stack.iter().position(|n| n == theme::SYSTEM_FALLBACK).is_none_or(|i| i + 1 == stack.len()), "{stack:?}");
+}
+
+/// File names and document titles are content, not interface text: on any interface language,
+/// Chinese characters they hold must draw (a resume named 张思雨-简历-安全研究报告v5.pdf showed
+/// boxes for the Simplified-only characters, #826). The interface language's own region's face
+/// sits before the Japanese faces; the other region's sits after them.
+#[test]
+fn chinese_file_names_draw_on_every_interface_language() {
+    let names = [(theme::SYSTEM_HANS_FALLBACK, "张思雨-简历-安全研究报告v5.pdf"), (theme::SYSTEM_HANT_FALLBACK, "張思雨-履歷-安全研究報告v5.pdf")];
+    for cjk in [theme::CjkPreference::Default, theme::CjkPreference::SimplifiedChinese, theme::CjkPreference::TraditionalChinese] {
+        let defs = theme::installed_font_definitions(cjk);
+        let present = names.iter().filter(|(name, _)| defs.font_data.contains_key(*name)).count();
+        if present == 0 {
+            eprintln!("skipping chinese_file_names_draw_on_every_interface_language: no installed Chinese face (or PDFCRAFT_SYSTEM_FONTS=0)");
+            return;
+        }
+        // A build with a bundled `Hans` face covers Simplified; the installed face for it is
+        // then left out on purpose, and its name keeps drawing from the bundled face.
+        let embedded_chinese = !pdfcraft_fonts::ui_chinese_fonts().is_empty();
+        assert_eq!(present, if embedded_chinese { 1 } else { names.len() }, "{cjk:?}");
+        for name in names.iter().map(|(name, _)| name) {
+            let Some(stack) = defs.families.get(&FontFamily::Proportional) else { continue };
+            let Some(at) = stack.iter().position(|n| n == name) else { continue };
+            assert_eq!(stack.iter().filter(|n| *n == name).count(), 1, "{cjk:?}");
+            // The other region's face sits after the Japanese faces (they win where they have
+            // the glyph); the interface language's own sits before them.
+            let japanese: Vec<&String> = stack.iter().filter(|n| pdfcraft_fonts::ui_japanese_fonts().iter().any(|f| &f.name() == *n)).collect();
+            if let Some(first_ja) = stack.iter().position(|n| japanese.contains(&n)) {
+                let region = if *name == theme::SYSTEM_HANS_FALLBACK {
+                    theme::CjkPreference::SimplifiedChinese
+                } else {
+                    theme::CjkPreference::TraditionalChinese
+                };
+                let before = cjk == region && !embedded_chinese;
+                assert_eq!(at < first_ja, before, "{cjk:?} {name}: {stack:?}");
+            }
+        }
+        let mut fonts = Fonts::new(TextOptions::default(), defs.clone());
+        for id in families() {
+            for (name, file) in &names {
+                if defs.font_data.contains_key(*name) {
+                    assert!(fonts.has_glyphs(&id, file), "{cjk:?} {id:?} lacks {file}");
+                }
+            }
+        }
     }
 }
 

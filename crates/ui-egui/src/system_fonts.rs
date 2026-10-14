@@ -1,12 +1,14 @@
-//! The last-resort interface font: one face already installed on this machine.
+//! The last-resort interface fonts: faces already installed on this machine.
 //!
-//! The embedded faces (Inter, egui's defaults, craft-fonts) come first in every family; this one
-//! only draws characters none of them has, such as an Arabic file name in a build without
-//! craft-fonts, or the Simplified Chinese interface in a build without a `Hans` face (#826). A
-//! second and a third installed face, [`devanagari_fallback`] and [`telugu_fallback`], draw Hindi
-//! and Telugu when one is installed. It is
-//! read at runtime and never embedded or shipped (AGENTS.md §1.4), and `PDFCRAFT_SYSTEM_FONTS=0`
-//! turns it off (published screenshots do).
+//! The embedded faces (Inter, egui's defaults, craft-fonts) come first in every family; these
+//! only draw characters none of them has, such as an Arabic file name in a build without
+//! craft-fonts, or a Simplified Chinese file name on an English interface (#826): embedded
+//! Japanese faces cover the Han characters Japan shares with China, but not Simplified-only
+//! ones (张, 历, 报, …), and file names are content, not interface text, so they must draw
+//! whatever the interface language is. A second and a third installed face,
+//! [`devanagari_fallback`] and [`telugu_fallback`], draw Hindi and Telugu when one is
+//! installed. They are read at runtime and never embedded or shipped (AGENTS.md §1.4), and
+//! `PDFCRAFT_SYSTEM_FONTS=0` turns them off (published screenshots do).
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -54,6 +56,23 @@ pub fn fallback(need: Need) -> Option<Arc<FontData>> {
         Need::Hant => &HANT,
     };
     cache.get_or_init(|| load(need)).clone()
+}
+
+/// The installed Simplified Chinese face, read once, for Chinese file names and document titles
+/// whatever the interface language is (embedded Japanese faces cover the Han characters Japan
+/// shares with China, but not Simplified-only ones like 张). `None` when it is turned off or no
+/// candidate fits. Its Traditional counterpart is [`hant_fallback`].
+pub fn hans_fallback() -> Option<Arc<FontData>> {
+    static CACHE: OnceLock<Option<Arc<FontData>>> = OnceLock::new();
+    CACHE.get_or_init(|| load(Need::Hans)).clone()
+}
+
+/// The installed Traditional Chinese face, read once, for Traditional Chinese file names and
+/// document titles whatever the interface language is. `None` when it is turned off or no
+/// candidate fits.
+pub fn hant_fallback() -> Option<Arc<FontData>> {
+    static CACHE: OnceLock<Option<Arc<FontData>>> = OnceLock::new();
+    CACHE.get_or_init(|| load(Need::Hant)).clone()
 }
 
 fn load(need: Need) -> Option<Arc<FontData>> {

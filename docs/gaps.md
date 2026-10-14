@@ -1,5 +1,6 @@
 # Where PdfCraft falls short of Acrobat Pro
 
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (gap 5: installed Hans/Hant faces draw Chinese file names and titles on every interface language, #826; the craft-fonts Hans face remains) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1398 stamps read upright on rotated pages; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (gap 6: #1317, #1327, #1302, #1315 and #1340; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (#1316: replacing a line keeps a neighbouring line whose glyph box overlaps; gap 3 remains) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -111,7 +112,12 @@ update the numbers.
 
 ### 5. Chinese UI shows missing-glyph boxes in releases
 
-- **Missing:** a Simplified Chinese (`Hans`) UI face in release builds and a working fallback.
+- **Missing:** a Simplified Chinese (`Hans`) UI face in release builds. The system-fallback half
+  is covered since 2026-10-14: an installed Hans/Hant face is always added (own region before the
+  Japanese faces, other region after them), whatever the interface language, so Chinese file
+  names, document titles and UI text draw instead of showing boxes (#826) on machines with a
+  Chinese face (macOS, Windows; Linux without Noto CJK and Flatpak's filtered font access still
+  depend on a bundled face).
 - **Evidence:** [#826](https://github.com/storytold/pdfcraft/issues/826),
   [#688](https://github.com/storytold/pdfcraft/issues/688),
   [#728](https://github.com/storytold/pdfcraft/issues/728),
@@ -120,7 +126,7 @@ update the numbers.
   CJK (Source Han rebranded), so craft-fonts needs another openly licensed Hans face.
 - **Impact:** the second-largest language group sees a broken interface although the catalog is 97%
   translated.
-- **Estimate:** 6–12 h (font sourcing in craft-fonts plus the fallback chain). **Doc:**
+- **Estimate:** 4–8 h (font sourcing in craft-fonts; the fallback chain is done). **Doc:**
   [localization-parity.md](localization-parity.md).
 
 ### 6. Open-issue backlog of wrong results in shipped features
@@ -324,6 +330,7 @@ update the numbers.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-14 | minor | Gap 5: installed Hans/Hant faces join every family whatever the interface language (file names and titles draw, #826); font sourcing in craft-fonts remains. Estimate 6–12 h → 4–8 h. |
 | 2026-10-12 | minor | Gap 6: rubber stamps, explicit image rectangles and PDF-page stamps read upright on rotated pages (#1398). Estimates unchanged. |
 | 2026-10-12 | minor | #1316: replacing a line or paragraph keeps a neighbouring line whose glyph box overlaps. Gap 3 remains. Estimates unchanged. |
 | 2026-10-12 | minor | Exclusive image crops resize with their pixels across nested states, intervening operators and content streams; shared clips remain fixed. Synthetic engine/tool regressions and private image save/reopen checks; estimates unchanged. |

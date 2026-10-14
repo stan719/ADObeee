@@ -28,7 +28,7 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 | Language | Code | UI strings translated | Dialogs / tooltips / help | Script support | Native review | Status | Acrobat ships it | To `full` (h) |
 |---|---|---|---|---|---|---|---|---|
 | English | `en` | built in (100%) | all; README and docs | Latin | yes | **full** | yes | 0 |
-| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work, but **release builds have no Hans face**: many characters show as boxes (#826, #688, #728, #758; Flatpak #689) | no | partial | yes | 6–12 |
+| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work; an installed Hans/Hant face is always used, so Chinese file names and titles draw on every interface language (2026-10-14), but **release builds bundle no Hans face**: machines without one installed (Linux, Flatpak #689) still show boxes (#826, #688, #728, #758) | no | partial | yes | 4–8 |
 | Spanish | `es` | 2,046 (95.5%) | dialogs and tooltips; no help | Latin | no | partial | yes | 2–4 |
 | Hindi | `hi` | 0 | none | Devanagari not tested (egui shapes Telugu conjuncts, so shaping is likely workable); no Devanagari face in craft-fonts | no | none | no | 10–18 |
 | Arabic | `ar` | 2,143 (100%) | dialogs and tooltips; no help | Letters joined and lines reordered at load, but **layout not mirrored**, wrapped lines break at the wrong end, typed text runs left to right (`localization.md` §Arabic) | no | partial | yes (Middle East edition) | 25–45 |
@@ -42,8 +42,9 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 
 **Localization dimension ≈ 59%**: the mean over the twelve, counting a catalog's percentage but only
 60% for Chinese and Arabic until their script problems are fixed, and 0 for the four missing
-languages. **≈ 60–115 h** to bring all twelve to `full`, of which ≈ 35–60 h is engineering (Hans
-face, RTL layout, bidi text) and the rest catalogs and fixes; native-speaker review needs humans.
+languages. **≈ 55–110 h** to bring all twelve to `full`, of which ≈ 30–55 h is engineering (Hans
+face, RTL layout, bidi text; the installed-Hans/Hant fallback chain shipped 2026-10-14) and the
+rest catalogs and fixes; native-speaker review needs humans.
 
 No language is `full` except English: every catalog leaves engine error details in English, and
 none has translated help.
@@ -75,5 +76,6 @@ Acrobat languages PdfCraft lacks: Danish, Dutch, Finnish, Norwegian, Swedish, He
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-14 | minor | Installed Hans/Hant faces join every font stack whatever the interface language, so Chinese file names and document titles draw (#826); machines without an installed Chinese face still need the craft-fonts Hans face. `full` for zh-hans 6–12 h → 4–8 h |
 | 2026-10-12 | minor | Added current counts for Kazakh, Polish, Slovenian, Greek, Turkish and Lithuanian; retained existing language assessments and the original percentage snapshot |
 | 2026-10-10 | major | Created. Catalog counts measured from `crates/ui-egui/src/i18n/*.tsv` against the 2,143-key union; Acrobat's localizations from its bundle's `.lproj` and Sequences folder names |
