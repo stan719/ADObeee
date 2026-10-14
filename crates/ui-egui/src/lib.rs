@@ -25,6 +25,7 @@ macro_rules! tl_ctx {
 mod a11y_ui;
 mod actions_ui;
 mod appearance;
+pub mod brand;
 pub mod canvas;
 mod chrome;
 mod combine_grid;
@@ -581,6 +582,9 @@ pub struct PdfCraftApp {
     /// Preferences ▸ Use system title bar: where `window_controls` is set, give the window back
     /// winit's frame instead of drawing the header bar (#1001).
     pub system_title_bar: bool,
+    /// Preferences ▸ Show in the tab strip: the app's or the user's logo and name at the strip's
+    /// left end, for a window whose strip is its title bar.
+    pub brand: brand::Brand,
     /// Whether the window currently has the app's header bar (`None` until the first frame).
     app_frame_shown: Option<bool>,
     pub password_prompt: Option<PasswordPrompt>,
@@ -923,6 +927,7 @@ impl PdfCraftApp {
             integrated_titlebar: false,
             window_controls: None,
             system_title_bar: false,
+            brand: brand::Brand::default(),
             app_frame_shown: None,
             password_prompt: None,
             unlock_prompt: None,
@@ -2082,7 +2087,7 @@ impl PdfCraftApp {
     /// Serialize the user's persistent state (recent files, theme). Local only.
     pub fn persist(&self) -> String {
         let trusted: Vec<String> = self.session.trusted_certificates().iter().map(pdfcraft_engine::sign::x509::to_pem).collect();
-        serde_json::json!({
+        let mut settings = serde_json::json!({
             "docking": self.docking,
             "docking_left_open": self.left_open,
             "docking_right": self.right,
@@ -2141,8 +2146,10 @@ impl PdfCraftApp {
             "combine_zoom": self.combine_zoom,
             "comments_panel_closed": self.comments_panel_closed,
             "right_panel_closed": self.right_panel_closed,
-        })
-        .to_string()
+        });
+        // Added after the literal: `json!` is at the compiler's recursion limit with the keys above.
+        settings["brand"] = self.brand.to_json();
+        settings.to_string()
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2177,6 +2184,7 @@ impl PdfCraftApp {
         if let Some(on) = v["system_title_bar"].as_bool() {
             self.system_title_bar = on;
         }
+        self.brand.restore(&v["brand"]);
         if let Some(on) = v["reload_changed_files"].as_bool() {
             self.reload_changed_files = on;
         }
@@ -2542,6 +2550,16 @@ impl PdfCraftApp {
             }
             ("author", _) => self.comment_prefs.author = value.to_string(),
             ("ui-scale", _) => self.ui_scale = ui_scale::parse(value)?,
+            ("title-brand", _) => {
+                self.brand.show = brand::TitleBrand::from_token(value)
+                    .ok_or_else(|| format!("title-brand must be one of {}", brand::TitleBrand::ALL.map(|b| b.token()).join(", ")))?;
+            }
+            ("brand-name", _) => self.brand.name = value.chars().take(brand::MAX_NAME_CHARS).collect(),
+            // Empty: back to the app's own logo.
+            ("brand-logo", _) => {
+                self.brand.logo = (!value.is_empty()).then(|| std::path::PathBuf::from(value));
+                self.brand.reload_logo();
+            }
             ("system-title-bar", _) => {
                 self.system_title_bar = match value {
                     "true" => true,
