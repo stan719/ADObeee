@@ -2364,3 +2364,11 @@ animation effects	Off	Ανενεργά
 	This document is trying to open a local file:	Αυτό το έγγραφο προσπαθεί να ανοίξει ένα τοπικό αρχείο:
 	Move tag earlier	Μετακίνηση ετικέτας νωρίτερα
 	Move tag later	Μετακίνηση ετικέτας αργότερα
+	Detect scan lines	Εντοπισμός γραμμών σάρωσης
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Ελέγξτε τις γραμμές πριν τις αφαιρέσετε. Οι τυπωμένες γραμμές μπορεί να μοιάζουν με ελαττώματα σάρωσης· το κείμενο που κρύβεται από πτυχή δεν μπορεί να αποκατασταθεί.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Θα αφαιρεθούν μόνο οι επιλεγμένες γραμμές. Τα υπόλοιπα εικονοστοιχεία και το κείμενο OCR παραμένουν αμετάβλητα.
+	No isolated scan lines found.	Δεν βρέθηκαν μεμονωμένες γραμμές σάρωσης.
+	Scan cleanup stopped unexpectedly.	Ο καθαρισμός σάρωσης σταμάτησε απροσδόκητα.
+	This page has no editable bitmap.	Αυτή η σελίδα δεν έχει επεξεργάσιμη εικόνα bitmap.
+@id	ocr.enhance	Βελτίωση σαρωμένου αρχείου
+	Clean scan lines	Καθαρισμός γραμμών σάρωσης

@@ -2363,3 +2363,11 @@ animation effects	Off	Disattivati
 	This document is trying to open a local file:	Questo documento sta tentando di aprire un file locale:
 	Move tag earlier	Sposta tag prima
 	Move tag later	Sposta tag dopo
+	Detect scan lines	Rileva linee della scansione
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Controllare le linee rilevate prima di rimuoverle. Le linee stampate possono sembrare difetti di scansione; il testo nascosto da una piega non può essere recuperato.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Verranno rimosse solo le linee selezionate. Gli altri pixel e il testo OCR resteranno invariati.
+	No isolated scan lines found.	Nessuna linea isolata trovata.
+	Scan cleanup stopped unexpectedly.	La pulizia della scansione si è interrotta inaspettatamente.
+	This page has no editable bitmap.	Questa pagina non contiene immagini bitmap modificabili.
+@id	ocr.enhance	Migliora file acquisito
+	Clean scan lines	Pulisci linee della scansione

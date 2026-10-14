@@ -2350,3 +2350,11 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+	Detect scan lines	Tarama çizgilerini algıla
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Kaldırmadan önce algılanan çizgileri inceleyin. Basılı çizgiler tarama kusurlarına benzeyebilir; kat izi altında gizlenen metin geri getirilemez.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Yalnızca işaretli çizgiler kaldırılır. Diğer pikseller ve OCR metni değişmez.
+	No isolated scan lines found.	Yalıtılmış tarama çizgisi bulunamadı.
+	Scan cleanup stopped unexpectedly.	Tarama temizleme beklenmedik şekilde durdu.
+	This page has no editable bitmap.	Bu sayfada düzenlenebilir bir bit eşlem görüntüsü yok.
+@id	ocr.enhance	Taranmış dosyayı iyileştir
+	Clean scan lines	Tarama çizgilerini temizle

@@ -2484,3 +2484,11 @@ animation effects	Off	Desactivados
 	This document is trying to open a local file:	Este documento intenta abrir un archivo local:
 	Move tag earlier	Mover etiqueta antes
 	Move tag later	Mover etiqueta después
+	Detect scan lines	Detectar líneas del escaneo
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Revise las líneas detectadas antes de eliminarlas. Las líneas impresas pueden parecer defectos de escaneo; el texto oculto por un pliegue no se puede recuperar.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Solo se eliminarán las líneas marcadas. Los demás píxeles y el texto OCR no cambiarán.
+	No isolated scan lines found.	No se encontraron líneas aisladas.
+	Scan cleanup stopped unexpectedly.	La limpieza del escaneo se detuvo inesperadamente.
+	This page has no editable bitmap.	Esta página no tiene ninguna imagen de mapa de bits editable.
+@id	ocr.enhance	Mejorar archivo escaneado
+	Clean scan lines	Limpiar líneas del escaneo

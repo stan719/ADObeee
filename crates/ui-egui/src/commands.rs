@@ -595,6 +595,7 @@ impl PdfCraftApp {
             "page.duplicate" => {
                 self.apply_edit(Edit::DuplicatePages { pages: targets });
             }
+            "ocr.enhance" => self.dialog = Some(Dialog::ScanCleanup),
             "ocr.enhance_camera" => {
                 // The corners start on the document's edges when they can be found, else
                 // inset on the current page (camera_ui::page_input).

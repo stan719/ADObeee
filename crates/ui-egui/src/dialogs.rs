@@ -16,6 +16,9 @@ pub fn show(app: &mut PdfCraftApp, ctx: &egui::Context) {
 }
 
 fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
+    if app.dialog != Some(Dialog::ScanCleanup) {
+        app.scan_cleanup_draft.cancel();
+    }
     password(app, ctx);
     save_prompt(app, ctx);
     link_prompt(app, ctx);
@@ -82,6 +85,9 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
             _ => 520.0,
         });
         match dialog {
+            Dialog::ScanCleanup => {
+                close = crate::scan_cleanup_ui::body(ui, app);
+            }
             Dialog::CreateImages => {
                 let (go, cancel) = crate::create_ui::image_import_body(ui, app);
                 images_now = go;

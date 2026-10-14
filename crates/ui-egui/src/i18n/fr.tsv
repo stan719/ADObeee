@@ -2354,3 +2354,11 @@ animation effects	Off	Désactivés
 	This document is trying to open a local file:	Ce document tente d’ouvrir un fichier local :
 	Move tag earlier	Déplacer la balise plus tôt
 	Move tag later	Déplacer la balise plus tard
+	Detect scan lines	Détecter les lignes du scan
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Vérifiez les lignes détectées avant de les supprimer. Les traits imprimés peuvent ressembler à des défauts de numérisation ; le texte masqué par un pli ne peut pas être restauré.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Seules les lignes cochées seront supprimées. Les autres pixels et le texte OCR restent inchangés.
+	No isolated scan lines found.	Aucune ligne isolée détectée.
+	Scan cleanup stopped unexpectedly.	Le nettoyage du scan s’est arrêté de façon inattendue.
+	This page has no editable bitmap.	Cette page ne contient aucune image matricielle modifiable.
+@id	ocr.enhance	Améliorer le fichier numérisé
+	Clean scan lines	Nettoyer les lignes du scan

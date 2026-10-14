@@ -2228,3 +2228,11 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	Detect scan lines	偵測掃描線條
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	刪除前請檢查偵測到的線條。印刷線條可能看起來像掃描缺陷；摺痕遮住的文字無法復原。
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	僅刪除勾選的線條。其他影像像素和 OCR 文字保持不變。
+	No isolated scan lines found.	找不到孤立的掃描線條。
+	Scan cleanup stopped unexpectedly.	掃描清理意外停止。
+	This page has no editable bitmap.	此頁沒有可編輯的點陣圖。
+@id	ocr.enhance	增強掃描檔案
+	Clean scan lines	清理掃描線條

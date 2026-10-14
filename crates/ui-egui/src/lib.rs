@@ -52,6 +52,7 @@ mod marks_ui;
 mod measure_ui;
 mod ocr_ui;
 mod optimize_ui;
+mod scan_cleanup_ui;
 mod search_ui;
 mod sign_ui;
 mod stamps_ui;
@@ -260,6 +261,7 @@ struct GridDrop {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dialog {
+    ScanCleanup,
     CreateImages,
     Properties(PropsTab),
     About,
@@ -634,6 +636,8 @@ pub struct PdfCraftApp {
     pub sig_expanded: Vec<String>,
     /// Accessibility Checker: options, the last check, and rules skipped by hand.
     pub a11y_options: a11y_ui::A11yOptions,
+    /// Scan & OCR: reviewable bitmap line cleanup and its background worker.
+    pub(crate) scan_cleanup_draft: scan_cleanup_ui::Draft,
     /// Scan & OCR: the Recognize Text choices, the running job, and (tests) run it inline.
     pub ocr_draft: ocr_ui::OcrDraft,
     pub ocr_run: Option<ocr_ui::OcrRun>,
@@ -953,6 +957,7 @@ impl PdfCraftApp {
             digital_ids: Vec::new(),
             sig_expanded: Vec::new(),
             a11y_options: a11y_ui::A11yOptions::default(),
+            scan_cleanup_draft: scan_cleanup_ui::Draft::default(),
             ocr_draft: ocr_ui::OcrDraft::default(),
             ocr_run: None,
             ocr_batch: None,
@@ -2415,6 +2420,7 @@ impl PdfCraftApp {
                         Some(Dialog::NumberPages)
                     }
                     "none" => None,
+                    "scan-cleanup" => Some(Dialog::ScanCleanup),
                     _ => Some(Dialog::About),
                 }
             }

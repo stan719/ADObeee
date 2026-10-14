@@ -2598,3 +2598,11 @@ key	Space	Tarpas
 	This document is trying to open a local file:	Šis dokumentas bando atverti vietinį failą:
 	Move tag earlier	Perkelti žymą anksčiau
 	Move tag later	Perkelti žymą vėliau
+	Detect scan lines	Aptikti nuskaitymo linijas
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Prieš šalindami patikrinkite aptiktas linijas. Spausdintos linijos gali atrodyti kaip nuskaitymo defektai; raukšlės uždengto teksto atkurti negalima.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Bus pašalintos tik pažymėtos linijos. Kiti vaizdo taškai ir OCR tekstas nesikeis.
+	No isolated scan lines found.	Atskirų nuskaitymo linijų nerasta.
+	Scan cleanup stopped unexpectedly.	Nuskaitymo valymas netikėtai sustojo.
+	This page has no editable bitmap.	Šiame puslapyje nėra redaguojamo taškinio vaizdo.
+@id	ocr.enhance	Pagerinti nuskaitytą failą
+	Clean scan lines	Išvalyti nuskaitymo linijas

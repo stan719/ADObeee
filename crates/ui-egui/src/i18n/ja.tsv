@@ -2354,3 +2354,11 @@ animation effects	Off	オフ
 	This document is trying to open a local file:	この文書はローカルファイルを開こうとしています：
 	Move tag earlier	タグを前へ移動
 	Move tag later	タグを後へ移動
+	Detect scan lines	スキャンの線を検出
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	削除する前に検出された線を確認してください。印刷された線がスキャンの欠陥に見えることがあります。折り目で隠れた文字は復元できません。
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	チェックした線のみを削除します。他の画素とOCRテキストは変更しません。
+	No isolated scan lines found.	独立したスキャンの線は見つかりませんでした。
+	Scan cleanup stopped unexpectedly.	スキャンの補正が予期せず停止しました。
+	This page has no editable bitmap.	このページには編集可能なビットマップ画像がありません。
+@id	ocr.enhance	スキャンしたファイルを補正
+	Clean scan lines	スキャンの線を除去

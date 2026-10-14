@@ -29,6 +29,7 @@ pub mod links;
 pub mod ocr;
 pub mod optimizer;
 pub mod printcheck;
+pub mod scan_cleanup;
 mod scan_colours;
 pub mod signature_image;
 pub mod signature_scan;

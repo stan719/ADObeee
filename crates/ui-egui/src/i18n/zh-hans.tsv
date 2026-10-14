@@ -2318,3 +2318,11 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+	Detect scan lines	检测扫描线条
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	删除前请检查检测到的线条。印刷线条可能看起来像扫描缺陷；折痕遮住的文字无法恢复。
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	仅删除勾选的线条。其他图像像素和 OCR 文本保持不变。
+	No isolated scan lines found.	未找到孤立的扫描线条。
+	Scan cleanup stopped unexpectedly.	扫描清理意外停止。
+	This page has no editable bitmap.	此页没有可编辑的位图。
+@id	ocr.enhance	增强扫描文件
+	Clean scan lines	清理扫描线条

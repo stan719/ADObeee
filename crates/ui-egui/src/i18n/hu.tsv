@@ -2353,3 +2353,11 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	Detect scan lines	Szkennelési vonalak felismerése
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Eltávolítás előtt ellenőrizze a felismert vonalakat. A nyomtatott vonalak szkennelési hibának tűnhetnek; a gyűrődés által takart szöveg nem állítható helyre.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Csak a bejelölt vonalak lesznek eltávolítva. A többi képpont és az OCR-szöveg változatlan marad.
+	No isolated scan lines found.	Nem található elkülönült szkennelési vonal.
+	Scan cleanup stopped unexpectedly.	A szkennelés tisztítása váratlanul leállt.
+	This page has no editable bitmap.	Ezen az oldalon nincs szerkeszthető raszterkép.
+@id	ocr.enhance	Beolvasott fájl javítása
+	Clean scan lines	Szkennelési vonalak tisztítása

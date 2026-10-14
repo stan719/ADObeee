@@ -2376,3 +2376,11 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+	Detect scan lines	Знайти лінії сканування
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Перевірте знайдені лінії перед видаленням. Друковані лінії можуть виглядати як дефекти сканування; текст, прихований згином, відновити неможливо.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Буде видалено лише позначені лінії. Інші пікселі та текст OCR залишаться без змін.
+	No isolated scan lines found.	Ізольованих ліній сканування не знайдено.
+	Scan cleanup stopped unexpectedly.	Очищення скану несподівано зупинилося.
+	This page has no editable bitmap.	На цій сторінці немає редагованого растрового зображення.
+@id	ocr.enhance	Поліпшити відсканований файл
+	Clean scan lines	Очистити лінії сканування

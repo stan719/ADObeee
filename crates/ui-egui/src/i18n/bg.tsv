@@ -2317,3 +2317,11 @@ animation effects	Off	Изключени
 	This document is trying to open a local file:	Този документ се опитва да отвори локален файл:
 	Move tag earlier	Преместване на етикета по-рано
 	Move tag later	Преместване на етикета по-късно
+	Detect scan lines	Откриване на линии от сканиране
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Проверете откритите линии преди премахване. Печатните линии може да приличат на дефекти от сканиране; текстът, скрит от гънка, не може да бъде възстановен.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Ще бъдат премахнати само отметнатите линии. Другите пиксели и OCR текстът остават непроменени.
+	No isolated scan lines found.	Не са открити изолирани линии от сканиране.
+	Scan cleanup stopped unexpectedly.	Почистването на сканирането спря неочаквано.
+	This page has no editable bitmap.	Тази страница няма редактируемо растерно изображение.
+@id	ocr.enhance	Подобри сканиран файл
+	Clean scan lines	Почистване на линии от сканиране

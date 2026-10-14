@@ -2267,3 +2267,11 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Detect scan lines	Найти линии сканирования
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Проверьте найденные линии перед удалением. Печатные линии могут выглядеть как дефекты сканирования; текст, скрытый сгибом, восстановить нельзя.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Будут удалены только отмеченные линии. Остальные пиксели и текст OCR останутся без изменений.
+	No isolated scan lines found.	Изолированные линии сканирования не найдены.
+	Scan cleanup stopped unexpectedly.	Очистка скана неожиданно остановилась.
+	This page has no editable bitmap.	На этой странице нет редактируемого растрового изображения.
+@id	ocr.enhance	Улучшить отсканированный файл
+	Clean scan lines	Очистить линии сканирования

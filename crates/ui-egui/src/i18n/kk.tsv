@@ -2352,3 +2352,11 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	Detect scan lines	Сканерлеу сызықтарын анықтау
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Анықталған сызықтарды жоймас бұрын тексеріңіз. Басып шығарылған сызықтар сканерлеу ақауларына ұқсауы мүмкін; бүктеме жапқан мәтінді қалпына келтіру мүмкін емес.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Тек белгіленген сызықтар жойылады. Басқа пиксельдер мен OCR мәтіні өзгермейді.
+	No isolated scan lines found.	Оқшауланған сканерлеу сызықтары табылмады.
+	Scan cleanup stopped unexpectedly.	Сканерлеуді тазалау күтпеген жерден тоқтады.
+	This page has no editable bitmap.	Бұл бетте өңдеуге болатын растрлық сурет жоқ.
+@id	ocr.enhance	Сканерленген файлды жақсарту
+	Clean scan lines	Сканерлеу сызықтарын тазалау

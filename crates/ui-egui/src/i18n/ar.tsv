@@ -2375,3 +2375,11 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	Detect scan lines	اكتشاف خطوط المسح
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	راجع الخطوط المكتشفة قبل إزالتها. قد تبدو الخطوط المطبوعة كعيوب مسح؛ لا يمكن استعادة النص المخفي بسبب طية.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	ستُزال الخطوط المحددة فقط. ستبقى وحدات البكسل الأخرى والنص المتعرف عليه ضوئيًا دون تغيير.
+	No isolated scan lines found.	لم يتم العثور على خطوط مسح معزولة.
+	Scan cleanup stopped unexpectedly.	توقف تنظيف المسح بشكل غير متوقع.
+	This page has no editable bitmap.	لا تحتوي هذه الصفحة على صورة نقطية قابلة للتحرير.
+@id	ocr.enhance	تحسين الملف الممسوح ضوئيًا
+	Clean scan lines	تنظيف خطوط المسح

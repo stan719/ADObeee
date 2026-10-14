@@ -2359,3 +2359,11 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+	Detect scan lines	Zaznaj črte optičnega branja
+	Review detected lines before removing them. Printed rules can look like scan defects; text hidden by a crease cannot be restored.	Pred odstranitvijo preverite zaznane črte. Natisnjene črte so lahko videti kot napake optičnega branja; besedila, skritega zaradi pregiba, ni mogoče obnoviti.
+	Only checked lines will be removed. Other image pixels and OCR text stay unchanged.	Odstranjene bodo samo označene črte. Druge slikovne pike in besedilo OCR ostanejo nespremenjeni.
+	No isolated scan lines found.	Ni zaznanih ločenih črt optičnega branja.
+	Scan cleanup stopped unexpectedly.	Čiščenje optičnega branja se je nepričakovano ustavilo.
+	This page has no editable bitmap.	Ta stran nima rastrske slike, ki bi jo bilo mogoče urejati.
+@id	ocr.enhance	Izboljšaj skenirano datoteko
+	Clean scan lines	Očisti črte optičnega branja
