@@ -2352,3 +2352,22 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+
+# Scan correction and multilingual OCR (#1012).
+	Scan and text recognition	Сканерлеу және мәтінді тану
+	Searchable Image	Іздеуге болатын сурет
+	Corrected scan	Түзетілген скан
+	Scan correction	Сканды түзету
+	Automatically rotate sideways and upside-down pages	Бүйіріне немесе төңкеріліп сканерленген беттерді автоматты түрде бұру
+	Straighten skewed scans	Қиғаш скандарды түзету
+	Add searchable text	Іздеуге болатын мәтінді қосу
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Бағыт анық болмаса, ол өзгеріссіз қалады. Қиғаштықты түзету бүкіл суретті бетке сыйғызады.
+	Correct scans	Скандарды түзету
+	Scan processing cancelled	Сканды өңдеу тоқтатылды
+	; 1 page skipped	; 1 бет өткізіліп жіберілді
+	; {n} pages skipped	; {n} бет өткізіліп жіберілді
+	; corrected {n} pages	; {n} бет түзетілді
+	Crop scanner borders to the paper edge	Сканерленген суретті қағаз шетіне дейін қию
+	Safety margin (pt)	Қорғаныш жиегі (пт)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Тек анық қағаз шеттері қиылады. Ажыратылмайтын ақ жиектер сақталады.
+	Straighten scanned page	Сканерленген бетті түзету

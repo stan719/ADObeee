@@ -2274,6 +2274,22 @@ key	Space	Пробіл
 	Panels	Панелі
 	Resize panels	Змінити розмір панелей
 	Resize panel window	Змінити розмір вікна панелі
+	Scan and text recognition	Сканування та розпізнавання тексту
+	Searchable Image	Зображення з пошуком
+	Corrected scan	Виправлений скан
+	Scan correction	Виправлення скану
+	Automatically rotate sideways and upside-down pages	Автоматично повертати бокові та перевернуті сторінки
+	Straighten skewed scans	Вирівнювати нахилені скани
+	Add searchable text	Додати текст для пошуку
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Непевно визначена орієнтація не змінюється. Під час вирівнювання все зображення вміщується на сторінці.
+	Correct scans	Виправити скани
+	Scan processing cancelled	Обробку сканів скасовано
+	; 1 page skipped	; пропущено 1 сторінку
+	; {n} pages skipped	; пропущено сторінок: {n}
+	; corrected {n} pages	; виправлено сторінок: {n}
+	Crop scanner borders to the paper edge	Обрізати поля скану до краю паперу
+	Safety margin (pt)	Захисне поле (пт)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Обрізаються лише чіткі краї паперу. Нерозрізненні білі поля зберігаються.
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	Сторінка PDF: {size}
@@ -2376,3 +2392,4 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+	Straighten scanned page	Вирівняти відскановану сторінку

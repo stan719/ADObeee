@@ -2239,6 +2239,22 @@ key	Space	Spacja
 	Text used as a clipping path cannot be moved with this selection.	Tekstu używanego jako ścieżka przycinania nie można przenieść razem z tym zaznaczeniem.
 	These objects could not be moved. Select them again and try a smaller move.	Nie udało się przenieść tych obiektów. Zaznacz je ponownie i spróbuj mniejszego przesunięcia.
 	This page contains objects that cannot be selected together.	Ta strona zawiera obiekty, których nie można zaznaczyć razem.
+	Scan and text recognition	Skanowanie i rozpoznawanie tekstu
+	Searchable Image	Obraz z możliwością wyszukiwania
+	Corrected scan	Poprawiony skan
+	Scan correction	Korekcja skanu
+	Automatically rotate sideways and upside-down pages	Automatycznie obracaj strony boczne i odwrócone
+	Straighten skewed scans	Prostuj przekrzywione skany
+	Add searchable text	Dodaj tekst do wyszukiwania
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Niepewna orientacja pozostaje bez zmian. Prostowanie mieści cały obraz na stronie.
+	Correct scans	Popraw skany
+	Scan processing cancelled	Przetwarzanie skanów anulowane
+	; 1 page skipped	; pominięto 1 stronę
+	; {n} pages skipped	; pominięto stron: {n}
+	; corrected {n} pages	; poprawiono stron: {n}
+	Crop scanner borders to the paper edge	Przytnij obramowanie skanu do krawędzi papieru
+	Safety margin (pt)	Margines bezpieczeństwa (pkt)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Przycinane są tylko wyraźne krawędzie papieru. Nierozróżnialne białe marginesy zostają zachowane.
 	Reload documents when their files change on disk	Wczytuj ponownie dokumenty, gdy ich pliki zmienią się na dysku
 	This file changed on disk. Reload it to see the new version; your unsaved changes will be lost.	Ten plik zmienił się na dysku. Wczytaj go ponownie, aby zobaczyć nową wersję; niezapisane zmiany zostaną utracone.
 	Reload	Wczytaj ponownie
@@ -2334,3 +2350,4 @@ animation effects	Off	Wyłączone
 	This document is trying to open a local file:	Ten dokument próbuje otworzyć plik lokalny:
 	Move tag earlier	Przenieś znacznik wcześniej
 	Move tag later	Przenieś znacznik później
+	Straighten scanned page	Wyprostuj zeskanowaną stronę

@@ -2169,6 +2169,22 @@ key	Space	Пробел
 	Resize panel window	Изменить размер окна панели
 	Tools	Инструменты
 	Inspector	Инспектор
+	Scan and text recognition	Сканирование и распознавание текста
+	Searchable Image	Изображение с поиском
+	Corrected scan	Исправленный скан
+	Scan correction	Исправление скана
+	Automatically rotate sideways and upside-down pages	Автоматически поворачивать боковые и перевёрнутые страницы
+	Straighten skewed scans	Выравнивать наклонённые сканы
+	Add searchable text	Добавить текст для поиска
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Неуверенно определённая ориентация не меняется. При выравнивании всё изображение помещается на странице.
+	Correct scans	Исправить сканы
+	Scan processing cancelled	Обработка сканов отменена
+	; 1 page skipped	; пропущена 1 страница
+	; {n} pages skipped	; пропущено страниц: {n}
+	; corrected {n} pages	; исправлено страниц: {n}
+	Crop scanner borders to the paper edge	Обрезать поля скана до края бумаги
+	Safety margin (pt)	Защитное поле (пт)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Обрезаются только чёткие края бумаги. Неразличимые белые поля сохраняются.
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	Страница PDF: {size}
@@ -2267,3 +2283,4 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Straighten scanned page	Выровнять отсканированную страницу

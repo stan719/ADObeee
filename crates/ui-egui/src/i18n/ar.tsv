@@ -2273,6 +2273,22 @@ key	Space	مسافة
 	Panels	اللوحات
 	Resize panels	تغيير حجم اللوحات
 	Resize panel window	تغيير حجم نافذة اللوحة
+	Scan and text recognition	المسح والتعرف على النص
+	Searchable Image	صورة قابلة للبحث
+	Corrected scan	مسح مصحح
+	Scan correction	تصحيح المسح
+	Automatically rotate sideways and upside-down pages	تدوير الصفحات الجانبية والمقلوبة تلقائيًا
+	Straighten skewed scans	تقويم الصفحات الممسوحة المائلة
+	Add searchable text	إضافة نص قابل للبحث
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	تبقى الاتجاهات غير المؤكدة دون تغيير. يحافظ التقويم على الصورة كاملة داخل الصفحة.
+	Correct scans	تصحيح الصفحات الممسوحة
+	Scan processing cancelled	أُلغيت معالجة المسح
+	; 1 page skipped	; تم تخطي صفحة واحدة
+	; {n} pages skipped	; تم تخطي {n} صفحات
+	; corrected {n} pages	; تم تصحيح {n} صفحات
+	Crop scanner borders to the paper edge	قص حواف المسح حتى حافة الورق
+	Safety margin (pt)	هامش الأمان (نقطة)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	يتم قص حواف الورق الواضحة فقط. تُحفظ الحواف البيضاء التي لا يمكن تمييزها.
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	صفحة PDF: {size}
@@ -2375,3 +2391,4 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	Straighten scanned page	تسوية الصفحة الممسوحة ضوئيًا

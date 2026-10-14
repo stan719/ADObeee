@@ -69,7 +69,15 @@ fn group_layout(lines: &[TextLine], mixed: bool) -> Vec<TextBlock> {
             scanned
                 && (mixed || same_style(prev, line))
                 && same_plane(prev, line)
-                && (prev.origin.baseline - line.origin.baseline).abs() < prev.size.min(line.size) * 0.2
+                && if mixed && invisible(prev) && invisible(line) {
+                    // OCR fonts fit each word's ink box. Their synthetic baselines differ for
+                    // words with descenders; require substantial vertical overlap instead.
+                    let overlap = prev.rect[3].min(line.rect[3]) - prev.rect[1].max(line.rect[1]);
+                    let height = (prev.rect[3] - prev.rect[1]).min(line.rect[3] - line.rect[1]);
+                    height > 0.0 && overlap > height * 0.5
+                } else {
+                    (prev.origin.baseline - line.origin.baseline).abs() < prev.size.min(line.size) * 0.2
+                }
                 && gap >= -prev.size.min(line.size) * 0.2
                 && gap < prev.size.max(line.size) * 1.5
                 // Separate same-style text objects that merely touch or overlap, with no space

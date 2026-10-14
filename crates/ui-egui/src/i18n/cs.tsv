@@ -204,6 +204,22 @@ key	Space	Mezerník
 	Resize panel window	Změnit velikost okna panelu
 	Tools	Nástroje
 	Inspector	Inspektor
+	Scan and text recognition	Skenování a rozpoznávání textu
+	Searchable Image	Prohledávatelný obrázek
+	Corrected scan	Opravený sken
+	Scan correction	Oprava skenu
+	Automatically rotate sideways and upside-down pages	Automaticky otáčet stránky na boku a vzhůru nohama
+	Straighten skewed scans	Narovnat šikmé skeny
+	Add searchable text	Přidat prohledávatelný text
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Nejistá orientace zůstane beze změny. Narovnání zachová celý obrázek uvnitř stránky.
+	Correct scans	Opravit skeny
+	Scan processing cancelled	Zpracování skenů zrušeno
+	; 1 page skipped	; přeskočena 1 stránka
+	; {n} pages skipped	; přeskočeno stránek: {n}
+	; corrected {n} pages	; opraveno stránek: {n}
+	Crop scanner borders to the paper edge	Oříznout okraje skenu k hraně papíru
+	Safety margin (pt)	Ochranný okraj (b.)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Oříznou se pouze zřetelné hrany papíru. Nerozlišitelné bílé okraje zůstanou zachovány.
 
 # The rest of the interface: Home, All tools, panels, dialogs, notices and history labels.
 	Folders	Složky
@@ -2428,3 +2444,4 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	Straighten scanned page	Narovnat naskenovanou stránku

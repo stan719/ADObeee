@@ -29,6 +29,25 @@ fn recognize_text_dialog_adds_searchable_text() {
     h.run_steps(2);
     h.get_by_label("Document language");
     h.get_by_label("Output");
+    h.get_by_label("Automatically rotate sideways and upside-down pages");
+    h.get_by_label("Straighten skewed scans");
+    assert!(h.state().ocr_draft.auto_rotate && h.state().ocr_draft.deskew);
+    let expected = pdfcraft_engine::ocr::language_for_locale(sys_locale::get_locale().as_deref());
+    assert_eq!(h.state().ocr_draft.language, expected, "OCR follows the system even when the interface is English");
+    let label = pdfcraft_engine::ocr::LANGUAGES.iter().find(|(code, _)| *code == expected).unwrap().1;
+    h.get_by_value(label).click();
+    h.run_steps(2);
+    for label in ["Nederlands", "Dansk", "Norsk bokmål", "Svenska", "Suomi", "Português"] {
+        h.get_by_label(label);
+    }
+    h.get_by_label("Português").click();
+    h.run_steps(2);
+    assert_eq!(h.state().ocr_draft.language, "pt", "the last language in the list can be chosen");
+    h.get_by_value("Português").click();
+    h.run_steps(2);
+    h.get_by_label("Italiano").click();
+    h.run_steps(2);
+    assert_eq!(h.state().ocr_draft.language, "it");
     if !pdfcraft_engine::ocr::available() {
         eprintln!("skipped: OCR models not installed");
         return;
@@ -41,6 +60,52 @@ fn recognize_text_dialog_adds_searchable_text() {
     let app = h.state();
     let id = app.active_ids().unwrap().1;
     assert_eq!(app.session.get(id).unwrap().can_undo(), Some("Recognize text"));
+}
+
+#[test]
+fn scan_settings_preserve_corrections_and_existing_text_choice() {
+    let mut draft = PdfCraftApp::new().ocr_draft;
+    assert!(draft.settings().skip_text_pages);
+    draft.text_pages = true;
+    draft.language = "fr".into();
+    draft.auto_rotate = false;
+    draft.deskew = false;
+    draft.auto_crop = true;
+    draft.crop_margin = 7.0;
+    let settings = draft.settings();
+    assert!(!settings.skip_text_pages);
+    assert_eq!(settings.language, "fr");
+    assert!(!settings.auto_rotate && !settings.deskew);
+    assert!(settings.auto_crop);
+    assert_eq!(settings.crop_margin, 7.0);
+    draft.text_pages = false;
+    draft.recognize = false;
+    assert!(!draft.settings().skip_text_pages, "enhancement retains existing OCR pages");
+    assert!(!draft.settings().recognize);
+}
+
+#[test]
+fn enhance_scan_dialog_offers_correction_without_recognition() {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(|_| {
+        let mut app = PdfCraftApp::new();
+        app.set_option("language", "en").unwrap();
+        app.open_bytes("scan.pdf", None, scan()).unwrap();
+        app
+    });
+    h.run_steps(4);
+    assert!(h.state_mut().execute("ocr.enhance"));
+    h.run_steps(2);
+    h.get_by_label("Correct scans");
+    assert!(!h.state().ocr_draft.recognize);
+    assert!(h.state().ocr_draft.auto_crop);
+    assert_eq!(h.state().ocr_draft.language, pdfcraft_engine::ocr::language_for_locale(sys_locale::get_locale().as_deref()));
+    h.get_by_label("Safety margin (pt)");
+    h.get_by_label("Crop scanner borders to the paper edge").click();
+    h.run_steps(2);
+    assert!(!h.state().ocr_draft.auto_crop);
+    h.get_by_label("Add searchable text").click();
+    h.run_steps(2);
+    assert!(h.state().ocr_draft.recognize);
 }
 
 #[test]

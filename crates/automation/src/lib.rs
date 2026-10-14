@@ -725,6 +725,7 @@ impl Automation {
             "accessibility_autotag_preview" => self.accessibility_autotag_preview(&a)?,
             "accessibility_autotag_apply" => self.accessibility_autotag_apply(&a)?,
             "ocr_recognize" => self.ocr_recognize(&a)?,
+            "ocr_enhance" => self.ocr_enhance(&a)?,
             "js_run" => self.js_run(&a)?,
             "js_document_scripts" => self.js_document_scripts(&a)?,
             "js_set_document_script" => self.js_set_document_script(&a)?,

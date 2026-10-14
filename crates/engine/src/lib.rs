@@ -27,6 +27,7 @@ pub mod export;
 pub mod js;
 pub mod links;
 pub mod ocr;
+mod ocr_pdf;
 pub mod optimizer;
 pub mod printcheck;
 mod scan_colours;
@@ -1383,8 +1384,12 @@ pub enum Edit {
         som: String,
         activity: String,
     },
-    /// Scan & OCR ▸ Recognize text: put recognised words on `page` as invisible text over the
-    /// image (from [`ocr::OcrJob::run`]).
+    /// Straighten the page content without resampling its images.
+    DeskewPage {
+        page: usize,
+        degrees: f64,
+    },
+    /// Scan & OCR: add invisible Unicode words over the page image.
     AddOcrText {
         page: usize,
         words: Vec<pdfcraft_ocr::PlacedWord>,
@@ -1693,6 +1698,7 @@ pub const EDIT_LABELS: &[&str] = &[
     "Change initial view",
     "Set alternate text",
     "Mark figure as decorative",
+    "Straighten scanned page",
     "Recognize text",
     "Run JavaScript",
     "Run form script",
@@ -1744,7 +1750,8 @@ pub const EDIT_LABELS: &[&str] = &[
 /// The names of the batches built below L7, which an interface shows in the same places as
 /// [`EDIT_LABELS`] and so translates the same way. A batch built in the interface itself arrives
 /// already worded in the interface's language.
-pub const BATCH_LABELS: &[&str] = &["Set document title", "Mark differences", "Detect form fields", "Run JavaScript", "Recognize text"];
+pub const BATCH_LABELS: &[&str] =
+    &["Set document title", "Mark differences", "Detect form fields", "Run JavaScript", "Recognize text", "Correct scans"];
 
 impl Edit {
     /// Label for the Edit menu and history ("Undo Rotate pages").
@@ -1818,6 +1825,7 @@ impl Edit {
             Edit::SetTagProperty { .. } => Label::of("Change tag properties"),
             Edit::MoveTag { .. } => Label::of("Move object"),
             Edit::MarkDecorative { .. } => Label::of("Mark figure as decorative"),
+            Edit::DeskewPage { .. } => Label::of("Straighten scanned page"),
             Edit::AddOcrText { .. } => Label::of("Recognize text"),
             Edit::ApplyScriptChanges { .. } => Label::of("Run JavaScript"),
             Edit::XfaEvent { .. } => Label::of("Run form script"),
@@ -2007,6 +2015,7 @@ fn check_permission(edit: &Edit, p: &pdfcraft_cos::Permissions) -> Result<(), Ed
         | Edit::SetTagProperty { .. }
         | Edit::MoveTag { .. }
         | Edit::MarkDecorative { .. }
+        | Edit::DeskewPage { .. }
         | Edit::AddOcrText { .. }
         | Edit::SetDocumentScript { .. }
         | Edit::SetFieldScript { .. }
@@ -2304,8 +2313,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
             pdfcraft_preflight::convert(doc, *level).map_err(|e| EditError::Invalid(e.to_string()))?;
         }
         Edit::SetDocumentScript { name, script } => pdfcraft_forms::set_document_script(doc, name, script.as_deref())?,
+        Edit::DeskewPage { page, degrees } => ocr_pdf::deskew(doc, *page, *degrees)?,
         Edit::AddOcrText { page, words } => {
-            pdfcraft_edit::stamp(doc, *page, "OCR", pdfcraft_ocr::text_layer(words))?;
+            ocr_pdf::add_text(doc, *page, words)?;
         }
         Edit::EditPageImage { page, index, change } => {
             let img = pdfcraft_edit::page_images(doc, *page)?

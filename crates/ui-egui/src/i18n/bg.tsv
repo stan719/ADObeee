@@ -2215,6 +2215,22 @@ key	Space	Интервал
 	Resize panel window	Преоразмери прозореца на панела
 	Tools	Инструменти
 	Inspector	Инспектор
+	Scan and text recognition	Сканиране и разпознаване на текст
+	Searchable Image	Изображение с търсене
+	Corrected scan	Коригирано сканиране
+	Scan correction	Корекция на сканиране
+	Automatically rotate sideways and upside-down pages	Автоматично завъртане на странични и обърнати страници
+	Straighten skewed scans	Изправяне на наклонени сканирани страници
+	Add searchable text	Добавяне на текст за търсене
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Несигурната ориентация остава непроменена. Изправянето побира цялото изображение в страницата.
+	Correct scans	Коригиране на сканирания
+	Scan processing cancelled	Обработката на сканиранията е отменена
+	; 1 page skipped	; пропусната 1 страница
+	; {n} pages skipped	; пропуснати страници: {n}
+	; corrected {n} pages	; коригирани страници: {n}
+	Crop scanner borders to the paper edge	Изрязване на сканираното до ръба на хартията
+	Safety margin (pt)	Предпазно поле (pt)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Изрязват се само ясно различими ръбове на хартията. Неразличимите бели полета се запазват.
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	PDF страница: {size}
@@ -2317,3 +2333,4 @@ animation effects	Off	Изключени
 	This document is trying to open a local file:	Този документ се опитва да отвори локален файл:
 	Move tag earlier	Преместване на етикета по-рано
 	Move tag later	Преместване на етикета по-късно
+	Straighten scanned page	Изправяне на сканирана страница

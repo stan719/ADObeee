@@ -2612,7 +2612,7 @@ fn recognize_text_makes_a_scanned_page_searchable() {
     assert_eq!(found.len(), 1);
     let text = page_texts(&s, id)[0].to_lowercase();
     for w in ["quick", "brown", "fox", "lazy"] {
-        assert!(text.contains(w), "{text}");
+        assert!(text.contains(w), "{text}; correction: {:?}", found[0].correction);
     }
     assert_eq!(s.get(id).unwrap().can_undo(), Some("Recognize text"));
     // The text sits over the words: "quick" is left of "lazy" and on the same line.

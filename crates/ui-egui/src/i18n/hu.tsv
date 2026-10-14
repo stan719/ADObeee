@@ -2251,6 +2251,22 @@ key	Space	Szóköz
 	Resize panel window	Panelablak átméretezése
 	Tools	Eszközök
 	Inspector	Tulajdonságvizsgáló
+	Scan and text recognition	Szkennelés és szövegfelismerés
+	Searchable Image	Kereshető kép
+	Corrected scan	Javított szkennelés
+	Scan correction	Szkennelés javítása
+	Automatically rotate sideways and upside-down pages	Oldalra vagy fejjel lefelé álló oldalak automatikus elforgatása
+	Straighten skewed scans	Ferde szkennelt oldalak kiegyenesítése
+	Add searchable text	Kereshető szöveg hozzáadása
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	A bizonytalan tájolás változatlan marad. A kiegyenesítés a teljes képet az oldalon belül tartja.
+	Correct scans	Szkennelések javítása
+	Scan processing cancelled	Szkennelések feldolgozása megszakítva
+	; 1 page skipped	; 1 oldal kihagyva
+	; {n} pages skipped	; {n} oldal kihagyva
+	; corrected {n} pages	; {n} oldal javítva
+	Crop scanner borders to the paper edge	Beolvasási szegélyek levágása a papír széléig
+	Safety margin (pt)	Biztonsági margó (pt)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Csak a jól felismerhető papírszéleket vágja körbe. A megkülönböztethetetlen fehér szegélyek megmaradnak.
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	PDF-oldal: {size}
@@ -2353,3 +2369,4 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	Straighten scanned page	Beszkennelt oldal kiegyenesítése

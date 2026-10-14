@@ -4141,9 +4141,12 @@ dependencies = [
 name = "pdfcraft-ocr"
 version = "0.7.1"
 dependencies = [
+ "image",
  "ocrs",
  "pdfcraft-fonts",
  "rten",
+ "rten-imageproc",
+ "rten-tensor",
  "thiserror 2.0.21",
 ]
 
@@ -5251,6 +5254,7 @@ dependencies = [
  "rten-base",
  "rten-gemm",
  "rten-model-file",
+ "rten-onnx",
  "rten-parallel",
  "rten-shape-inference",
  "rten-simd",
@@ -5299,6 +5303,12 @@ dependencies = [
  "flatbuffers",
  "rten-base",
 ]
+
+[[package]]
+name = "rten-onnx"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96944374568990b8d1bbc5bae5957585866f9dd8256130460405730948bfd42e"
 
 [[package]]
 name = "rten-parallel"
@@ -6283,7 +6293,10 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
 dependencies = [
+ "js-sys",
  "libc",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

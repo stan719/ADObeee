@@ -2220,6 +2220,22 @@ key	Space	空格
 	Resize panel window	调整面板窗口大小
 	Tools	工具
 	Inspector	检查器
+	Scan and text recognition	扫描和文字识别
+	Searchable Image	可搜索的图像
+	Corrected scan	已校正的扫描件
+	Scan correction	扫描校正
+	Automatically rotate sideways and upside-down pages	自动旋转侧向和倒置的页面
+	Straighten skewed scans	校正扫描件倾斜
+	Add searchable text	添加可搜索文本
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	方向不确定时保持不变。倾斜校正会将整个图像保留在页面内。
+	Correct scans	校正扫描件
+	Scan processing cancelled	扫描处理已取消
+	; 1 page skipped	; 已跳过 1 页
+	; {n} pages skipped	; 已跳过 {n} 页
+	; corrected {n} pages	; 已校正 {n} 页
+	Crop scanner borders to the paper edge	将扫描边框裁剪至纸张边缘
+	Safety margin (pt)	安全边距（磅）
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	仅裁剪清晰的纸张边缘。无法区分的白色边框将保留。
 
 # Architectural print controls (follow-up to #599).
 	PDF page: {size}	PDF 页面：{size}
@@ -2318,3 +2334,4 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+	Straighten scanned page	校正扫描页面的倾斜

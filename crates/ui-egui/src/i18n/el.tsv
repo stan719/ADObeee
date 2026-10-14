@@ -2364,3 +2364,22 @@ animation effects	Off	Ανενεργά
 	This document is trying to open a local file:	Αυτό το έγγραφο προσπαθεί να ανοίξει ένα τοπικό αρχείο:
 	Move tag earlier	Μετακίνηση ετικέτας νωρίτερα
 	Move tag later	Μετακίνηση ετικέτας αργότερα
+
+# Scan correction and multilingual OCR (#1012).
+	Scan and text recognition	Σάρωση και αναγνώριση κειμένου
+	Searchable Image	Εικόνα με δυνατότητα αναζήτησης
+	Corrected scan	Διορθωμένη σάρωση
+	Scan correction	Διόρθωση σάρωσης
+	Automatically rotate sideways and upside-down pages	Αυτόματη περιστροφή πλαγιασμένων και ανεστραμμένων σελίδων
+	Straighten skewed scans	Ευθυγράμμιση λοξών σαρώσεων
+	Add searchable text	Προσθήκη κειμένου με δυνατότητα αναζήτησης
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	Οι αβέβαιοι προσανατολισμοί παραμένουν αμετάβλητοι. Η ευθυγράμμιση προσαρμόζει ολόκληρη την εικόνα μέσα στη σελίδα.
+	Correct scans	Διόρθωση σαρώσεων
+	Scan processing cancelled	Η επεξεργασία της σάρωσης ακυρώθηκε
+	; 1 page skipped	; παραλείφθηκε 1 σελίδα
+	; {n} pages skipped	; παραλείφθηκαν {n} σελίδες
+	; corrected {n} pages	; διορθώθηκαν {n} σελίδες
+	Crop scanner borders to the paper edge	Περικοπή των περιθωρίων του σαρωτή μέχρι την άκρη του χαρτιού
+	Safety margin (pt)	Περιθώριο ασφαλείας (pt)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	Περικόπτονται μόνο οι σαφείς άκρες του χαρτιού. Τα λευκά περιθώρια που δεν διακρίνονται διατηρούνται.
+	Straighten scanned page	Ευθυγράμμιση σαρωμένης σελίδας

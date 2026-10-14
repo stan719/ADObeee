@@ -2133,6 +2133,22 @@ key	Space	空格
 	Resize panel window	調整面板視窗大小
 	Tools	工具
 	Inspector	檢查器
+	Scan and text recognition	掃描與文字辨識
+	Searchable Image	可搜尋的影像
+	Corrected scan	已校正的掃描件
+	Scan correction	掃描校正
+	Automatically rotate sideways and upside-down pages	自動旋轉側向和倒置的頁面
+	Straighten skewed scans	校正掃描件傾斜
+	Add searchable text	新增可搜尋文字
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	方向不確定時保持不變。傾斜校正會將整個影像保留在頁面內。
+	Correct scans	校正掃描件
+	Scan processing cancelled	掃描處理已取消
+	; 1 page skipped	; 已略過 1 頁
+	; {n} pages skipped	; 已略過 {n} 頁
+	; corrected {n} pages	; 已校正 {n} 頁
+	Crop scanner borders to the paper edge	將掃描邊框裁剪至紙張邊緣
+	Safety margin (pt)	安全邊界（點）
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	僅裁剪清晰的紙張邊緣。無法區分的白色邊框將保留。
 	Reload documents when their files change on disk	檔案在磁碟上變更時重新載入對應的文件
 	This file changed on disk. Reload it to see the new version; your unsaved changes will be lost.	此檔案已在磁碟上變更。請重新載入以查看新版本；未儲存的變更將會遺失。
 	Reload	重新載入
@@ -2228,3 +2244,4 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	Straighten scanned page	校正掃描頁面的傾斜

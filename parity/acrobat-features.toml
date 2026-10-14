@@ -3122,10 +3122,10 @@ area = "D"
 tier = "P1"
 milestone = "M4"
 status = "shipped"
-commands = ["page.boxes"]
-tools = ["page_set_box"]
-evidence = ["crates/ui-egui/tests/ui_group/pageboxes.rs::set_page_boxes_dialog_applies_margins_to_the_chosen_pages", "crates/organize/src/tests.rs::page_boxes_default_inherit_and_set"]
-notes = "crop/trim/bleed/art/media, margins in pt/in/mm, page ranges, preview; no Remove white margins yet"
+commands = ["page.boxes", "ocr.enhance"]
+tools = ["page_set_box", "ocr_enhance"]
+evidence = ["crates/ui-egui/tests/ui_group/pageboxes.rs::set_page_boxes_dialog_applies_margins_to_the_chosen_pages", "crates/organize/src/tests.rs::page_boxes_default_inherit_and_set", "crates/engine/tests/scan_ocr.rs::crop_scanner_borders_preserves_pixels_rotation_text_and_undo", "crates/automation/tests/automation.rs::ocr_enhance_crops_paper_edges_with_margin_and_undo", "crates/ui-egui/tests/ocr.rs::enhance_scan_dialog_offers_correction_without_recognition"]
+notes = "crop/trim/bleed/art/media, margins in pt/in/mm, page ranges, preview. Enhance scanned file automatically crops black/white scanner borders to clear paper edges with adjustable safety padding; retains blank paper and colored covers, supports existing page rotation and OCR layers, and undoes together with scan corrections. Indistinguishable white-on-white edges stay unchanged; no text-bounds Remove white margins or perspective crop. Original pixels remain in the PDF."
 
 [[feature]]
 id = "organize.crop-tool"
@@ -6480,8 +6480,8 @@ milestone = "M10"
 status = "partial"
 commands = ["ocr.recognize"]
 tools = ["ocr_recognize"]
-evidence = ["crates/ui-egui/tests/ocr.rs::recognize_text_dialog_adds_searchable_text"]
-notes = "Language choice exists, but the models read only the Latin alphabet without accents (English)."
+evidence = ["crates/engine/tests/scan_ocr.rs::scan_recognizes_accents_in_requested_languages", "crates/engine/tests/scan_ocr.rs::scan_recognizes_japanese_with_release_fonts", "crates/engine/tests/scan_ocr.rs::additional_latin_languages_keep_accented_words_after_save", "crates/ocr/src/lib.rs::system_locale_selects_ocr_language_with_english_fallback", "crates/ui-egui/tests/ocr.rs::recognize_text_dialog_adds_searchable_text"]
+notes = "English, German, French, Spanish, Italian, Dutch, Danish, Norwegian Bokmål, Swedish, Finnish, Portuguese and horizontal Japanese run offline. The UI initially selects the primary system/browser locale, with English fallback when unavailable or unsupported; manual choices remain available. CLI/MCP language arguments retain their deterministic English default. Icelandic, other language choices and vertical Japanese remain unclaimed."
 
 [[feature]]
 id = "ocr.searchable-image"
@@ -6489,11 +6489,11 @@ title = "Searchable image output (invisible text layer)"
 area = "I"
 tier = "P0"
 milestone = "M10"
-status = "partial"
+status = "shipped"
 commands = ["ocr.recognize"]
 tools = ["ocr_recognize"]
-evidence = ["crates/engine/src/tests.rs::recognize_text_makes_a_scanned_page_searchable"]
-notes = "Invisible text (Tr 3) fitted to each word box; the image is not deskewed or downsampled (exact mode only)."
+evidence = ["crates/engine/tests/scan_ocr.rs::unicode_ocr_survives_save_search_and_undo_without_changing_pixels"]
+notes = "Unicode invisible text with ToUnicode mappings; optional orientation and deskew correction preserves original image streams."
 
 [[feature]]
 id = "ocr.searchable-image-exact"
@@ -6504,8 +6504,8 @@ milestone = "M10"
 status = "shipped"
 commands = ["ocr.recognize"]
 tools = ["ocr_recognize"]
-evidence = ["crates/engine/src/tests.rs::recognize_text_makes_a_scanned_page_searchable"]
-notes = "The image is left untouched."
+evidence = ["crates/engine/tests/scan_ocr.rs::unicode_ocr_survives_save_search_and_undo_without_changing_pixels"]
+notes = "Disable auto_rotate, deskew and auto_crop for unchanged page pixels; OCR does not recompress the original image."
 
 [[feature]]
 id = "ocr.editable-text-output"
@@ -6549,11 +6549,11 @@ title = "Detect and fix page rotation"
 area = "I"
 tier = "P1"
 milestone = "M10"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["ocr.recognize", "ocr.enhance"]
+tools = ["ocr_recognize", "ocr_enhance"]
+evidence = ["crates/engine/tests/scan_ocr.rs::scan_correction_handles_all_quarter_turns_and_stale_results", "crates/automation/tests/automation.rs::ocr_enhance_corrects_rotation_without_adding_text"]
+notes = "Confidence-gated 90/180/270 degree correction using PP-LCNet. Blank and uncertain pages stay unchanged; correction alone or before OCR, undoable."
 
 [[feature]]
 id = "ocr.deskew"
@@ -6561,11 +6561,11 @@ title = "Deskew"
 area = "I"
 tier = "P1"
 milestone = "M10"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["ocr.recognize", "ocr.enhance"]
+tools = ["ocr_recognize", "ocr_enhance"]
+evidence = ["crates/engine/tests/scan_ocr.rs::scan_deskew_without_ocr_persists_and_is_undoable"]
+notes = "Projection-profile deskew up to 12 degrees, fitting the whole scan inside the page. Preserves original image streams; pages with annotations are refused to avoid misalignment. No perspective or camera dewarping."
 
 [[feature]]
 id = "ocr.despeckle"

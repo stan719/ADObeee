@@ -2177,6 +2177,22 @@ key	Space	స్పేస్
 	Resize panel window	ప్యానెల్ విండో పరిమాణం మార్చు
 	Tools	సాధనాలు
 	Inspector	పరిశీలకుడు
+	Scan and text recognition	స్కాన్ మరియు అక్షర గుర్తింపు
+	Searchable Image	శోధించగల చిత్రం
+	Corrected scan	సరిచేసిన స్కాన్
+	Scan correction	స్కాన్ సవరణ
+	Automatically rotate sideways and upside-down pages	పక్కకు లేదా తలక్రిందులుగా ఉన్న పేజీలను స్వయంచాలకంగా తిప్పు
+	Straighten skewed scans	వంగిన స్కాన్‌లను నిటారుగా చేయి
+	Add searchable text	శోధించగల పాఠ్యాన్ని చేర్చు
+	Uncertain orientations are left unchanged. Deskew fits the full image inside the page.	దిశ స్పష్టంగా లేనప్పుడు మార్చబడదు. నిటారుగా చేసేటప్పుడు మొత్తం చిత్రం పేజీలోనే ఉంటుంది.
+	Correct scans	స్కాన్‌లను సరిచేయి
+	Scan processing cancelled	స్కాన్ ప్రాసెసింగ్ రద్దయింది
+	; 1 page skipped	; 1 పేజీ దాటవేయబడింది
+	; {n} pages skipped	; {n} పేజీలు దాటవేయబడ్డాయి
+	; corrected {n} pages	; {n} పేజీలు సరిచేయబడ్డాయి
+	Crop scanner borders to the paper edge	స్కాన్ అంచులను కాగితం అంచు వరకు కత్తిరించు
+	Safety margin (pt)	భద్రతా అంచు (pt)
+	Only clear paper edges are cropped. Indistinguishable white borders are kept.	స్పష్టమైన కాగితం అంచులు మాత్రమే కత్తిరించబడతాయి. గుర్తించలేని తెల్ల అంచులు అలాగే ఉంటాయి.
 	Select page {label}	{label} పేజీని ఎంచుకోండి
 	Rotate page {label} counterclockwise	{label} పేజీని అపసవ్య దిశలో తిప్పండి
 	Rotate page {label} clockwise	{label} పేజీని సవ్య దిశలో తిప్పండి
@@ -2267,3 +2283,4 @@ animation effects	Off	ఆఫ్
 	This document is trying to open a local file:	ఈ పత్రం ఒక స్థానిక ఫైల్‌ను తెరవడానికి ప్రయత్నిస్తోంది:
 	Move tag earlier	ట్యాగ్‌ను ముందుకు తరలించు
 	Move tag later	ట్యాగ్‌ను వెనుకకు తరలించు
+	Straighten scanned page	స్కాన్ చేసిన పేజీని సరిచేయి
