@@ -8837,11 +8837,11 @@ title = "Autotag form fields"
 area = "M"
 tier = "P1"
 milestone = "M12"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "partial"
+commands = ["a11y.autotag_fields"]
+tools = ["accessibility_autotag_form_fields"]
+evidence = ["crates/a11y/src/tests.rs::autotag_form_fields_writes_widget_structure_and_parent_tree", "crates/automation/tests/automation.rs::autotag_form_fields_writes_reviewable_widget_tags"]
+notes = "For an untagged AcroForm, writes Form structure elements, OBJR references, widget StructParent keys and ParentTree entries. Existing structure trees are refused so authored structure can be reviewed and extended safely. Text, figures, links and other content remain untagged."
 
 [[feature]]
 id = "a11y.reading-order-tool"
