@@ -68,6 +68,9 @@ pub struct FieldProps {
     pub max_len: Option<Option<usize>>,
     /// Choice options (display texts; export values equal them).
     pub options: Option<Vec<String>>,
+    /// Change one button widget's export value without changing its appearance state.
+    /// Widgets sharing that state are kept in sync. The index is zero-based.
+    pub export_value: Option<(usize, String)>,
     /// Font size (0 = auto).
     pub font_size: Option<f64>,
     /// Position: move or resize one widget (its index in [`Field::widgets`]) to a new rect in
@@ -845,6 +848,36 @@ fn swapped_around_center(r: [f64; 4]) -> Option<[f64; 4]> {
     (out.iter().all(|v| v.is_finite()) && out[2] - out[0] >= 4.0 && out[3] - out[1] >= 4.0).then_some(out)
 }
 
+/// Build a complete /Opt mapping before modifying the document. Appearance names,
+/// /V and /DV stay untouched, so an export-value edit does not change selection.
+fn button_export_options(f: &Field, index: usize, value: &str) -> Result<Vec<Object>, FormError> {
+    if !matches!(f.kind, FieldKind::CheckBox | FieldKind::Radio) {
+        return invalid("only check boxes and radio buttons have an export value");
+    }
+    if value.is_empty() || value == "Off" || value.len() > 4096 {
+        return invalid("export value must be non-empty, at most 4096 bytes, and not Off");
+    }
+    let widget = f.widgets.get(index).ok_or_else(|| FormError::Invalid("button widget index is out of range".into()))?;
+    let state = widget.on_state.as_deref().ok_or_else(|| FormError::Invalid("button has no on appearance state".into()))?;
+    if !f.options.is_empty() && f.options.len() != f.widgets.len() {
+        return invalid("button export options do not match its widgets");
+    }
+    let previous = f.export_of(index);
+    let mut out = Vec::with_capacity(f.widgets.len());
+    for (i, w) in f.widgets.iter().enumerate() {
+        let export = f.export_of(i).ok_or_else(|| FormError::Invalid("button has no on appearance state".into()))?;
+        let same_state = w.on_state.as_deref() == Some(state);
+        if !same_state && (export == value || w.on_state.as_deref() == Some(value)) {
+            return invalid("export value conflicts with another button choice");
+        }
+        if same_state && Some(export) != previous {
+            return invalid("widgets with the same appearance state have conflicting export values");
+        }
+        out.push(Object::String(PdfString::text(if same_state { value } else { export })));
+    }
+    Ok(out)
+}
+
 /// Change a field's properties (General and Options tabs) and redraw it.
 pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<String, FormError> {
     if props.font_size.is_some_and(|size| !size.is_finite() || size < 0.0) {
@@ -858,6 +891,10 @@ pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<S
     }
     let all = fields(doc);
     let f = all.iter().find(|f| f.name == name).ok_or_else(|| FormError::NoSuchField(name.into()))?.clone();
+    let export_options = props.export_value.as_ref().map(|(index, value)| button_export_options(&f, *index, value)).transpose()?;
+    if props.export_value.is_some() && props.options.is_some() {
+        return invalid("give export_value or options, not both");
+    }
     // Validated before anything is written, so a refused rotation leaves the document unchanged.
     // `Some(Some(rect))`: the widget's axis changes and it gets the swapped rectangle.
     let mut rotated_rect: Option<Option<[f64; 4]>> = None;
@@ -878,6 +915,12 @@ pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<S
     // A locked field only takes unlocking (Acrobat greys its properties out).
     if f.locked() && props.locked != Some(false) && *props != (FieldProps { locked: props.locked, ..FieldProps::default() }) {
         return invalid(format!("{name} is locked: unlock it first"));
+    }
+    if let Some(options) = export_options.as_ref()
+        && *props == (FieldProps { export_value: props.export_value.clone(), ..FieldProps::default() })
+    {
+        doc.update_dict(f.obj, |d| d.set(b"Opt".to_vec(), Object::Array(options.clone())))?;
+        return Ok(name.to_string());
     }
     if let Some(lock) = props.locked {
         for w in &f.widgets {
@@ -971,6 +1014,9 @@ pub fn set_props(doc: &mut Document, name: &str, props: &FieldProps) -> Result<S
                     d.remove(b"MaxLen");
                 }
             }
+        }
+        if let Some(options) = &export_options {
+            d.set(b"Opt".to_vec(), Object::Array(options.clone()));
         }
         if let Some(opts) = &props.options {
             d.set(b"Opt".to_vec(), Object::Array(opts.iter().map(|o| Object::String(PdfString::text(o))).collect()));

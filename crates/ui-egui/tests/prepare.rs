@@ -497,3 +497,46 @@ fn actions_tab_adds_and_removes_actions() {
         ]
     );
 }
+
+#[test]
+fn button_export_properties_apply_cancel_and_undo() {
+    fn retype(h: &mut Harness<'static, PdfCraftApp>, value: &str) {
+        use egui::accesskit::Role;
+        h.get_by_role_and_label(Role::TextInput, "Export Value: ").click();
+        h.run_steps(1);
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        h.get_by_role_and_label(Role::TextInput, "Export Value: ").type_text(value);
+        h.run_steps(2);
+    }
+    let mut h = harness();
+    h.state_mut().execute("form.prepare");
+    h.run_steps(2);
+    h.state_mut().open_field_props("agree", 0);
+    h.run_steps(2);
+    h.get_by_label("Options").click();
+    h.run_steps(2);
+    let original = h.state().field_props.as_ref().unwrap().export_value.clone();
+    retype(&mut h, "Accepted");
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    h.state_mut().open_field_props("agree", 0);
+    h.run_steps(2);
+    assert_eq!(h.state().field_props.as_ref().unwrap().export_value, original);
+    h.get_by_label("Options").click();
+    h.run_steps(2);
+    retype(&mut h, "Accepted");
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    {
+        let s = h.state();
+        let f = s.session.get(s.views[0].id).unwrap().form.iter().find(|f| f.name == "agree").unwrap();
+        assert_eq!(f.export_of(0), Some("Accepted"));
+    }
+    h.state_mut().execute("edit.undo");
+    h.run_steps(3);
+    {
+        let s = h.state();
+        let f = s.session.get(s.views[0].id).unwrap().form.iter().find(|f| f.name == "agree").unwrap();
+        assert_eq!(f.export_of(0), Some(original.as_str()));
+    }
+}

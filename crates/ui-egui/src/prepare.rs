@@ -758,6 +758,7 @@ pub struct FieldDraft {
     pub default: String,
     /// Check boxes and radio buttons: this widget's "on" state (export value).
     pub on_state: String,
+    pub export_value: String,
     /// 0 = auto.
     pub font_size: f64,
     /// Left, bottom, width, height in points.
@@ -824,6 +825,7 @@ impl FieldDraft {
             quadding: f.quadding,
             default: f.default.first().cloned().unwrap_or_default(),
             on_state: f.widgets.get(widget).and_then(|w| w.on_state.clone()).unwrap_or_default(),
+            export_value: f.export_of(widget).unwrap_or_default().to_string(),
             font_size: da_size(&f.da),
             position: [r[0], r[1], r[2] - r[0], r[3] - r[1]],
             rotation: f.widgets.get(widget).map(|w| w.rotation).unwrap_or(0),
@@ -877,6 +879,7 @@ impl FieldDraft {
             multiline: ch(self.multiline, o.multiline),
             max_len: ((self.limit, self.max_len) != (o.limit, o.max_len)).then_some((self.limit && self.max_len > 0).then_some(self.max_len)),
             options: (self.options != o.options).then(|| self.options.clone()),
+            export_value: (self.export_value != o.export_value).then(|| (self.widget, self.export_value.clone())),
             font_size: ((self.font_size - o.font_size).abs() > 1e-6).then_some(self.font_size),
             rect: (self.position != o.position).then(|| {
                 let [x, y, w, h] = self.position;
@@ -1123,7 +1126,10 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                 FormFieldKind::CheckBox | FormFieldKind::Radio => {
                     use pdfcraft_engine::field_flags as ff;
                     let on = d.on_state.clone();
-                    ui.label(crate::i18n::fmt(tl!("Export Value: {on}"), &[("on", &on)]));
+                    ui.horizontal(|ui| {
+                        let label = ui.label(crate::i18n::fmt(tl!("Export Value: {on}"), &[("on", "")]));
+                        ui.text_edit_singleline(&mut d.export_value).labelled_by(label.id);
+                    });
                     let mut checked = !d.default.is_empty() && d.default == on;
                     let label =
                         if d.kind == FormFieldKind::CheckBox { tl!("Check box is checked by default") } else { tl!("Button is checked by default") };

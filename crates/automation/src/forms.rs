@@ -232,6 +232,9 @@ impl Automation {
                 if !f.actions.unsupported.is_empty() {
                     o.insert("unsupported_scripts".into(), json!(f.actions.unsupported));
                 }
+                if matches!(f.kind, FormFieldKind::CheckBox | FormFieldKind::Radio) {
+                    o.insert("export_values".into(), json!((0..f.widgets.len()).map(|i| f.export_of(i)).collect::<Vec<_>>()));
+                }
                 match f.kind {
                     FormFieldKind::Radio => {
                         o.insert("options".into(), json!((0..f.widgets.len()).filter_map(|i| f.export_of(i)).collect::<Vec<_>>()));
@@ -327,6 +330,9 @@ impl Automation {
     }
 
     pub(crate) fn form_set_props(&mut self, a: &Args) -> Result<Value> {
+        if a.get("widget").is_some() && a.get("export_value").is_none() {
+            return Err(bad("widget requires export_value"));
+        }
         let single = a.opt_str("field")?;
         let bulk = a.get("fields").is_some();
         if single.is_some() == bulk {
@@ -344,7 +350,7 @@ impl Automation {
                     return Err(bad(format!("field {name:?} is listed more than once")));
                 }
             }
-            for key in ["name", "rect", "rotation"] {
+            for key in ["name", "rect", "rotation", "export_value", "widget"] {
                 if a.get(key).is_some() {
                     return Err(bad(format!("{key} applies to one field; use field instead of fields")));
                 }
@@ -396,6 +402,15 @@ impl Automation {
         };
         Ok(FieldProps {
             rect,
+            export_value: a
+                .opt_str("export_value")?
+                .map(|value| -> Result<_> {
+                    let index = a.opt_int("widget")?.unwrap_or(1);
+                    let index =
+                        usize::try_from(index).ok().and_then(|n| n.checked_sub(1)).ok_or_else(|| bad("widget must be a positive 1-based index"))?;
+                    Ok((index, value.to_owned()))
+                })
+                .transpose()?,
             name: a.opt_str("name")?.map(str::to_owned),
             tooltip: a.opt_str("tooltip")?.map(str::to_owned),
             read_only: a.opt_bool("read_only")?,

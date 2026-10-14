@@ -184,3 +184,15 @@ unapplied with a warning.
 `doc_batch` runs conversion, OCR and compression over files and optionally recursive
 folders. The CLI also exposes it as `pdfcraft-cli batch`. See the
 [batch guide](../../docs/cli-batch.md) for examples, output protection, errors and limits.
+
+## Editing button export values
+
+Use `form_set_props` with `field`, `export_value` and optional `widget`
+(1-based, default 1) to change a checkbox or radio button export value.
+`form_fields` returns `export_values` in widget order. The selected/default
+appearance states are preserved; the operation is undoable and survives saving.
+Widgets sharing an appearance state keep one export value. Bulk edits are not
+supported for this widget-specific property. Empty values, `Off`, conflicting
+choices and values over 4096 UTF-8 bytes return an error.
+
+Example: `form_set_props doc=1 field=agree export_value=Accepted widget=1`.

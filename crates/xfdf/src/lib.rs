@@ -420,7 +420,7 @@ fn xfdf_fields(doc: &Document, out: &mut String) {
         }
         node.values = match f.kind {
             FieldKind::CheckBox | FieldKind::Radio if f.value.is_empty() => vec!["Off".into()],
-            _ => f.value.clone(),
+            _ => f.export_values(),
         };
     }
     fn write_node(name: &str, node: &Node, out: &mut String) {
@@ -480,7 +480,7 @@ pub fn export_fdf(doc: &Document, comments: bool, fields: bool, file: &str) -> V
             body.extend_from_slice(b" /V ");
             match f.kind {
                 FieldKind::CheckBox | FieldKind::Radio => {
-                    let v = f.value.first().cloned().unwrap_or_else(|| "Off".into());
+                    let v = f.export_values().first().cloned().unwrap_or_else(|| "Off".into());
                     pdfcraft_cos::serialize(&Object::Name(pdfcraft_forms::name_bytes(&v)), &mut body);
                 }
                 FieldKind::List if f.value.len() > 1 => {
@@ -575,7 +575,7 @@ pub fn export_data(doc: &Document, format: Format) -> String {
         .map(|f| {
             let v = match f.kind {
                 FieldKind::CheckBox | FieldKind::Radio if f.value.is_empty() => "Off".to_string(),
-                _ => f.value.join(", "),
+                _ => f.export_values().join(", "),
             };
             (f.name, v)
         })
@@ -984,8 +984,11 @@ pub fn data_values(bytes: &[u8]) -> Result<Vec<(String, Vec<String>)>, DataError
             .into_iter()
             .filter(|f| !matches!(f.kind, FieldKind::PushButton | FieldKind::Signature))
             .map(|f| {
-                let v =
-                    if matches!(f.kind, FieldKind::CheckBox | FieldKind::Radio) && f.value.is_empty() { vec!["Off".to_string()] } else { f.value };
+                let v = if matches!(f.kind, FieldKind::CheckBox | FieldKind::Radio) && f.value.is_empty() {
+                    vec!["Off".to_string()]
+                } else {
+                    f.export_values()
+                };
                 (f.name, v)
             })
             .collect());

@@ -887,3 +887,36 @@ fn duplicate_xfdf_annotation_flags_do_not_turn_on_unrelated_bits() {
         assert_eq!(square.get(b"F").and_then(Object::as_int), Some(expected), "flags={flags}");
     }
 }
+
+#[test]
+fn edited_button_export_values_round_trip_in_all_data_formats() {
+    use pdfcraft_forms::{FieldProps, set_props};
+    let mut doc = blank();
+    add_field(&mut doc, 0, [80.0, 650.0, 94.0, 664.0], &NewField::Radio { group: Some("Size".into()), export: "S".into() }, None).unwrap();
+    add_field(&mut doc, 0, [100.0, 650.0, 114.0, 664.0], &NewField::Radio { group: Some("Size".into()), export: "L".into() }, None).unwrap();
+    set_props(&mut doc, "Agree", &FieldProps { export_value: Some((0, "Accepted".into())), ..Default::default() }).unwrap();
+    set_props(&mut doc, "Size", &FieldProps { export_value: Some((0, "Small".into())), ..Default::default() }).unwrap();
+    set_value(&mut doc, "Agree", &FieldValue::Check(true)).unwrap();
+    set_value(&mut doc, "Size", &FieldValue::Radio(Some("Small".into()))).unwrap();
+    let doc = Document::open(Arc::new(write_full(&doc, &SaveOptions::default()).unwrap())).unwrap();
+    let mut exports = vec![export_xfdf(&doc, false, true, "").into_bytes(), export_fdf(&doc, false, true, "")];
+    exports.extend([Format::Xml, Format::Csv, Format::Txt].map(|f| export_data(&doc, f).into_bytes()));
+    for (index, bytes) in exports.into_iter().enumerate() {
+        if index < 2 {
+            let values = data_values(&bytes).unwrap();
+            assert_eq!(values.iter().find(|(n, _)| n == "Agree").unwrap().1, vec!["Accepted"]);
+            assert_eq!(values.iter().find(|(n, _)| n == "Size").unwrap().1, vec!["Small"]);
+        } else {
+            // data_values reads XFDF/FDF/PDF; import also handles XML/CSV/TXT.
+            let text = std::str::from_utf8(&bytes).unwrap();
+            assert!(text.contains("Accepted") && text.contains("Small"), "{text}");
+        }
+        let mut target = Document::open(Arc::new(write_full(&doc, &SaveOptions::default()).unwrap())).unwrap();
+        set_value(&mut target, "Agree", &FieldValue::Check(false)).unwrap();
+        set_value(&mut target, "Size", &FieldValue::Radio(Some("L".into()))).unwrap();
+        import(&mut target, &bytes).unwrap();
+        let fs = fields(&target);
+        assert_eq!(fs.iter().find(|f| f.name == "Agree").unwrap().export_values(), vec!["Accepted"]);
+        assert_eq!(fs.iter().find(|f| f.name == "Size").unwrap().export_values(), vec!["Small"]);
+    }
+}

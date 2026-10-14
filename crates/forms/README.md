@@ -57,6 +57,19 @@ delete_field(&mut doc, "email")?;
   buttons joining a group become kid widgets with their own export state. Renaming changes only
   the last part of a dotted name.
 
+## Button export values
+
+`FieldProps::export_value = Some((widget_index, value))` edits a checkbox or radio
+button's export value. The API index is zero-based. It writes a complete `/Opt`
+mapping, preserving appearance names, selected states and reset defaults; an
+export-only change leaves custom appearance streams intact. Widgets sharing an
+appearance state keep the same export value. Conflicting shared-state mappings,
+ambiguous choices, invalid widget indices, empty values, `Off`, and values over
+4096 UTF-8 bytes are refused.
+
+`Field::export_values` resolves button values for data exchange. An unchecked
+button still exports as `Off` in the data formats.
+
 ## Not yet
 
 Rich-text values and exact appearance metrics/layout remain incomplete. JavaScript
