@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use pdfcraft_content::{Matrix, Op, Pieces, contains, num, overlaps, serialize_ops, string};
-use pdfcraft_cos::{Dict, Document, ObjRef, Object, Stream};
+use pdfcraft_cos::{CosError, Dict, Document, ObjRef, Object, Stream};
 
 use crate::{RedactError, Report, image, page_streams, tags};
 use pdfcraft_fonts::pdf::Metrics;
@@ -72,6 +72,7 @@ pub(crate) struct Output {
     /// in force: the operation must fail closed rather than leave that text under the mark.
     pub vertical: bool,
     pub tag_changes: Vec<(ObjRef, ObjRef, HashSet<i64>, HashSet<i64>)>,
+    pub error: Option<CosError>,
 }
 
 pub(crate) struct Scope<'a> {
@@ -341,6 +342,64 @@ fn clip_out(rects: &[[f64; 4]], ctm: &Matrix, around: [f64; 4]) -> Option<Vec<Op
     Some(ops)
 }
 
+fn resource_ops(doc: &Document, res: &Dict, content: &[Vec<u8>]) -> Result<Vec<Op>, CosError> {
+    let mut ops = Pieces::join(content).parse().ops;
+    let xobjects = res_dict(doc, res, b"XObject");
+    let mut seen = HashSet::new();
+    let mut cursor = 0;
+    while cursor < ops.len() {
+        let op = &ops[cursor];
+        if op.is("Do")
+            && let Some(r) = op.name(0).and_then(|n| xobjects.get(n)).and_then(Object::as_ref)
+            && seen.insert(r)
+            && let Object::Stream(s) = &*doc.get(r)
+            && s.dict.name(b"Subtype") == Some(b"Form")
+            && !s.dict.contains(b"Resources")
+        {
+            let parsed = pdfcraft_content::parse(&s.decoded()?);
+            if seen.len() > 2_000_000 || ops.len().saturating_add(parsed.ops.len()) > 2_000_000 || parsed.skipped > 0 {
+                return Err(CosError::Syntax { offset: 0, detail: "redaction could not fully inspect inherited form resources".into() });
+            }
+            ops.extend(parsed.ops);
+        }
+        cursor += 1;
+    }
+    Ok(ops)
+}
+
+pub(crate) fn prune_properties(doc: &Document, res: &mut Dict, content: &[Vec<u8>]) -> Result<(), CosError> {
+    let mut properties = res_dict(doc, res, b"Properties");
+    if properties.is_empty() {
+        return Ok(());
+    }
+    let ops = resource_ops(doc, res, content)?;
+    let names: Vec<Vec<u8>> = properties.iter().map(|(n, _)| n.to_vec()).collect();
+    for name in names {
+        if !ops.iter().any(|op| matches!(op.op.as_slice(), b"BDC" | b"DP") && op.name(1) == Some(&name)) {
+            properties.remove(&name);
+        }
+    }
+    if properties.is_empty() {
+        res.remove(b"Properties");
+    } else {
+        res.set(b"Properties".to_vec(), Object::Dict(properties));
+    }
+    Ok(())
+}
+
+fn prune_form_resources(doc: &Document, res: &mut Dict, content: &[Vec<u8>]) -> Result<(), CosError> {
+    let ops = resource_ops(doc, res, content)?;
+    let mut xo = res_dict(doc, res, b"XObject");
+    let names: Vec<Vec<u8>> = xo.iter().map(|(n, _)| n.to_vec()).collect();
+    for name in names {
+        if !ops.iter().any(|op| op.is("Do") && op.name(0) == Some(&name)) {
+            xo.remove(&name);
+        }
+    }
+    res.set(b"XObject".to_vec(), Object::Dict(xo));
+    Ok(())
+}
+
 /// One glyph of a shown string.
 struct Glyph {
     bytes: std::ops::Range<usize>,
@@ -389,6 +448,7 @@ pub(crate) fn process(doc: &mut Document, scope: &mut Scope<'_>, streams: &[Vec<
             forced_change = true;
         }
     }
+    let original = parsed.ops.clone();
     let mut pieces: Vec<Vec<Op>> = streams.iter().map(|_| Vec::new()).collect();
     let mut rewrite: Vec<bool> = vec![forced_change; streams.len()];
     for op in parsed.ops {
@@ -405,6 +465,7 @@ pub(crate) fn process(doc: &mut Document, scope: &mut Scope<'_>, streams: &[Vec<
         }
     }
 
+    let mut processed = Vec::new();
     for (piece, mut changed) in pieces.into_iter().zip(rewrite) {
         let mut ops: Vec<Op> = Vec::with_capacity(piece.len());
         for op in piece {
@@ -622,9 +683,57 @@ pub(crate) fn process(doc: &mut Document, scope: &mut Scope<'_>, streams: &[Vec<
         if !path.is_empty() {
             ops.append(&mut path);
         }
+        processed.push((ops, changed));
+    }
+    if scope.mode == Mode::Apply {
+        clean_replacements(doc, resources, &original, &mut processed, scope.report);
+    }
+    for (ops, changed) in processed {
         out.streams.push(changed.then(|| serialize_ops(&ops)));
     }
     out
+}
+
+fn clean_replacements(doc: &Document, resources: &Dict, original: &[Op], processed: &mut [(Vec<Op>, bool)], report: &mut Report) {
+    let originals: HashMap<usize, &Op> = original.iter().map(|op| (op.span.start, op)).collect();
+    let unchanged: HashSet<usize> =
+        processed.iter().flat_map(|(ops, _)| ops).filter(|op| originals.get(&op.span.start) == Some(op)).map(|op| op.span.start).collect();
+    let mut stack = Vec::new();
+    let mut affected = HashSet::new();
+    for op in original {
+        match op.op.as_slice() {
+            b"BDC" | b"BMC" => stack.push(op.span.start),
+            b"EMC" => {
+                stack.pop();
+            }
+            _ if !unchanged.contains(&op.span.start) => affected.extend(stack.iter().copied()),
+            _ => {}
+        }
+    }
+    let properties = res_dict(doc, resources, b"Properties");
+    for (ops, changed) in processed {
+        for op in ops {
+            if !op.is("BDC") || !affected.contains(&op.span.start) {
+                continue;
+            }
+            let property = match op.operands.get(1) {
+                Some(Object::Name(name)) => properties.get(name).map(|p| doc.resolve(p)),
+                Some(p) => Some(doc.resolve(p)),
+                None => None,
+            };
+            if let Some(mut dict) = property.and_then(|p| p.as_dict().cloned()) {
+                let mut stripped = false;
+                for key in [&b"ActualText"[..], b"Alt", b"E", b"T"] {
+                    stripped |= dict.remove(key).is_some();
+                }
+                if stripped && let Some(property) = op.operands.get_mut(1) {
+                    *property = Object::Dict(dict);
+                    *changed = true;
+                    report.replacement_text += 1;
+                }
+            }
+        }
+    }
 }
 
 /// Lay out a shown string (or `TJ` array) glyph by glyph, advancing `tm`. Returns the `TJ`
@@ -799,6 +908,7 @@ fn xobject(
             out.vertical |= inner.vertical;
             out.doomed.extend_from_slice(&inner.doomed);
             out.tag_changes.extend(inner.tag_changes);
+            out.error = inner.error.or(out.error.take());
             if scope.mode == Mode::Verify {
                 return None;
             }
@@ -808,10 +918,21 @@ fn xobject(
             }
             let mut dict = s.dict.clone();
             dict.remove(b"Length");
+            let mut cleaned_res = res.clone();
+            if let Some(data) = &new_data
+                && let Err(error) = prune_properties(doc, &mut cleaned_res, std::slice::from_ref(data))
+                    .and_then(|()| prune_form_resources(doc, &mut cleaned_res, std::slice::from_ref(data)))
+            {
+                out.error = Some(error);
+                return None;
+            }
+            if cleaned_res != res {
+                dict.set(b"Resources".to_vec(), Object::Dict(cleaned_res));
+            }
             // Rebuild the copy's /Resources whenever inner content gained or lost an XObject, so a
             // `Do` the copy no longer makes stops keeping the original image or form reachable.
             if !inner.xobjects.is_empty() || !inner.replaced.is_empty() {
-                let mut res = res.clone();
+                let mut res = dict.get(b"Resources").and_then(Object::as_dict).cloned().unwrap_or_else(|| res.clone());
                 let mut xo = res_dict(doc, &res, b"XObject");
                 if let Some(d) = &new_data {
                     prune(&mut xo, &inner.replaced, std::slice::from_ref(d));

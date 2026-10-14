@@ -940,3 +940,97 @@ fn redacting_every_inheriting_page_retires_the_parent_resources() {
         assert_eq!(under(&mut saved, page, &[[0.0, 190.0, 300.0, 220.0]]), 0);
     }
 }
+
+#[test]
+fn replacement_text_and_property_resources_do_not_survive_redaction() {
+    let mut doc = one_page(
+        b"/Span /P0 BDC /Span <</ActualText (LEAK_INLINE)>> BDC BT /F1 10 Tf 10 200 Td (SECRET)",
+        "/Properties << /P0 7 0 R >>",
+        vec![
+            b"<< /MCID 0 /ActualText (LEAK_PROPERTY) /Alt (LEAK_ALT) /E (LEAK_EXPANSION) >>".to_vec(),
+            stream("", b"Tj ET EMC EMC /Span <</ActualText (Public point)>> DP BT /F1 10 Tf 10 100 Td (Public) Tj ET"),
+        ],
+    );
+    doc.update_dict(ObjRef::new(3, 0), |d| {
+        d.set(b"Contents".to_vec(), Object::Array(vec![Object::Ref(ObjRef::new(4, 0)), Object::Ref(ObjRef::new(8, 0))]));
+    })
+    .unwrap();
+    mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+    apply(&mut doc, None).unwrap();
+    assert_no_secret(&doc, b"LEAK_");
+    let saved = reopen(&doc);
+    assert!(content(&saved, 0).contains("Public"));
+    let p = pdfcraft_model::pages(&saved).swap_remove(0);
+    assert!(!saved.resolve(p.dict.get(b"Resources").unwrap()).as_dict().unwrap().contains(b"Properties"));
+}
+
+#[test]
+fn inherited_form_properties_lose_replacement_text() {
+    let mut doc = one_page(
+        b"/Fm Do",
+        "/XObject << /Fm 7 0 R >> /Properties << /P0 8 0 R >>",
+        vec![
+            stream(
+                "/Type /XObject /Subtype /Form /BBox [0 0 300 300]",
+                b"/Span /P0 BDC BT /F1 10 Tf 10 200 Td (SECRET) Tj ET EMC BT /F1 10 Tf 10 100 Td (Public) Tj ET",
+            ),
+            b"<< /ActualText (LEAK_FORM_PROPERTY) >>".to_vec(),
+        ],
+    );
+    mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+    apply(&mut doc, None).unwrap();
+    assert_no_secret(&doc, b"LEAK_");
+    assert_no_secret(&doc, b"SECRET");
+    let mut saved = reopen(&doc);
+    assert_eq!(under(&mut saved, 0, &[[0.0, 90.0, 100.0, 110.0]]), 6);
+}
+
+#[test]
+fn properties_used_by_unmodified_inheriting_forms_stay() {
+    let mut doc = one_page(
+        b"BT /F1 10 Tf 10 200 Td (SECRET) Tj ET /Fm Do",
+        "/XObject << /Fm 7 0 R >> /Properties << /P0 8 0 R >>",
+        vec![stream("/Type /XObject /Subtype /Form /BBox [0 0 10 10]", b"/Span /P0 BDC 0 0 10 10 re f EMC"), b"<< /ActualText (Public) >>".to_vec()],
+    );
+    mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+    apply(&mut doc, None).unwrap();
+    let saved = reopen(&doc);
+    let page = pdfcraft_model::pages(&saved).swap_remove(0);
+    let resources = saved.resolve(page.dict.get(b"Resources").unwrap());
+    let properties = saved.resolve(resources.as_dict().unwrap().get(b"Properties").unwrap());
+    let property = saved.resolve(properties.as_dict().unwrap().get(b"P0").unwrap());
+    assert_eq!(property.as_dict().unwrap().get(b"ActualText").unwrap().as_string().unwrap().to_text(), "Public");
+}
+
+#[test]
+fn untouched_replacement_descriptions_survive_redaction_and_hidden_text_cleanup() {
+    for hidden in [false, true] {
+        let mode = if hidden { 3 } else { 0 };
+        let data = format!(
+            "/Span <</ActualText (LEAK_REMOVED)>> BDC BT /F1 10 Tf {mode} Tr 10 200 Td (SECRET) Tj ET EMC \
+             /Span /Public BDC BT /F1 10 Tf 0 Tr 10 100 Td (Public) Tj ET EMC"
+        );
+        let mut doc = one_page(
+            data.as_bytes(),
+            "/Properties << /Public 7 0 R >>",
+            vec![b"<< /ActualText (PUBLIC_ACTUAL) /Alt (PUBLIC_ALT) /E (PUBLIC_EXPANSION) /T (PUBLIC_TITLE) >>".to_vec()],
+        );
+        if hidden {
+            sanitize::remove_hidden(&mut doc, &[sanitize::Hidden::HiddenText]).unwrap();
+        } else {
+            mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+            apply(&mut doc, None).unwrap();
+        }
+        assert_no_secret(&doc, b"LEAK_");
+        assert_no_secret(&doc, b"SECRET");
+        let saved = reopen(&doc);
+        let page = pdfcraft_model::pages(&saved).swap_remove(0);
+        let resources = saved.resolve(page.dict.get(b"Resources").unwrap());
+        let properties = saved.resolve(resources.as_dict().unwrap().get(b"Properties").unwrap());
+        let property = saved.resolve(properties.as_dict().unwrap().get(b"Public").unwrap());
+        let dict = property.as_dict().unwrap();
+        for key in [&b"ActualText"[..], b"Alt", b"E", b"T"] {
+            assert!(dict.contains(key), "surviving description removed: {key:?}, hidden={hidden}");
+        }
+    }
+}

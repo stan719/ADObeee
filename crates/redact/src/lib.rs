@@ -114,6 +114,7 @@ pub struct Report {
     pub forms_removed: usize,
     pub annotations: usize,
     pub fields: usize,
+    pub replacement_text: usize,
     /// Structure elements that lost alternate/actual text or emptied marked content.
     pub tags: usize,
     /// The form was an AcroForm+XFA form and its `/XFA` packets (which still held redacted field
@@ -412,6 +413,9 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
         // leave the text in place, refuse the whole operation (the caller keeps the previous
         // document). The error does not claim the text was under the mark. Full vertical-text
         // removal is a future enhancement.
+        if let Some(error) = out.error {
+            return Err(error.into());
+        }
         if out.vertical {
             return Err(RedactError::VerticalText(pi + 1));
         }
@@ -452,6 +456,16 @@ pub fn apply(doc: &mut Document, pages: Option<&[usize]>) -> Result<Report, Reda
                 }
                 res.set(b"XObject".to_vec(), Object::Dict(xo));
             }
+            let (_, cleaned_data) = page_streams(
+                doc,
+                &{
+                    let mut cleaned_page = page.dict.clone();
+                    cleaned_page.set(b"Contents".to_vec(), Object::Array(new_list.clone()));
+                    cleaned_page
+                },
+                pi,
+            )?;
+            interp::prune_properties(doc, &mut res, &cleaned_data)?;
             doc.update_dict(page.obj, |d| {
                 d.set(b"Contents".to_vec(), Object::Array(new_list));
                 d.set(b"Resources".to_vec(), Object::Dict(res));

@@ -165,6 +165,9 @@ fn content_pass(doc: &mut Document, text: bool, layers: bool, write: bool) -> Re
         }
         scope.hidden_layers = off.clone();
         let out = process(doc, &mut scope, &data, &resources, Matrix::IDENTITY);
+        if let Some(error) = out.error {
+            return Err(error.into());
+        }
         let blocks = scope.layer_blocks;
         total += out.residue + blocks + report.glyphs;
         if !write {
