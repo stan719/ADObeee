@@ -765,13 +765,28 @@ fn is_placeholder_title(title: &str) -> bool {
 }
 
 /// What is displayed: the working file, plus (in memory only, never saved) the appearances
-/// PdfCraft draws for comments that have none ([`pdfcraft_annot::with_missing_appearances`]).
-/// The working file is unchanged, and so is everything that reads it (saving, signatures, …).
-fn display_bytes(editor: Option<&mut Editor>, bytes: &Arc<Vec<u8>>) -> Arc<Vec<u8>> {
-    let Some(display) = editor.and_then(|e| pdfcraft_annot::with_missing_appearances_cached(&e.cos, &mut e.appearances)) else {
+/// PdfCraft draws for comments that have none ([`pdfcraft_annot::with_missing_appearances`])
+/// and the validated states of layered signature appearances. The working file is
+/// unchanged, and so is everything that reads it (saving, signatures, …).
+fn display_bytes(editor: Option<&mut Editor>, bytes: &Arc<Vec<u8>>, verdicts: &mut [pdfcraft_sign::SignatureInfo]) -> Arc<Vec<u8>> {
+    let Some(e) = editor else { return bytes.clone() };
+    if let Some(mut display) = pdfcraft_annot::with_missing_appearances_cached(&e.cos, &mut e.appearances) {
+        // The return is dropped on purpose: this copy is written regardless, for the
+        // comment appearances it exists for, whether or not a signature changed.
+        let _ = pdfcraft_sign::show_valid_appearances(&mut display, verdicts);
+        // Writing fails only as saving the document would; the page then shows as it always did.
+        return write_incremental(&display, &SaveOptions::default()).map(Arc::new).unwrap_or_else(|_| bytes.clone());
+    }
+    // No comment appearances were missing, so there is no display copy yet: build one
+    // only when a validated verdict could change it, and keep the file when it changed
+    // nothing.
+    if !pdfcraft_sign::has_substitutable_appearances(&e.cos, verdicts) {
         return bytes.clone();
-    };
-    // Writing fails only as saving the document would; the page then shows as it always did.
+    }
+    let mut display = e.cos.clone();
+    if !pdfcraft_sign::show_valid_appearances(&mut display, verdicts) {
+        return bytes.clone();
+    }
     write_incremental(&display, &SaveOptions::default()).map(Arc::new).unwrap_or_else(|_| bytes.clone())
 }
 
@@ -2944,8 +2959,8 @@ fn xfa_values_from_datasets(doc: &mut pdfcraft_cos::Document) -> Result<Vec<Stri
 }
 
 /// Validate the signature fields of `cos` (written as `bytes`).
-fn signatures_of(cos: &pdfcraft_cos::Document, bytes: &[u8], trust: &TrustStore, cache: &pdfcraft_sign::DigestCache) -> Arc<Vec<SignatureInfo>> {
-    Arc::new(pdfcraft_sign::pdf::list_cached(cos, bytes, trust, cache))
+fn signatures_of(cos: &pdfcraft_cos::Document, bytes: &[u8], trust: &TrustStore, cache: &pdfcraft_sign::DigestCache) -> Vec<SignatureInfo> {
+    pdfcraft_sign::pdf::list_cached(cos, bytes, trust, cache)
 }
 
 impl Session {
@@ -3220,7 +3235,9 @@ impl Session {
             Ok(Err(e)) => (None, Some(e.to_string())),
             Err(_) => (None, Some("the document structure could not be read for editing".into())),
         };
-        let display = display_bytes(editor.as_mut(), &bytes);
+        let sig_cache = Arc::new(pdfcraft_sign::DigestCache::default());
+        let mut signatures = editor.as_ref().map(|e| signatures_of(&e.cos, &bytes, trust, &sig_cache)).unwrap_or_default();
+        let display = display_bytes(editor.as_mut(), &bytes, &mut signatures);
         let renderer = RenderPool::new(display.clone(), render_threads(), config.clone());
         let (form, adopted) = editor
             .as_ref()
@@ -3250,7 +3267,6 @@ impl Session {
             .unwrap_or_default();
         let links = editor.as_ref().map(|e| pdfcraft_annot::links::list(&e.cos)).unwrap_or_default();
         let sig_cache = Arc::new(pdfcraft_sign::DigestCache::default());
-        let signatures = editor.as_ref().map(|e| signatures_of(&e.cos, &bytes, trust, &sig_cache)).unwrap_or_default();
         Document {
             id: DocId(0),
             name,
@@ -3268,7 +3284,7 @@ impl Session {
             marks,
             added,
             links,
-            signatures,
+            signatures: Arc::new(signatures),
             trust: trust.clone(),
             sig_cache,
             editor,
@@ -3549,7 +3565,7 @@ impl Session {
             doc.info.producer = info("Producer");
             doc.info.file_size = bytes.len();
             if !doc.signatures.is_empty() {
-                doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
+                doc.signatures = Arc::new(signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache));
             }
             doc.bytes = bytes;
             return Ok(());
@@ -3587,10 +3603,9 @@ impl Session {
         }
         doc.info.file_size = bytes.len();
         doc.form = form;
-        if !doc.signatures.is_empty() {
-            doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        }
-        doc.display = display_bytes(Some(editor), &bytes);
+        let mut signatures = if doc.signatures.is_empty() { Vec::new() } else { signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache) };
+        doc.display = display_bytes(Some(editor), &bytes, &mut signatures);
+        doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
         Ok(())
@@ -3641,10 +3656,9 @@ impl Session {
             doc.marks = pdfcraft_edit::marks_present(&editor.cos);
         }
         doc.info.file_size = bytes.len();
-        if !doc.signatures.is_empty() {
-            doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        }
-        doc.display = display_bytes(Some(editor), &bytes);
+        let mut signatures = if doc.signatures.is_empty() { Vec::new() } else { signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache) };
+        doc.display = display_bytes(Some(editor), &bytes, &mut signatures);
+        doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
         doc.fonts_stale = true;
@@ -3711,8 +3725,9 @@ impl Session {
         doc.marks = marker_scan.marks;
         doc.added = marker_scan.added;
         doc.links = pdfcraft_annot::links::list(&editor.cos);
-        doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        doc.display = display_bytes(Some(editor), &bytes);
+        let mut signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
+        doc.display = display_bytes(Some(editor), &bytes, &mut signatures);
+        doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         doc.bytes = bytes;
         Ok(())
@@ -4371,13 +4386,20 @@ impl Session {
     }
 
     /// Replace the trusted certificates and revalidate every open document's signatures.
+    /// Replace the trusted certificates, revalidate every open document's signatures,
+    /// and rebuild its display copy and renderer to match (working file untouched,
+    /// generation/dirty unchanged: trust alone is not an edit).
     pub fn set_trusted_certificates(&mut self, certs: Vec<pdfcraft_sign::Certificate>) {
         self.trust = Arc::new(TrustStore { certs });
         for doc in &mut self.docs {
             doc.trust = self.trust.clone();
-            if let Some(e) = doc.editor.as_ref() {
-                doc.signatures = signatures_of(&e.cos, &doc.bytes, &doc.trust, &doc.sig_cache);
-            }
+            let Some(editor) = doc.editor.as_mut() else { continue };
+            // Trust changes verdicts, and verdicts choose what the display copy shows:
+            // rebuild both together, as every other mutation path does.
+            let mut signatures = signatures_of(&editor.cos, &doc.bytes, &doc.trust, &doc.sig_cache);
+            doc.display = display_bytes(Some(editor), &doc.bytes, &mut signatures);
+            doc.signatures = Arc::new(signatures);
+            doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), doc.config.clone());
         }
     }
 

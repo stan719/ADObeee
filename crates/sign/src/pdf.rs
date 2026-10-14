@@ -446,6 +446,9 @@ pub struct SignatureInfo {
     pub timestamp_time: Option<Time>,
     pub status: Status,
     pub modification: Modification,
+    /// The display copy already shows this verdict inside the appearance (validated-state
+    /// layers rewritten for display); the page needs no overlay badge for it.
+    pub verdict_shown: bool,
     /// Acrobat-style sentences explaining the verdict, each one ready to read in English and ready to
     /// be said in another language (see [`Detail`]).
     pub details: Vec<Detail>,
@@ -466,7 +469,7 @@ impl SignatureInfo {
     }
 }
 
-fn text(doc: &Document, d: &Dict, key: &[u8]) -> Option<String> {
+pub(crate) fn text(doc: &Document, d: &Dict, key: &[u8]) -> Option<String> {
     let o = doc.resolve(d.get(key)?);
     let s = match &*o {
         Object::String(s) => s.to_text(),
@@ -606,6 +609,7 @@ pub fn list_cached(doc: &Document, bytes: &[u8], trust: &TrustStore, cache: &Dig
             timestamp_time: None,
             status: Status::Unknown,
             modification: Modification::None,
+            verdict_shown: false,
             details: Vec::new(),
         };
         if let Some(v) = v {
@@ -649,6 +653,7 @@ pub fn list_cached(doc: &Document, bytes: &[u8], trust: &TrustStore, cache: &Dig
             timestamp_time: None,
             status: Status::Unknown,
             modification: Modification::None,
+            verdict_shown: false,
             details: Vec::new(),
         };
         validate_doc_timestamp(doc, bytes, d, &mut info, cache, trust);

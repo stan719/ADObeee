@@ -2428,3 +2428,7 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+
+# Historical snapshot notice bar (View signed version / View revision).
+	You are viewing the signed version of “{from}” (revision {rev}). It is a snapshot: changes here won't affect the original.	Prohlížíte si podepsanou verzi dokumentu „{from}“ (revize {rev}). Je to snímek: změny zde neovlivní originál.
+	You are viewing revision {rev} of “{from}”. It is a snapshot: changes here won't affect the original.	Prohlížíte si revizi {rev} dokumentu „{from}“. Je to snímek: změny zde neovlivní originál.

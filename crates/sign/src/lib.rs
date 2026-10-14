@@ -20,6 +20,7 @@ pub mod pkcs12;
 pub mod revocation;
 mod rsa_pad;
 pub mod timestamp;
+mod verdict;
 #[cfg(target_os = "windows")]
 pub mod windows;
 pub mod x509;
@@ -33,6 +34,7 @@ pub use pdf::{
 };
 pub use pkcs12::DigitalId;
 pub use timestamp::{TimestampAuthority, TimestampQuery, TimestampToken};
+pub use verdict::{has_substitutable_appearances, show_valid_appearances};
 pub use x509::{Certificate, Name};
 
 #[derive(Debug, thiserror::Error)]
