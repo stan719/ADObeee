@@ -300,9 +300,7 @@ fn card(
                         r.request_focus();
                     }
                     ui.horizontal(|ui| {
-                        if ui
-                            .add(egui::Button::new(egui::RichText::new(tl!("Save")).color(Color32::WHITE)).fill(t.accent).corner_radius(12))
-                            .clicked()
+                        if ui.add(egui::Button::new(egui::RichText::new(tl!("Save")).color(t.on_accent)).fill(t.accent).corner_radius(12)).clicked()
                             && let Some((page, index, text)) = view.comments.editing.take()
                         {
                             edit = Some(Edit::SetAnnotationContents { page, index, text });
@@ -325,6 +323,14 @@ fn card(
                     }
                 }
                 if let Some((icon, label, c)) = status.and_then(status_badge) {
+                    let c = t.compatible(
+                        c,
+                        match label {
+                            "Rejected" => theme::ColorToken::Error,
+                            "Cancelled" => theme::ColorToken::TextMuted,
+                            _ => theme::ColorToken::Success,
+                        },
+                    );
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.add(icons::image(icon, 13.0, c));
@@ -382,7 +388,7 @@ fn card(
     let rect = frame.response.rect;
     if selected {
         let bar = egui::Rect::from_min_size(rect.min, vec2(4.0, rect.height()));
-        ui.painter().rect_filled(bar, CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 }, CARD_ACCENT);
+        ui.painter().rect_filled(bar, CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 }, t.compatible(CARD_ACCENT, theme::ColorToken::Accent));
         if std::mem::take(&mut view.comments.reveal) {
             frame.response.scroll_to_me(Some(Align::Center));
         }
@@ -457,7 +463,7 @@ fn card(
 /// A 26 pt round badge: a type glyph (comments) or initials (replies).
 fn avatar(ui: &mut egui::Ui, t: &Tokens, icon: Option<&str>, text: Option<&str>, color: Color32) {
     let (r, _) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::hover());
-    let bg = if t.dark() { Color32::from_gray(0x55) } else { Color32::from_gray(0xD8) };
+    let bg = t.compatible(if t.dark() { Color32::from_gray(0x55) } else { Color32::from_gray(0xD8) }, theme::ColorToken::Hover);
     ui.painter().circle_filled(r.center(), 12.0, bg);
     if let Some(i) = icon {
         icons::paint(ui, r, i, 13.0, legible(color, t));

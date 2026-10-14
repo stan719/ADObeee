@@ -1,4 +1,5 @@
 //! Measure objects: page-space clicks, live readings and persistent drawing scales.
+use crate::theme::ThemeContext as _;
 use crate::{LeftPanel, PdfCraftApp, QuickTool, canvas::DocView, theme::Tokens, widgets};
 use egui::{Color32, Pos2, Stroke};
 use pdfcraft_engine::{
@@ -380,7 +381,7 @@ fn panel_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, _t: &Tokens) {
     });
     let apply = ui.add_enabled(doc.allows_annotation(), egui::Button::new(tl!("Apply scale"))).clicked();
     if let Some(error) = &state.error {
-        ui.colored_label(Color32::from_rgb(190, 50, 50), error);
+        ui.colored_label(crate::theme::Tokens::get(ui.ctx()).compatible(Color32::from_rgb(190, 50, 50), crate::theme::ColorToken::Error), error);
     }
     ui.separator();
     let mut select = None;
@@ -391,8 +392,11 @@ fn panel_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, _t: &Tokens) {
             if !listing.unsupported.is_empty() {
                 let reasons: Vec<String> =
                     listing.unsupported.iter().map(|u| format!("{} {}: {}", tl!("Page"), u.page.saturating_add(1), u.reason)).collect();
-                ui.colored_label(Color32::from_rgb(190, 120, 30), format!("{}: {}", tl!("Unsupported measurements"), listing.unsupported.len()))
-                    .on_hover_text(reasons.join("\n"));
+                ui.colored_label(
+                    crate::theme::Tokens::get(ui.ctx()).compatible(Color32::from_rgb(190, 120, 30), crate::theme::ColorToken::Warning),
+                    format!("{}: {}", tl!("Unsupported measurements"), listing.unsupported.len()),
+                )
+                .on_hover_text(reasons.join("\n"));
             }
             egui::ScrollArea::vertical().id_salt("measurement-list").max_height(140.0).show(ui, |ui| {
                 for m in &listing.measurements {
@@ -403,7 +407,7 @@ fn panel_body(app: &mut PdfCraftApp, ui: &mut egui::Ui, _t: &Tokens) {
             });
         }
         Some(Err(e)) => {
-            ui.colored_label(Color32::from_rgb(190, 50, 50), e);
+            ui.colored_label(crate::theme::Tokens::get(ui.ctx()).compatible(Color32::from_rgb(190, 50, 50), crate::theme::ColorToken::Error), e);
         }
     }
     let export = ui.button(tl!("Export measurements as CSV")).clicked();

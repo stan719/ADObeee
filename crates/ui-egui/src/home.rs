@@ -1,6 +1,7 @@
 //! Home tab: recommended tools, open card, pinned folders and recent files (local only, never
 //! another app's list).
 
+use crate::theme::ThemeContext as _;
 use egui::{Align2, CornerRadius, Rect, Sense, Stroke, vec2};
 use pdfcraft_engine::catalog;
 
@@ -70,7 +71,8 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                             let fill = press.fill(t.card, t.hover, t.pressed);
                             ui.painter().rect(rect, CornerRadius::same(10), fill, Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
                             let body = rect.translate(press.offset());
-                            let color = egui::Color32::from_rgb(g.hue[0], g.hue[1], g.hue[2]);
+                            let color = crate::theme::Tokens::get(ui.ctx())
+                                .compatible(egui::Color32::from_rgb(g.hue[0], g.hue[1], g.hue[2]), crate::theme::ColorToken::AccentText);
                             icons::paint(ui, Rect::from_min_size(body.min + vec2(14.0, 14.0), vec2(22.0, 22.0)), g.icon, 21.0, color);
                             let mut title_job = egui::text::LayoutJob::simple_singleline(tl!(g.label).to_owned(), theme::semibold(13.5), t.text);
                             title_job.wrap =
@@ -177,7 +179,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     Rect::from_min_size(body.min + vec2(10.0, 11.0), vec2(24.0, 24.0)),
                     "file-text",
                     22.0,
-                    egui::Color32::from_rgb(0xE0, 0x3E, 0x3E),
+                    crate::theme::Tokens::get(ui.ctx()).compatible(egui::Color32::from_rgb(0xE0, 0x3E, 0x3E), crate::theme::ColorToken::Error),
                 );
                 // Room on the right for the remove button.
                 let detail = ui.painter().text(

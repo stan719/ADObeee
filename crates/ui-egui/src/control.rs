@@ -34,7 +34,7 @@
 //!   input leaves the previous selection unchanged. `ui.state.active.selected_pages` reports it.
 //!   `default-mode=all|read|edit|convert|sign` applies to future PDF opens; `mode` overrides it
 //!   for this session without changing the saved preference. `ui.state.default_mode` reports it.
-//!   `theme=light|dark|system` changes the saved theme preference; `ui.state.theme_preference`
+//!   `theme=light|dark|system|catppuccin|solarized|forest|ocean|sunset|paper-ink` changes the saved theme preference; `ui.state.theme_preference`
 //!   reports the choice and `ui.state.theme` reports the resolved light/dark colours.
 //! - `ui.open {path}`: accept a file open; native opens report `pending: true` until they
 //!   complete and are listed in `ui.state.pending_opens`.

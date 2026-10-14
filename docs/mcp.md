@@ -47,3 +47,17 @@ resources and their templates are preserved.
 Unknown top-level argument keys are refused with JSON-RPC `-32602` (invalid params) instead of
 being ignored, so a misspelled argument is reported rather than silently dropped. Clients that
 sent extra keys before get an error now.
+
+## Theme management
+
+Application themes are programmable through the existing `theme_list`,
+`theme_inspect`, `theme_create`, `theme_clone`, `theme_update`, `theme_rename`,
+`theme_activate`, `theme_delete`, `theme_export` and `theme_import` tools. They use
+an explicit root-confined `store` path and the same validated operations as the
+GUI. No graphical process is required. Compact mode discovers them with
+`tool_search`; normal `tools/call` and compact `tool_call` both work.
+
+Theme operation failures include `structuredContent.error.code` and `.message`.
+Contrast warnings are advisory; colors are never silently corrected. See
+[theme architecture and command schema](themes.md). Natural-language generation
+and the graphical custom-theme editor remain future work.

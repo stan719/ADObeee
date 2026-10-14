@@ -245,6 +245,70 @@ fn tool_table_is_well_formed() {
 }
 
 #[test]
+fn theme_tools_are_discoverable_and_expose_all_palette_keys() {
+    let all = tools();
+    let names = [
+        "theme_list",
+        "theme_inspect",
+        "theme_create",
+        "theme_clone",
+        "theme_update",
+        "theme_rename",
+        "theme_activate",
+        "theme_delete",
+        "theme_export",
+        "theme_import",
+    ];
+    for name in names {
+        let tool = all.iter().find(|tool| tool.name == name).unwrap_or_else(|| panic!("missing {name}"));
+        assert!(tool.input_schema["properties"]["store"].is_object(), "{name} needs explicit store storage");
+    }
+    let expected = [
+        "titlebar",
+        "chrome",
+        "panel",
+        "pasteboard",
+        "card",
+        "field",
+        "border",
+        "divider",
+        "text",
+        "text_muted",
+        "text_faint",
+        "icon",
+        "hover",
+        "pressed",
+        "selected",
+        "focus",
+        "selection_text",
+        "accent",
+        "accent_text",
+        "accent_soft",
+        "on_accent",
+        "badge_new",
+        "success",
+        "warning",
+        "error",
+        "info",
+        "notice_bg",
+        "notice_text",
+        "page_shadow",
+        "window_shadow",
+        "popup_shadow",
+    ];
+    for name in ["theme_create", "theme_update"] {
+        let actual: std::collections::BTreeSet<_> =
+            all.iter().find(|tool| tool.name == name).unwrap_or_else(|| panic!("missing {name}")).input_schema["properties"]["palette"]["properties"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect();
+        assert_eq!(actual, expected.into_iter().collect(), "{name} schema is the stable 31-token contract");
+    }
+}
+
+#[test]
 fn explicit_font_and_disjoint_ranges_save_reopen_through_tools() {
     let dir = workdir("font-ranges");
     std::fs::write(dir.join("inter.ttf"), include_bytes!("../../../assets/fonts/Inter-Regular.ttf")).unwrap();
@@ -992,6 +1056,19 @@ fn mcp_errors() {
     let failed = rpc(&mut s, 5, "tools/call", json!({ "name": "doc_open", "arguments": { "path": "/definitely/not/here.pdf" } }));
     assert_eq!(failed["result"]["isError"], true);
     assert!(failed["result"]["content"][0]["text"].as_str().unwrap().contains("here.pdf"));
+    let theme_root = std::env::temp_dir().join(format!("pdfcraft-mcp-errors-{}", std::process::id()));
+    std::fs::create_dir_all(&theme_root).unwrap();
+    let theme_failed = rpc(
+        &mut s,
+        7,
+        "tools/call",
+        json!({
+            "name": "theme_create", "arguments": { "store": theme_root.join("themes.json"), "name": "" }
+        }),
+    );
+    assert_eq!(theme_failed["result"]["isError"], true);
+    assert_eq!(theme_failed["result"]["structuredContent"]["error"]["code"], "invalid_args");
+    let _ = std::fs::remove_dir_all(theme_root);
     let bad: Value = serde_json::from_str(&s.handle_line("{not json").unwrap()).unwrap();
     assert_eq!(bad["error"]["code"], -32700);
 }

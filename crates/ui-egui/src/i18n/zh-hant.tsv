@@ -2087,6 +2087,13 @@
 	A selected field has no widget on any page, so the fields can't be edited together.	某個所選欄位在任何頁面上都沒有控制項，因此無法一起編輯這些欄位。
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	（{n} 張以可繪製的最大尺寸 {dpi} dpi 匯出）
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	紙與墨
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	已選取 {n} 個物件
 @plural	{n} field name collides with earlier files and will be renamed: {list}|{n} field names collide with earlier files and will be renamed: {list}	{n} 個欄位名稱與先前的檔案衝突，將被重新命名: {list}
@@ -2156,6 +2163,8 @@ animation effects	Off	關
 	Original	原始
 	Greyscale	灰階
 	Black and white	黑白
+
+	Custom theme	自訂佈景主題
 	This printer's driver doesn't take two-sided settings from other programs, so its own setting applies. Change it in Properties…	此印表機的驅動程式不接受其他程式的雙面列印設定，因此使用其自身設定。變更位置：屬性…
 	Browser's print dialog	瀏覽器的列印對話框
 	Copies, two-sided printing and colour are chosen in the browser's print dialog.	份數、雙面列印和色彩在瀏覽器的列印對話框中選擇。

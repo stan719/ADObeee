@@ -270,6 +270,12 @@ impl PdfCraftApp {
             "view.theme.system" => self.set_theme_preference(ThemePreference::System),
             "view.theme.light" => self.set_theme_preference(ThemePreference::Light),
             "view.theme.dark" => self.set_theme_preference(ThemePreference::Dark),
+            "view.theme.catppuccin" => self.set_theme_preference(ThemePreference::Catppuccin),
+            "view.theme.solarized" => self.set_theme_preference(ThemePreference::Solarized),
+            "view.theme.forest" => self.set_theme_preference(ThemePreference::Forest),
+            "view.theme.ocean" => self.set_theme_preference(ThemePreference::Ocean),
+            "view.theme.sunset" => self.set_theme_preference(ThemePreference::Sunset),
+            "view.theme.paper-ink" => self.set_theme_preference(ThemePreference::PaperInk),
             "comment.list" => self.choose_right_panel(Some(RightPanel::Comments)),
             tool if crate::comments::CommentTool::from_command(tool).is_some() => {
                 let Some(tool) = crate::comments::CommentTool::from_command(tool) else { return false };

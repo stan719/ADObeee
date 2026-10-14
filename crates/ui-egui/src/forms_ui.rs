@@ -6,6 +6,7 @@
 
 use std::collections::HashSet;
 
+use crate::theme::ThemeContext as _;
 use egui::{Color32, CornerRadius, Rect, Stroke, vec2};
 use pdfcraft_engine::{Edit, FieldValue, FormField, FormFieldKind, FormWidget, field_flags};
 use pdfcraft_render::DocInfo;

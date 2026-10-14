@@ -178,7 +178,7 @@ fn guarded(a: &mut Automation, tool: &str, args: &Value) -> std::result::Result<
     match result {
         Ok(Ok(_)) => Ok(()),
         // Any ToolError is a good outcome: the agent is told what was wrong.
-        Ok(Err(ToolError::UnknownTool(_) | ToolError::InvalidArgs(_) | ToolError::Failed(_))) => Ok(()),
+        Ok(Err(ToolError::UnknownTool(_) | ToolError::InvalidArgs(_) | ToolError::Failed(_) | ToolError::Theme { .. })) => Ok(()),
         Err(panic) => {
             let what = panic
                 .downcast_ref::<&str>()

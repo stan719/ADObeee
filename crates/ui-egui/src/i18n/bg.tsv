@@ -2170,6 +2170,13 @@ action wizard	Start	Старт
 	A selected field has no widget on any page, so the fields can't be edited together.	Едно от избраните полета няма елемент на нито една страница, затова полетата не могат да се редактират заедно.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} с {dpi} dpi, най-голямата резолюция, с която могат да бъдат изобразени)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Хартия и мастило
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	Избран е {n} обект|Избрани са {n} обекта
 	Drag the selection to move it. Esc clears the selection.	Плъзнете избраното, за да го преместите. Esc премахва избора.
@@ -2246,6 +2253,8 @@ animation effects	Off	Изключени
 	Original	Оригинал
 	Greyscale	Нива на сивото
 	Black and white	Черно-бяло
+
+	Custom theme	Персонализирана тема
 	Reading colours	Цветове за четене
 	Replace document colours	Замяна на цветовете на документа
 	Black on white	Черно на бяло

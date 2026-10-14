@@ -2231,6 +2231,13 @@ certificate	Subject	Власник сертифіката
 	A selected field has no widget on any page, so the fields can't be edited together.	Одне з вибраних полів не має віджета на жодній сторінці, тому поля не можна редагувати разом.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} — з роздільністю {dpi} dpi, найбільшою, з якою їх можна відобразити)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Папір і чорнило
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	Виділено {n} об’єкт|Виділено {n} об’єкти|Виділено {n} об’єктів
 	Drag the selection to move it. Esc clears the selection.	Перетягніть виділення, щоб перемістити його. Esc скасовує виділення.
@@ -2305,6 +2312,8 @@ animation effects	Off	Вимкнено
 	Original	Оригінал
 	Greyscale	Відтінки сірого
 	Black and white	Чорно-білий
+
+	Custom theme	Власна тема
 	Reading colours	Кольори для читання
 	Replace document colours	Замінити кольори документа
 	Black on white	Чорний на білому

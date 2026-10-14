@@ -6,127 +6,23 @@ use std::sync::Arc;
 use egui::epaint::text::{FontTweak, HintingTarget, SmoothHinting};
 use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Rect, Response, Stroke, Vec2, Visuals};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-pub enum ThemeKind {
-    #[default]
-    Light,
-    Dark,
-}
+pub use pdfcraft_themes::*;
+pub type Tokens = Palette;
 
-/// The saved user choice, independent of the light/dark colours currently displayed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-pub enum ThemePreference {
-    System,
-    #[default]
-    Light,
-    Dark,
+/// Egui context access stays in the renderer adapter, outside the shared model.
+pub trait ThemeContext {
+    fn get(ctx: &egui::Context) -> Self;
 }
-
-impl ThemePreference {
-    /// The colours to draw. `system` is what the operating system says, `None` when it says
-    /// nothing; `fallback` is supplied by the caller. PdfCraft uses Light for an unknown desktop.
-    pub fn resolve(self, system: Option<bool>, fallback: ThemeKind) -> ThemeKind {
-        match self {
-            Self::Light => ThemeKind::Light,
-            Self::Dark => ThemeKind::Dark,
-            Self::System => match system {
-                Some(true) => ThemeKind::Dark,
-                Some(false) => ThemeKind::Light,
-                None => fallback,
-            },
-        }
+impl ThemeContext for Palette {
+    fn get(ctx: &egui::Context) -> Self {
+        ctx.data(|d| d.get_temp::<Self>(egui::Id::new("pdfcraft-theme"))).unwrap_or_else(|| Self::for_kind(ThemeKind::Light))
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Tokens {
-    pub kind: ThemeKind,
-    /// Title/tab strip.
-    pub titlebar: Color32,
-    /// Mode bar, panels.
-    pub chrome: Color32,
-    pub panel: Color32,
-    /// Document area behind pages.
-    pub pasteboard: Color32,
-    pub card: Color32,
-    pub border: Color32,
-    pub divider: Color32,
-    pub text: Color32,
-    pub text_muted: Color32,
-    pub text_faint: Color32,
-    pub icon: Color32,
-    pub hover: Color32,
-    pub pressed: Color32,
-    pub selected: Color32,
-    pub accent: Color32,
-    pub accent_text: Color32,
-    pub accent_soft: Color32,
-    pub field: Color32,
-    pub badge_new: Color32,
-    pub page_shadow: Color32,
-    pub radius: u8,
-}
-
-impl Tokens {
-    pub fn for_kind(kind: ThemeKind) -> Self {
-        match kind {
-            ThemeKind::Light => Self {
-                kind,
-                titlebar: Color32::from_rgb(0xE9, 0xE9, 0xEB),
-                chrome: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                panel: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                pasteboard: Color32::from_rgb(0xF1, 0xF1, 0xF3),
-                card: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                border: Color32::from_rgb(0xDA, 0xDA, 0xDE),
-                divider: Color32::from_rgb(0xE8, 0xE8, 0xEB),
-                text: Color32::from_rgb(0x22, 0x22, 0x26),
-                text_muted: Color32::from_rgb(0x5E, 0x5E, 0x66),
-                text_faint: Color32::from_rgb(0x6B, 0x6B, 0x73),
-                icon: Color32::from_rgb(0x44, 0x44, 0x4B),
-                hover: Color32::from_rgb(0xF0, 0xF0, 0xF3),
-                pressed: Color32::from_rgb(0xE4, 0xE4, 0xE9),
-                selected: Color32::from_rgb(0xE6, 0xEE, 0xFD),
-                accent: Color32::from_rgb(0x1B, 0x63, 0xE0),
-                accent_text: Color32::from_rgb(0x17, 0x55, 0xC4),
-                accent_soft: Color32::from_rgb(0xE3, 0xEC, 0xFD),
-                field: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-                badge_new: Color32::from_rgb(0x1B, 0x63, 0xE0),
-                page_shadow: Color32::from_black_alpha(34),
-                radius: 6,
-            },
-            ThemeKind::Dark => Self {
-                kind,
-                titlebar: Color32::from_rgb(0x1B, 0x1B, 0x1E),
-                chrome: Color32::from_rgb(0x26, 0x26, 0x2A),
-                panel: Color32::from_rgb(0x26, 0x26, 0x2A),
-                pasteboard: Color32::from_rgb(0x19, 0x19, 0x1C),
-                card: Color32::from_rgb(0x2E, 0x2E, 0x33),
-                border: Color32::from_rgb(0x3C, 0x3C, 0x43),
-                divider: Color32::from_rgb(0x33, 0x33, 0x39),
-                text: Color32::from_rgb(0xEC, 0xEC, 0xEF),
-                text_muted: Color32::from_rgb(0xAE, 0xAE, 0xB6),
-                text_faint: Color32::from_rgb(0x97, 0x97, 0x9E),
-                icon: Color32::from_rgb(0xD4, 0xD4, 0xDA),
-                hover: Color32::from_rgb(0x34, 0x34, 0x3A),
-                pressed: Color32::from_rgb(0x3E, 0x3E, 0x45),
-                selected: Color32::from_rgb(0x23, 0x3A, 0x63),
-                accent: Color32::from_rgb(0x4B, 0x8B, 0xF5),
-                accent_text: Color32::from_rgb(0x8C, 0xB6, 0xFA),
-                accent_soft: Color32::from_rgb(0x24, 0x36, 0x57),
-                field: Color32::from_rgb(0x1E, 0x1E, 0x22),
-                badge_new: Color32::from_rgb(0x3D, 0x7D, 0xEE),
-                page_shadow: Color32::from_black_alpha(120),
-                radius: 6,
-            },
-        }
-    }
-
-    pub fn get(ctx: &egui::Context) -> Self {
-        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::new("pdfcraft-theme"))).unwrap_or_else(|| Self::for_kind(ThemeKind::Light))
-    }
-
-    pub fn dark(&self) -> bool {
-        self.kind == ThemeKind::Dark
+pub fn system_kind(theme: egui::Theme) -> ThemeKind {
+    match theme {
+        egui::Theme::Light => ThemeKind::Light,
+        egui::Theme::Dark => ThemeKind::Dark,
     }
 }
 
@@ -377,12 +273,39 @@ pub fn semibold(size: f32) -> FontId {
 }
 
 pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
-    // Keep the native window inherited. A concrete egui theme pins macOS's
-    // NSWindow appearance and prevents winit from delivering ThemeChanged.
-    // Our saved choice owns the palette; both egui branches receive it below.
+    apply_palette(ctx, Tokens::for_kind(kind));
+}
+
+/// Bound GUI label work without changing the stored name or its stable ID.
+pub(crate) fn display_name(name: &str) -> String {
+    let mut characters = name.chars();
+    let mut label: String = characters.by_ref().take(160).collect();
+    if characters.next().is_some() {
+        label.push('…');
+    }
+    label
+}
+
+/// Resolve derived button colors once per palette application, never per painted button.
+pub fn button_fills(ctx: &egui::Context) -> PrimaryButtonFills {
+    let id = egui::Id::new("pdfcraft-primary-button-fills");
+    if let Some(fills) = ctx.data(|data| data.get_temp::<PrimaryButtonFills>(id)) {
+        return fills;
+    }
+    let fills = primary_button_fills(&Tokens::get(ctx));
+    ctx.data_mut(|data| data.insert_temp(id, fills));
+    fills
+}
+
+pub fn apply_palette(ctx: &egui::Context, t: Palette) {
+    // Keep native appearance inherited so OS changes continue reaching winit.
+    // Both egui style branches receive the selected palette below.
     ctx.set_theme(egui::ThemePreference::System);
-    let t = Tokens::for_kind(kind);
-    ctx.data_mut(|d| d.insert_temp(egui::Id::new("pdfcraft-theme"), t));
+    let fills = primary_button_fills(&t);
+    ctx.data_mut(|d| {
+        d.insert_temp(egui::Id::new("pdfcraft-theme"), t);
+        d.insert_temp(egui::Id::new("pdfcraft-primary-button-fills"), fills);
+    });
     let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
     v.panel_fill = t.panel;
     v.window_fill = t.card;
@@ -395,8 +318,8 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     v.override_text_color = Some(t.text);
     v.window_corner_radius = CornerRadius::same(10);
     v.menu_corner_radius = CornerRadius::same(8);
-    v.window_shadow = egui::Shadow { offset: [0, 8], blur: 28, spread: 0, color: Color32::from_black_alpha(if t.dark() { 110 } else { 38 }) };
-    v.popup_shadow = egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha(if t.dark() { 90 } else { 30 }) };
+    v.window_shadow = egui::Shadow { offset: [0, 8], blur: 28, spread: 0, color: t.window_shadow };
+    v.popup_shadow = egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: t.popup_shadow };
     for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
         w.corner_radius = CornerRadius::same(t.radius);
         w.fg_stroke.color = t.text;
@@ -413,6 +336,38 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     // Stock buttons (menus, dialogs) use the same pointing hand as the custom chrome.
     v.interact_cursor = Some(egui::CursorIcon::PointingHand);
     v.widgets.open.weak_bg_fill = t.hover;
+    let original = Palette::for_kind(t.kind);
+    let changed = |token: ColorToken| !t.legacy || token.get(&t) != token.get(&original);
+    if changed(ColorToken::TextMuted) {
+        v.weak_text_color = Some(t.text_muted);
+        v.ime_composition.inactive_underline_stroke.color = t.text_muted;
+    }
+    if changed(ColorToken::Field) {
+        v.code_bg_color = t.field;
+    }
+    if changed(ColorToken::Warning) {
+        v.warn_fg_color = t.warning;
+    }
+    if changed(ColorToken::Error) {
+        v.error_fg_color = t.error;
+    }
+    if changed(ColorToken::SelectionText) {
+        v.selection.stroke.color = t.selection_text;
+    }
+    if changed(ColorToken::Focus) {
+        v.text_cursor.stroke.color = t.focus;
+        v.ime_composition.active_underline_stroke.color = t.focus;
+        v.widgets.active.bg_stroke = Stroke::new(1.0, t.focus);
+        v.widgets.hovered.bg_stroke = Stroke::new(1.0, t.focus);
+        v.widgets.open.bg_stroke = Stroke::new(1.0, t.focus);
+    }
+    if changed(ColorToken::Panel) {
+        v.widgets.noninteractive.bg_fill = t.panel;
+        v.widgets.noninteractive.weak_bg_fill = t.panel;
+    }
+    if changed(ColorToken::Hover) {
+        v.widgets.open.bg_fill = t.hover;
+    }
     // Crisper text at 100–150 % scaling (#76): glyphs sit on whole pixels instead of being
     // rendered at quarter-pixel offsets, which egui notes blurs them. In the light theme, a mild
     // gamma darkens the antialiased edges of dark text (egui's default is linear, which reads thin
@@ -631,18 +586,18 @@ mod tests {
     /// "Use system setting" draws what the operating system says, dark or light.
     #[test]
     fn following_the_system_draws_what_the_system_says() {
-        assert_eq!(ThemePreference::System.resolve(Some(true), ThemeKind::Light), ThemeKind::Dark);
-        assert_eq!(ThemePreference::System.resolve(Some(false), ThemeKind::Dark), ThemeKind::Light);
+        assert_eq!(ThemePreference::System.resolve(Some(ThemeKind::Dark), ThemeKind::Light), ThemeKind::Dark);
+        assert_eq!(ThemePreference::System.resolve(Some(ThemeKind::Light), ThemeKind::Dark), ThemeKind::Light);
     }
 
-    /// An operating system that says nothing leaves the last choice standing, and an explicit
+    /// An operating system that says nothing uses the caller’s fallback, and an explicit
     /// Light or Dark is never overridden by what the system says.
     #[test]
-    fn an_answerless_system_leaves_the_choice_and_an_explicit_one_stands() {
+    fn an_answerless_system_uses_the_fallback_and_an_explicit_one_stands() {
         assert_eq!(ThemePreference::System.resolve(None, ThemeKind::Light), ThemeKind::Light);
         assert_eq!(ThemePreference::System.resolve(None, ThemeKind::Dark), ThemeKind::Dark);
-        assert_eq!(ThemePreference::Light.resolve(Some(true), ThemeKind::Dark), ThemeKind::Light);
-        assert_eq!(ThemePreference::Dark.resolve(Some(false), ThemeKind::Light), ThemeKind::Dark);
+        assert_eq!(ThemePreference::Light.resolve(Some(ThemeKind::Dark), ThemeKind::Dark), ThemeKind::Light);
+        assert_eq!(ThemePreference::Dark.resolve(Some(ThemeKind::Light), ThemeKind::Light), ThemeKind::Dark);
     }
 
     /// WCAG 2 contrast ratio between two opaque colours.

@@ -12,6 +12,7 @@
 //! Everything is turned into `pdfcraft_engine::Edit`s, queued on the view as `pending_edit` and
 //! applied by the app, so each change is one undo step.
 
+use crate::theme::ThemeContext as _;
 use egui::{Color32, CornerRadius, Pos2, Rect, Sense, Stroke, pos2, vec2};
 use pdfcraft_engine::{Edit, LineEnding, Markup, NewAnnotation, NoteIcon, ReviewState, Rgb, Shape, Style};
 use pdfcraft_render::{Annotation, DocInfo, PageInfo, PageText};
@@ -1221,7 +1222,7 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
                     if ui
                         .add_enabled(
                             can_post,
-                            egui::Button::new(egui::RichText::new(tl!("Post")).color(Color32::WHITE)).fill(t.accent).corner_radius(14),
+                            egui::Button::new(egui::RichText::new(tl!("Post")).color(t.on_accent)).fill(t.accent).corner_radius(14),
                         )
                         .clicked()
                         || (enter && can_post)

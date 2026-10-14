@@ -26,6 +26,7 @@ mod reading;
 mod redact;
 mod signing;
 mod text_cache;
+mod themes;
 mod tools;
 
 use std::collections::HashMap;
@@ -57,6 +58,8 @@ pub enum ToolError {
     InvalidArgs(String),
     /// The tool ran and failed (the message is for the agent to read).
     Failed(String),
+    /// A theme operation failed with a stable machine-readable code.
+    Theme { code: String, message: String },
 }
 
 impl std::fmt::Display for ToolError {
@@ -64,6 +67,7 @@ impl std::fmt::Display for ToolError {
         match self {
             ToolError::UnknownTool(t) => write!(f, "unknown tool {t:?}"),
             ToolError::InvalidArgs(m) | ToolError::Failed(m) => f.write_str(m),
+            ToolError::Theme { code, message } => write!(f, "{code}: {message}"),
         }
     }
 }
@@ -166,9 +170,13 @@ impl Automation {
             return Err(ToolError::InvalidArgs("arguments must be a JSON object".into()));
         }
         let def = tools::find(name).ok_or_else(|| ToolError::UnknownTool(name.into()))?;
-        tools::check_args(def, args)?;
+        tools::check_args(def, args).map_err(|error| {
+            if name.starts_with("theme_") { ToolError::Theme { code: "invalid_args".into(), message: error.to_string() } } else { error }
+        })?;
         let a = Args(args);
         let out = match name {
+            "theme_list" | "theme_inspect" | "theme_create" | "theme_clone" | "theme_update" | "theme_rename" | "theme_activate" | "theme_delete"
+            | "theme_export" | "theme_import" => return self.theme_call(name, args).map(|v| vec![Content::Json(v)]),
             "doc_open" => self.doc_open(&a)?,
             "doc_batch" => self.doc_batch(&a)?,
             "doc_list" => json!({ "documents": self.session.docs().iter().map(summary).collect::<Vec<_>>() }),

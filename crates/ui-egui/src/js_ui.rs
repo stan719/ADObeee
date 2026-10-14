@@ -1,6 +1,7 @@
 //! Acrobat JavaScript in the shell: what scripts ask for (alerts, printing, navigation, links),
 //! the JavaScript console (⌘J), Document JavaScripts, and Preferences ▸ JavaScript.
 
+use crate::theme::ThemeContext as _;
 use egui::{Align, Layout};
 use pdfcraft_engine::js::{JsOutput, Request};
 use pdfcraft_engine::{DocId, Edit};
@@ -534,7 +535,11 @@ fn date_format(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) {
         match app.date_text(Some(&text)) {
             Ok(today) => ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Today: {date}"), &[("date", &today)])).color(t.text_muted)),
             // The engine's reason, in English.
-            Err(e) => ui.label(egui::RichText::new(e).color(egui::Color32::from_rgb(0xD1, 0x3B, 0x3B))),
+            Err(e) => {
+                ui.label(egui::RichText::new(e).color(
+                    crate::theme::Tokens::get(ui.ctx()).compatible(egui::Color32::from_rgb(0xD1, 0x3B, 0x3B), crate::theme::ColorToken::Error),
+                ))
+            }
         };
     });
     // Fill & Sign refuses a date it would save as "?"; say so before anyone tries.
@@ -547,7 +552,7 @@ fn date_format(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) {
                 ),
                 &[("chars", &bad)],
             ))
-            .color(egui::Color32::from_rgb(0xD1, 0x3B, 0x3B)),
+            .color(crate::theme::Tokens::get(ui.ctx()).compatible(egui::Color32::from_rgb(0xD1, 0x3B, 0x3B), crate::theme::ColorToken::Error)),
         );
     }
     ui.horizontal(|ui| {

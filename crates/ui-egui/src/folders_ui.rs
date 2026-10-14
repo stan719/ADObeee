@@ -6,6 +6,7 @@
 //! listed on a worker thread and at most every few seconds while Home shows, so a slow, huge or
 //! offline synced folder never blocks the frame.
 
+use crate::theme::ThemeContext as _;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::SystemTime;
 
@@ -362,7 +363,7 @@ pub(crate) fn section(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 Rect::from_min_size(rect.min + vec2(32.0, 9.0), vec2(20.0, 20.0)),
                 "file-text",
                 18.0,
-                egui::Color32::from_rgb(0xE0, 0x3E, 0x3E),
+                crate::theme::Tokens::get(ui.ctx()).compatible(egui::Color32::from_rgb(0xE0, 0x3E, 0x3E), crate::theme::ColorToken::Error),
             );
             let size = crate::panels::human_size(usize::try_from(f.size).unwrap_or(usize::MAX));
             let when = f.modified.map(crate::combine_ui::ago).unwrap_or_default();

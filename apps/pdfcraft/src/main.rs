@@ -5,7 +5,7 @@
 //!
 //! View options (applied after the files open; also the seed of the UI control channel):
 //! `--page N  --zoom 150  --layout single|continuous|two-up|two-page  --continuous on|off  --panel comments|bookmarks|pages|fields|layers|attachments|none
-//!  --theme light|dark|system  --language auto|<code>  --mode all|read|edit|convert|sign  --tool <catalogue id>  --left open|closed
+//!  --theme light|dark|system|catppuccin|solarized|forest|ocean|sunset|paper-ink  --language auto|<code>  --mode all|read|edit|convert|sign  --tool <catalogue id>  --left open|closed
 //!  --organize on  --fields on  --dialog properties|shortcuts|about  --palette <query>  --home on
 //!  --cover on|off  --default-layout single|continuous|two-up|two-page  --default-continuous on|off  --default-zoom fit-width|fit-page|<percent>
 //!  --combine-view grid|list  --combine-zoom 60..200`
@@ -350,6 +350,13 @@ fn app_creator<'a>(
         app.reopen_last_session = reopen::system_default();
         if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string(LEGACY_STORAGE_KEY))) {
             app.restore(&json);
+        }
+        if let Some(dir) = settings_dir() {
+            if let Err(error) = std::fs::create_dir_all(&dir) {
+                app.notify(format!("Theme storage: {error}"));
+            } else if let Err(error) = app.enable_background_theme_store(dir.join("themes.json")) {
+                app.notify(format!("Theme storage: {error}"));
+            }
         }
         app.integrated_titlebar = integrated;
         app.window_controls = window_controls;

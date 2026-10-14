@@ -3,6 +3,7 @@
 //! build.rs from contributors/contributors.json (craftrules standards/contributors.md); nothing is
 //! read at run time.
 
+use crate::theme::ThemeContext as _;
 use std::cmp::Ordering;
 
 use egui::RichText;

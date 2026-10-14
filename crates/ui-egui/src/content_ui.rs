@@ -3,6 +3,7 @@
 //! (images keep their proportions), double-click text to retype it, format it from the panel,
 //! Delete to remove it. Each change is one undoable engine edit.
 
+use crate::theme::ThemeContext as _;
 use egui::{Color32, CornerRadius, Pos2, Rect, Stroke};
 use pdfcraft_engine::{Added, AddedContent, AddedText, Edit, FontFamily, TextAlign};
 use pdfcraft_render::DocInfo;

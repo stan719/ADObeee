@@ -58,3 +58,12 @@ dependencies change (plan/adr/0002, 0006).
 Vendored (vendor/, patched; see vendor/README.md):
 - hayro 0.7.1 — Apache-2.0 OR MIT, Copyright the hayro authors (licence files kept in vendor/hayro).
 - hayro-interpret 0.7.0 — Apache-2.0 OR MIT, Copyright the hayro authors (LICENSE-APACHE, LICENSE-MIT kept in vendor/hayro-interpret).
+
+Application palette inspirations:
+- Catppuccin Mocha, Copyright (c) 2021 Catppuccin, MIT.
+  Source: https://github.com/catppuccin/catppuccin/tree/d09787dd98ca6fba08af5ef2ae94a7e09f17daca
+  License: docs/licenses/LICENSE-catppuccin.txt.
+- Solarized, Copyright (c) 2011 Ethan Schoonover, MIT.
+  Source: https://github.com/altercation/solarized/tree/62f656a02f93c5190a8753159e34b385588d5ff3
+  License: docs/licenses/LICENSE-solarized.txt.
+The application mappings and contrast adjustments are PdfCraft contributor work.

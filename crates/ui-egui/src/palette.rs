@@ -1,6 +1,7 @@
 //! ⌘K command palette: every registered command (with its shortcut) and every tool in the
 //! catalogue, with a fuzzy-ish substring match.
 
+use crate::theme::ThemeContext as _;
 use egui::{Align2, CornerRadius, Rect, Sense, Stroke, vec2};
 use pdfcraft_engine::catalog::{Availability, TOOL_GROUPS};
 

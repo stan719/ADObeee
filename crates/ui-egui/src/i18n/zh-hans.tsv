@@ -2175,6 +2175,13 @@
 	A selected field has no widget on any page, so the fields can't be edited together.	某个所选字段在任何页面上都没有控件，因此无法一起编辑这些字段。
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	（{n} 张以可绘制的最大尺寸 {dpi} dpi 导出）
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	纸与墨
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	已选择 {n} 个对象
 	Drag the selection to move it. Esc clears the selection.	拖动选区即可移动。按 Esc 清除选择。
@@ -2247,6 +2254,8 @@ animation effects	Off	关
 	Original	原始
 	Greyscale	灰度
 	Black and white	黑白
+
+	Custom theme	自定义主题
 	Reading colours	阅读配色
 	Replace document colours	替换文档颜色
 	Black on white	白底黑字

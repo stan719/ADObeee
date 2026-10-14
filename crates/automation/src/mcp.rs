@@ -156,6 +156,7 @@ impl McpServer {
                     return Ok(match self.automation.call(&inner, &inner_args) {
                         Ok(content) => tool_content(&inner, content),
                         Err(ToolError::UnknownTool(t)) => tool_error(&format!("unknown tool {t:?}; use tool_search to find the right name")),
+                        Err(ToolError::Theme { code, message }) => coded_tool_error(&code, &message),
                         Err(e) => tool_error(&e.to_string()),
                     });
                 }
@@ -171,6 +172,7 @@ impl McpServer {
                 match self.automation.call(name, &args) {
                     Ok(content) => Ok(tool_content(name, content)),
                     Err(ToolError::UnknownTool(t)) => Err((INVALID_PARAMS, format!("unknown tool {t:?}"))),
+                    Err(ToolError::Theme { code, message }) => Ok(coded_tool_error(&code, &message)),
                     Err(e) => Ok(tool_error(&e.to_string())),
                 }
             }
@@ -344,6 +346,11 @@ fn tool_content(name: &str, content: Vec<Content>) -> Value {
 /// A failed tool call, as the agent should read it.
 fn tool_error(message: &str) -> Value {
     json!({ "content": [{ "type": "text", "text": message }], "isError": true })
+}
+
+fn coded_tool_error(code: &str, message: &str) -> Value {
+    json!({ "content": [{ "type": "text", "text": message }], "isError": true,
+        "structuredContent": { "error": { "code": code, "message": message } } })
 }
 
 /// The resource behind a `pdfcraft://` URI.

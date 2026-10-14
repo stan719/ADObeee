@@ -2124,6 +2124,13 @@
 	A selected field has no widget on any page, so the fields can't be edited together.	У одного из выбранных полей нет виджета ни на одной странице, поэтому поля нельзя изменить вместе.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} — с разрешением {dpi} dpi, максимальным, с каким их можно отрисовать)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Бумага и чернила
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	Выделен {n} объект|Выделено {n} объекта|Выделено {n} объектов
 	Drag the selection to move it. Esc clears the selection.	Перетащите выделение, чтобы переместить его. Esc снимает выделение.
@@ -2196,6 +2203,8 @@ animation effects	Off	Выкл
 	Original	Оригинал
 	Greyscale	Оттенки серого
 	Black and white	Чёрно-белый
+
+	Custom theme	Пользовательская тема
 	Reading colours	Цвета для чтения
 	Replace document colours	Заменить цвета документа
 	Black on white	Чёрный на белом

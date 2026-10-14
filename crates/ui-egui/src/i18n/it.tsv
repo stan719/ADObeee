@@ -2218,6 +2218,13 @@ signature pad	Type	Digita
 	Margins	Margini
 	For page sizes and margins.	Per formati pagina e margini.
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Carta e inchiostro
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} oggetto selezionato|{n} oggetti selezionati
 	Drag the selection to move it. Esc clears the selection.	Trascina la selezione per spostarla. Esc annulla la selezione.
@@ -2292,6 +2299,8 @@ animation effects	Off	Disattivati
 	Original	Originale
 	Greyscale	Scala di grigi
 	Black and white	Bianco e nero
+
+	Custom theme	Tema personalizzato
 	Reading colours	Colori di lettura
 	Replace document colours	Sostituisci i colori del documento
 	Black on white	Nero su bianco

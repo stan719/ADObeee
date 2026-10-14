@@ -2207,6 +2207,13 @@ signature pad	Type	入力
 	A selected field has no widget on any page, so the fields can't be edited together.	選択したフィールドの一つがどのページにもウィジェットを持たないため、まとめて編集できません。
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	（{n} 件は描画できる最大サイズの {dpi} dpi で書き出しました）
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	紙とインク
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n}個のオブジェクトを選択中
 	Drag the selection to move it. Esc clears the selection.	選択範囲をドラッグして移動します。Escで選択を解除します。
@@ -2283,6 +2290,8 @@ animation effects	Off	オフ
 	Original	オリジナル
 	Greyscale	グレースケール
 	Black and white	白黒
+
+	Custom theme	カスタムテーマ
 	Reading colours	読書用の色
 	Replace document colours	文書の色を置き換える
 	Black on white	白地に黒

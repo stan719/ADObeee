@@ -1,6 +1,7 @@
 //! Vector icons: embedded Lucide SVGs, recoloured to white, rasterized by egui_extras at the exact
 //! on-screen pixel size, and tinted per use (PhotoCraft lesson: never use Unicode glyphs as icons).
 
+use crate::theme::ThemeContext as _;
 use std::sync::OnceLock;
 
 use craft_ui::buttons::{ButtonVisuals, IconButton, IconButtonStyle};
@@ -36,15 +37,18 @@ pub fn paint(ui: &egui::Ui, rect: Rect, name: &str, size: f32, tint: Color32) {
 /// Square icon button: transparent until hovered; `selected` gets the accent treatment.
 pub fn button(ui: &mut egui::Ui, name: &str, box_size: f32, selected: bool, tooltip: &str) -> Response {
     let t = Tokens::get(ui.ctx());
+    let disabled_icon = !t.legacy && !ui.is_enabled();
+    let normal_icon = if disabled_icon { t.text_faint } else { t.icon };
+    let selected_icon = if disabled_icon { t.text_faint } else { t.accent_text };
     // The shared button paints no fill of its own: the eased press wash below replaces it.
     let clear = |icon| ButtonVisuals { fill: Color32::TRANSPARENT, stroke: Stroke::NONE, icon };
     let style = IconButtonStyle {
-        normal: clear(t.icon),
-        hovered: clear(t.icon),
-        pressed: Some(clear(t.icon)),
-        selected: clear(t.accent_text),
+        normal: clear(normal_icon),
+        hovered: clear(normal_icon),
+        pressed: Some(clear(normal_icon)),
+        selected: clear(selected_icon),
         corner_radius: t.radius.into(),
-        focus_stroke: Stroke::new(1.0, t.accent),
+        focus_stroke: if t.overrides(crate::theme::ColorToken::Focus) { Stroke::new(1.5, t.focus) } else { Stroke::new(1.0, t.accent) },
     };
     let label = if tooltip.is_empty() { name } else { tooltip };
     // The wash eases from the response, so reserve its place under the icon and focus ring.

@@ -3943,6 +3943,7 @@ dependencies = [
  "pdfcraft-organize",
  "pdfcraft-platform",
  "pdfcraft-render",
+ "pdfcraft-themes",
  "pdfcraft-xfa",
  "png 0.18.1",
  "serde_json",
@@ -4266,6 +4267,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pdfcraft-themes"
+version = "0.7.1"
+dependencies = [
+ "ecolor",
+ "getrandom 0.4.3",
+ "pdfcraft-platform",
+ "ron",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "pdfcraft-ui-egui"
 version = "0.7.1"
 dependencies = [
@@ -4290,6 +4304,7 @@ dependencies = [
  "pdfcraft-model",
  "pdfcraft-platform",
  "pdfcraft-render",
+ "pdfcraft-themes",
  "pdfcraft-xfa",
  "png 0.18.1",
  "pollster 1.0.1",

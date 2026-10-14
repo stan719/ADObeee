@@ -2211,6 +2211,13 @@ signature pad	Type	Saisir
 	A selected field has no widget on any page, so the fields can't be edited together.	Un champ sélectionné n'a de widget sur aucune page : les champs ne peuvent pas être modifiés ensemble.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} à {dpi} ppp, la plus grande taille possible pour les dessiner)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Papier et encre
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} objet sélectionné|{n} objets sélectionnés
 	Drag the selection to move it. Esc clears the selection.	Faites glisser la sélection pour la déplacer. Échap annule la sélection.
@@ -2283,6 +2290,8 @@ animation effects	Off	Désactivés
 	Original	Original
 	Greyscale	Niveaux de gris
 	Black and white	Noir et blanc
+
+	Custom theme	Thème personnalisé
 	Reading colours	Couleurs de lecture
 	Replace document colours	Remplacer les couleurs du document
 	Black on white	Noir sur blanc

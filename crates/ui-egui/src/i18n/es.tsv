@@ -2207,6 +2207,13 @@ action wizard	Start	Iniciar
 	A selected field has no widget on any page, so the fields can't be edited together.	Un campo seleccionado no tiene ningún widget en ninguna página, así que los campos no se pueden editar juntos.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} a {dpi} ppp, el mayor tamaño al que se pueden dibujar)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Papel y tinta
+	Atelier	Atelier
+	Editorial	Editorial
 # What the layers below word for themselves, now that the engine hands the wording over apart from
 # the document's own words: `pdfcraft_a11y::{WORDINGS, REPORT_WORDS}`, `pdfcraft_preflight::WORDINGS`,
 # `pdfcraft_sign::pdf::{WORDINGS, kind::ALL}`, `pdfcraft_print::WORDINGS` and the engine's
@@ -2412,6 +2419,8 @@ animation effects	Off	Desactivados
 	Original	Original
 	Greyscale	Escala de grises
 	Black and white	Blanco y negro
+
+	Custom theme	Tema personalizado
 	This printer's driver doesn't take two-sided settings from other programs, so its own setting applies. Change it in Properties…	El controlador de esta impresora no acepta los ajustes de doble cara de otros programas, así que se aplica su propio ajuste. Cámbielo en Propiedades…
 	Browser's print dialog	Diálogo de impresión del navegador
 	Copies, two-sided printing and colour are chosen in the browser's print dialog.	Las copias, la impresión a doble cara y el color se eligen en el diálogo de impresión del navegador.

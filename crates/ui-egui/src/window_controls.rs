@@ -7,6 +7,7 @@
 //! thin zones along the window's edges resize it. Desktops with server-side decorations (KDE,
 //! Sway, Hyprland, X11) keep their own frame and never get here.
 
+use crate::theme::ThemeContext as _;
 use crate::theme::Tokens;
 use egui::viewport::ResizeDirection;
 use egui::{Align2, Color32, CursorIcon, Pos2, Rect, Sense, Stroke, Vec2};

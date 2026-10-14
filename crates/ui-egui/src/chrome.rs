@@ -1,5 +1,6 @@
 //! Window chrome: tab strip (with the integrated macOS title bar), mode bar, right rail.
 
+use crate::theme::ThemeContext as _;
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, vec2};
 
 use crate::canvas::{DocView, Fit, PageLayout};
@@ -274,16 +275,20 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         ThemePreference::System => ("monitor", tl!("Use system setting")),
                         ThemePreference::Light => ("sun", tl!("Light gray")),
                         ThemePreference::Dark => ("moon", tl!("Dark gray")),
+                        preference => ("palette", tl!(preference.label())),
                     };
                     let tip = format!("{}: {label}", tl!("Display theme"));
                     let response = icons::button(ui, icon, button, false, &tip);
-                    // A click cycles System, Light, Dark; a right-click opens the menu.
+                    // A click cycles the legacy System, Light and Dark choices; the context menu
+                    // exposes every built-in and custom theme.
                     if response.clicked() {
-                        app.execute(match app.theme_preference {
+                        let next = match app.theme_preference {
                             ThemePreference::System => "view.theme.light",
                             ThemePreference::Light => "view.theme.dark",
                             ThemePreference::Dark => "view.theme.system",
-                        });
+                            _ => "view.theme.system",
+                        };
+                        app.execute(next);
                     }
                     egui::Popup::context_menu(&response).id(response.id.with("theme_menu")).show(|ui| appearance_menu(app, ui));
                     if icons::button(ui, "circle-help", button, false, tl!("Keyboard shortcuts")).clicked() {
@@ -300,16 +305,22 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
 
 /// Both theme entry points use the same choices and command path.
 fn theme_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
-    for (preference, command, label) in [
-        (ThemePreference::System, "view.theme.system", "Use system setting"),
-        (ThemePreference::Light, "view.theme.light", "Light gray"),
-        (ThemePreference::Dark, "view.theme.dark", "Dark gray"),
-    ] {
-        if ui.add(widgets::radio(app.theme_preference == preference, tl!(label))).clicked() {
-            app.execute(command);
+    for preference in ThemePreference::ALL {
+        if ui.add(widgets::radio(app.theme_preference == preference, tl!(preference.label()))).clicked() {
+            app.execute(&format!("view.theme.{}", preference.id()));
             ui.close();
         }
     }
+    let custom = app.theme_choices();
+    egui::ScrollArea::vertical().max_height(300.0).show_rows(ui, ui.spacing().interact_size.y, custom.len(), |ui, rows| {
+        for theme in custom.get(rows).unwrap_or_default() {
+            let preference = ThemePreference::Custom(theme.id);
+            if ui.add(widgets::radio(app.theme_preference == preference, crate::theme::display_name(&theme.name))).clicked() {
+                app.set_theme_preference(preference);
+                ui.close();
+            }
+        }
+    });
     ui.separator();
     if ui.button(tl!("Appearance settings…")).clicked() {
         app.dialog = Some(Dialog::Preferences);
@@ -319,10 +330,7 @@ fn theme_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
 
 /// The right-click menu on the title bar's theme button.
 fn appearance_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
-    if ui.button(tl!("Appearance settings…")).clicked() {
-        app.dialog = Some(Dialog::Preferences);
-        ui.close();
-    }
+    theme_menu(app, ui);
 }
 
 /// A tab's chrome around its name: the icon on the left, the close button on the right.

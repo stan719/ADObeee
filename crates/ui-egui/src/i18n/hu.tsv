@@ -2206,6 +2206,13 @@ action wizard	Start	Indítás
 	A selected field has no widget on any page, so the fields can't be edited together.	Az egyik kijelölt mezőnek egyik oldalon sincs widgetje, ezért a mezők nem szerkeszthetők együtt.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} {dpi} dpi felbontással, a legnagyobb méretben, amelyben megjeleníthetők)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Papír és tinta
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} objektum kijelölve|{n} objektum kijelölve
 	Drag the selection to move it. Esc clears the selection.	A kijelölés áthelyezéséhez húzza azt. Az Esc törli a kijelölést.
@@ -2282,6 +2289,8 @@ animation effects	Off	Ki
 	Original	Eredeti
 	Greyscale	Szürkeárnyalatos
 	Black and white	Fekete-fehér
+
+	Custom theme	Egyéni téma
 	Reading colours	Olvasási színek
 	Replace document colours	Dokumentumszínek cseréje
 	Black on white	Fekete fehéren

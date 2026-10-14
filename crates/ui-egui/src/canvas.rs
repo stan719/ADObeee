@@ -4,6 +4,7 @@
 //! Page images come from the engine's render pool as whole-page rasters at the current zoom;
 //! stale rasters are shown stretched until the sharp one arrives (tiling comes in M3.3).
 
+use crate::theme::ThemeContext as _;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ops::Range;
 use std::sync::Arc;
@@ -2080,7 +2081,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     // Opened without the owner password and something is restricted.
     let secured = doc.security_summary().is_some_and(|s| !(s.owner || (s.permissions.modify() && s.permissions.assemble())));
     let repaired = !doc.repair_log().is_empty();
-    match notices(view, doc, secured, repaired, crate::sign_ui::banner(&doc.signatures), ui, &t) {
+    match notices(view, doc, secured, repaired, crate::sign_ui::banner(&doc.signatures, &t), ui, &t) {
         #[cfg(not(target_arch = "wasm32"))]
         Some(Notice::Reload) => app.watch.reload_request = Some(view.id),
         #[cfg(target_arch = "wasm32")]
@@ -2457,17 +2458,23 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             painter.add(egui::epaint::Shadow { offset: [0, 3], blur: 14, spread: 0, color: t.page_shadow }.as_shape(r, CornerRadius::ZERO));
             painter.rect_filled(r, CornerRadius::ZERO, Color32::WHITE);
             if let Some(err) = view.errors.get(&i) {
-                painter.rect_filled(r, CornerRadius::ZERO, Color32::from_rgb(0xFB, 0xF4, 0xF4));
+                painter.rect_filled(r, CornerRadius::ZERO, t.compatible(Color32::from_rgb(0xFB, 0xF4, 0xF4), theme::ColorToken::Card));
                 icons::paint(
                     ui,
                     Rect::from_center_size(r.center() - vec2(0.0, 26.0), vec2(28.0, 28.0)),
                     "triangle-alert",
                     26.0,
-                    Color32::from_rgb(0xC8, 0x3A, 0x3A),
+                    t.compatible(Color32::from_rgb(0xC8, 0x3A, 0x3A), theme::ColorToken::Error),
                 );
                 let message = crate::i18n::fmt(tl!("This page couldn't be displayed.\n{e}"), &[("e", err)]);
-                let msg =
-                    ui.fonts_mut(|f| f.layout(message, theme::regular(12.5), Color32::from_rgb(0x6A, 0x2A, 0x2A), (r.width() - 40.0).max(80.0)));
+                let msg = ui.fonts_mut(|f| {
+                    f.layout(
+                        message,
+                        theme::regular(12.5),
+                        t.compatible(Color32::from_rgb(0x6A, 0x2A, 0x2A), theme::ColorToken::Text),
+                        (r.width() - 40.0).max(80.0),
+                    )
+                });
                 painter.galley(pos2(r.center().x - msg.size().x / 2.0, r.center().y), msg, Color32::BLACK);
             } else {
                 let (pw_pt, ph_pt) = (info.pages[i].width.max(1.0), info.pages[i].height.max(1.0));

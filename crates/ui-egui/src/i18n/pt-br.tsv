@@ -2209,6 +2209,13 @@ comment menu	Edit	Editar
 	A selected field has no widget on any page, so the fields can't be edited together.	Um campo selecionado não tem widget em nenhuma página, então os campos não podem ser editados juntos.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} a {dpi} dpi, o maior tamanho em que podem ser desenhadas)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Papel e tinta
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} objeto selecionado|{n} objetos selecionados
 	Drag the selection to move it. Esc clears the selection.	Arraste a seleção para movê-la. Esc limpa a seleção.
@@ -2297,6 +2304,8 @@ animation effects	Off	Desativados
 	Original	Original
 	Greyscale	Escala de cinza
 	Black and white	Preto e branco
+
+	Custom theme	Tema personalizado
 	Reading colours	Cores de leitura
 	Replace document colours	Substituir as cores do documento
 	Black on white	Preto no branco

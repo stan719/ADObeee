@@ -1,0 +1,21 @@
+[package]
+name = "pdfcraft-themes"
+description = "GUI-independent theme palettes and management for PDFCraft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ecolor = "0.36"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = "0.4"
+pdfcraft-platform = { workspace = true }
+ron = "0.12"
+
+[lints]
+workspace = true

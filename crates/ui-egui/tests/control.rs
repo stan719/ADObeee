@@ -256,9 +256,17 @@ fn theme_commands_and_options_report_preference_and_effective_colours() {
     let (mut h, c) = harness();
     h.input_mut().system_theme = Some(egui::Theme::Dark);
     h.run_steps(2);
-    for (id, preference, effective) in
-        [("view.theme.system", "System", "Dark"), ("view.theme.light", "Light", "Light"), ("view.theme.dark", "Dark", "Dark")]
-    {
+    for (id, preference, effective) in [
+        ("view.theme.system", "System", "Dark"),
+        ("view.theme.light", "Light", "Light"),
+        ("view.theme.dark", "Dark", "Dark"),
+        ("view.theme.catppuccin", "catppuccin", "Dark"),
+        ("view.theme.solarized", "solarized", "Dark"),
+        ("view.theme.forest", "forest", "Dark"),
+        ("view.theme.ocean", "ocean", "Dark"),
+        ("view.theme.sunset", "sunset", "Dark"),
+        ("view.theme.paper-ink", "paper-ink", "Light"),
+    ] {
         ok(&mut h, &c, "ui.command", json!({ "id": id }));
         let state = ok(&mut h, &c, "ui.state", json!({}));
         assert_eq!(state["theme_preference"], preference);

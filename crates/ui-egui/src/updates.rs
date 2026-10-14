@@ -5,6 +5,7 @@
 //! PdfCraft never downloads or installs anything itself: the user downloads the new version.
 //! It asks only when the user does: there is no check at start (the owner's decision).
 
+use crate::theme::ThemeContext as _;
 use std::sync::Arc;
 
 use egui::{Align, Layout};

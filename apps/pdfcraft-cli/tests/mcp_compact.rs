@@ -86,3 +86,50 @@ fn compact_flag_keeps_the_root() {
     assert!(!text(&reply).contains("is outside the allowed directory"), "{}", text(&reply));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn theme_management_uses_existing_mcp_and_compact_discovery() {
+    let root = std::env::temp_dir().join(format!("pdfcraft-mcp-themes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let call = |id, name, arguments| request(id, "tools/call", json!({"name":name,"arguments":arguments}));
+    let replies = session(
+        &["--root", root.to_str().unwrap(), "--compact"],
+        &[
+            call(1, "tool_search", json!({"name":"theme_update"})),
+            call(
+                2,
+                "theme_create",
+                json!({"store":"themes.json","name":"Agent theme","base_theme_id":"ocean","id":"00000000-0000-4000-8000-000000000001"}),
+            ),
+            call(
+                3,
+                "tool_call",
+                json!({"name":"theme_activate","arguments":{"store":"themes.json","id":"custom:00000000-0000-4000-8000-000000000001"}}),
+            ),
+            call(4, "theme_inspect", json!({"store":"themes.json","id":"custom:00000000-0000-4000-8000-000000000001"})),
+            call(5, "theme_delete", json!({"store":"themes.json","id":"light"})),
+            call(6, "theme_list", json!({"store":"themes.json"})),
+            call(7, "theme_inspect", json!({"store":"themes.json","id":"ocean"})),
+        ],
+    );
+    assert!(replies[0]["result"].to_string().contains("theme_update"));
+    assert_eq!(replies[1]["result"]["isError"], false, "{}", replies[1]);
+    assert_eq!(replies[2]["result"]["isError"], false, "{}", replies[2]);
+    assert_eq!(replies[3]["result"]["structuredContent"]["palette"].as_object().unwrap().len(), 31);
+    assert_eq!(replies[4]["result"]["isError"], true);
+    assert_eq!(replies[4]["result"]["structuredContent"]["error"]["code"], "builtin_protected");
+    let themes = replies[5]["result"]["structuredContent"]["themes"].as_array().unwrap();
+    for (id, name) in [
+        ("catppuccin", "Atelier"),
+        ("solarized", "Editorial"),
+        ("forest", "Heritage"),
+        ("ocean", "Executive"),
+        ("sunset", "Sienna"),
+        ("paper-ink", "Paper & Ink"),
+    ] {
+        assert_eq!(themes.iter().find(|theme| theme["id"] == id).unwrap()["name"], name);
+    }
+    assert_eq!(replies[6]["result"]["structuredContent"]["name"], "Executive");
+    let _ = std::fs::remove_dir_all(root);
+}

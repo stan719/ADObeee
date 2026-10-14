@@ -2585,6 +2585,14 @@ key	Esc	Esc
 key	Home	Home
 key	End	End
 key	Space	Tarpas
+
+	Atelier	Atelier
+	Editorial	Editorial
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Popierius ir rašalas
+	Custom theme	Pasirinktinė tema
 	Minimize	Sumažinti
 	Maximize	Išdidinti
 	Restore	Atkurti

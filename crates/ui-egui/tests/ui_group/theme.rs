@@ -3,7 +3,7 @@
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use pdfcraft_ui_egui::PdfCraftApp;
-use pdfcraft_ui_egui::theme::{ThemeKind, ThemePreference, Tokens};
+use pdfcraft_ui_egui::theme::{ThemeContext as _, ThemeKind, ThemePreference, Tokens};
 
 fn harness() -> Harness<'static, PdfCraftApp> {
     let mut h = Harness::builder().with_size(egui::vec2(1100.0, 800.0)).build_eframe(|_cc| {
@@ -43,7 +43,7 @@ fn open_view_menu(h: &mut Harness<'static, PdfCraftApp>) {
     assert!(h.query_by_label("Switch light / dark theme").is_none());
     h.get_by_label("Display theme ⏵").hover();
     h.run_steps(3);
-    for choice in ["Use system setting", "Light gray", "Dark gray"] {
+    for choice in ["Use system setting", "Light gray", "Dark gray", "Atelier", "Editorial", "Heritage", "Executive", "Sienna", "Paper & Ink"] {
         h.get_by_label(choice);
     }
 }
@@ -129,6 +129,188 @@ fn commands_and_options_apply_before_the_first_frame() {
 }
 
 #[test]
+fn all_presets_switch_live_persist_and_preserve_unsaved_documents() {
+    let mut h = harness();
+    // Repeated saves stamp ModDate. Freeze time so byte equality proves document preservation.
+    h.state_mut().session = pdfcraft_engine::Session::default().with_clock(|| 1_700_000_000);
+    assert!(h.state_mut().execute("create.blank"));
+    h.run_steps(3);
+    let id = h.state().views[0].id;
+    h.state_mut().apply_edit(pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 });
+    h.run_steps(4); // Let fit-to-page respond to rotation before recording view state.
+    let bytes = h.state().session.save_bytes(id).unwrap();
+    let view_count = h.state().views.len();
+    let zoom = h.state().views[0].zoom;
+    for preference in ThemePreference::ALL {
+        h.state_mut().set_option("theme", &preference.id()).unwrap();
+        h.run_steps(3);
+        assert_eq!(h.state().theme_preference, preference);
+        let expected = preference.palette(&h.state().theme_library, h.ctx.system_theme().map(pdfcraft_ui_egui::theme::system_kind), h.state().theme);
+        assert_eq!(Tokens::get(&h.ctx), expected);
+        assert_eq!(h.ctx.global_style().visuals.panel_fill, expected.panel);
+        for branch in [egui::Theme::Light, egui::Theme::Dark] {
+            assert_eq!(h.ctx.style_of(branch).visuals.panel_fill, expected.panel);
+        }
+        assert_eq!(h.state().views.len(), view_count);
+        assert_eq!(h.state().views[0].id, id);
+        assert_eq!(h.state().views[0].zoom, zoom);
+        assert!(h.state().session.get(id).unwrap().dirty);
+        assert_eq!(h.state().session.save_bytes(id).unwrap(), bytes);
+        let mut restored = PdfCraftApp::new();
+        restored.restore(&h.state().persist());
+        assert_eq!(restored.theme_preference, preference);
+    }
+}
+
+#[test]
+fn new_presets_are_available_from_the_existing_menu_and_commands() {
+    let mut h = harness();
+    for preference in ThemePreference::ALL.into_iter().skip(3) {
+        open_view_menu(&mut h);
+        h.get_by_label(preference.label()).click();
+        h.run_steps(3);
+        assert_eq!(h.state().theme_preference, preference);
+        h.state_mut().run_command("view.theme.light");
+        h.state_mut().run_command(&format!("view.theme.{}", preference.id()));
+        h.run_steps(2);
+        assert_eq!(h.state().theme_preference, preference);
+        h.input_mut().system_theme = Some(egui::Theme::Light);
+        h.run_steps(2);
+        h.input_mut().system_theme = Some(egui::Theme::Dark);
+        h.run_steps(2);
+        assert_eq!(h.state().theme_preference, preference);
+    }
+}
+
+/// Set PDFCRAFT_THEME_SHOTS to inspect the actual app without committing images.
+#[test]
+fn palette_visual_review() {
+    let Ok(dir) = std::env::var("PDFCRAFT_THEME_SHOTS") else { return };
+    std::fs::create_dir_all(&dir).unwrap();
+    for preference in ThemePreference::ALL.into_iter().skip(1) {
+        let mut h = harness();
+        h.state_mut().set_theme_preference(preference);
+        h.run_steps(4);
+        h.render().unwrap().save(format!("{dir}/{}-home.png", preference.id())).unwrap();
+        assert!(h.state_mut().execute("create.blank"));
+        h.run_steps(8);
+        let shot = h.render().unwrap();
+        assert!(shot.pixels().filter(|p| p.0 == [255, 255, 255, 255]).count() > 10_000, "PDF paper remains white");
+        shot.save(format!("{dir}/{}-document.png", preference.id())).unwrap();
+        h.get_by_label(&format!("Display theme: {}", preference.label())).click_secondary();
+        h.run_steps(3);
+        h.render().unwrap().save(format!("{dir}/{}-menu.png", preference.id())).unwrap();
+        h.get_by_label(preference.label()).click();
+        h.run_steps(3);
+        h.state_mut().run_command("app.preferences");
+        h.run_steps(4);
+        h.render().unwrap().save(format!("{dir}/{}-dialog.png", preference.id())).unwrap();
+    }
+    let mut h = harness();
+    let created = h
+        .state_mut()
+        .manage_theme(
+            "theme_create",
+            &serde_json::json!({
+                "name":"Navy and cream", "base_theme_id":"ocean", "palette":{"text":"#fff4df","accent":"#efbd88"}
+            }),
+        )
+        .unwrap();
+    h.state_mut().set_option("theme", created["id"].as_str().unwrap()).unwrap();
+    h.run_steps(4);
+    h.render().unwrap().save(format!("{dir}/custom-home.png")).unwrap();
+    h.get_by_label("Display theme: Custom theme").click_secondary();
+    h.run_steps(3);
+    h.render().unwrap().save(format!("{dir}/custom-menu.png")).unwrap();
+    h.get_by_label("Navy and cream").click();
+    h.run_steps(3);
+    assert_eq!(h.state().theme_preference.id(), created["id"].as_str().unwrap());
+}
+
+#[test]
+fn custom_palette_restores_and_unknown_library_data_is_not_lost() {
+    use pdfcraft_ui_egui::theme::{CustomThemeId, ThemeDefinition};
+    let mut h = harness();
+    let id = CustomThemeId::from_bytes([7; 16]);
+    let mut custom = ThemeDefinition::duplicate_builtin(ThemePreference::Forest, id, "My forest".into()).unwrap();
+    custom.palette.0.insert("panel".into(), serde_json::json!("#112233"));
+    h.state_mut().theme_library.insert(custom).unwrap();
+    h.state_mut().set_option("theme", &format!("custom:{id}")).unwrap();
+    h.run_steps(3);
+    assert_eq!(Tokens::get(&h.ctx).panel, egui::Color32::from_rgb(17, 34, 51));
+    let saved = h.state().persist();
+    let mut restored = PdfCraftApp::new();
+    restored.restore(&saved);
+    assert_eq!(restored.theme_preference, ThemePreference::Custom(id));
+    assert_eq!(restored.theme_library, h.state().theme_library);
+    // A legacy file with no library does not replace a valid library with null.
+    restored.restore(r#"{"theme":"Light"}"#);
+    assert_eq!(restored.theme_library, h.state().theme_library);
+    restored.restore(r#"{"theme":"unknown-future","theme_library":{"schema_version":99,"themes":[{"future":42}],"extension":true}}"#);
+    assert_eq!(restored.theme_preference, ThemePreference::Light);
+    let saved: serde_json::Value = serde_json::from_str(&restored.persist()).unwrap();
+    assert_eq!(saved["theme_library"]["schema_version"], 99);
+    assert_eq!(saved["theme_library"]["themes"][0]["future"], 42);
+    assert_eq!(saved["theme_library"]["extension"], true);
+}
+
+#[test]
+fn legacy_copies_are_identical_until_a_color_is_edited() {
+    use pdfcraft_ui_egui::theme::{self, CustomThemeId, ThemeDefinition};
+    for preference in [ThemePreference::Light, ThemePreference::Dark] {
+        let palette = preference.palette(&Default::default(), None, ThemeKind::Light);
+        let mut copy = ThemeDefinition::duplicate_builtin(preference, CustomThemeId::from_bytes([3; 16]), "Copy".into()).unwrap();
+        assert_eq!(copy.resolve(), palette);
+        let original_ctx = egui::Context::default();
+        let copy_ctx = egui::Context::default();
+        theme::apply_palette(&original_ctx, palette);
+        theme::apply_palette(&copy_ctx, copy.resolve());
+        assert_eq!(original_ctx.global_style().visuals, copy_ctx.global_style().visuals);
+        copy.palette.0.insert("error".into(), serde_json::json!("#ab1234"));
+        let edited = copy.resolve();
+        assert_eq!(edited.compatible(egui::Color32::RED, theme::ColorToken::Error), egui::Color32::from_rgb(171, 18, 52));
+        theme::apply_palette(&copy_ctx, edited);
+        assert_eq!(copy_ctx.global_style().visuals.error_fg_color, edited.error);
+    }
+}
+
+#[test]
+fn native_store_cli_edits_and_gui_activation_share_latest_library() {
+    use pdfcraft_ui_egui::theme::store::ThemeStore;
+    let dir = std::env::temp_dir().join(format!("pdfcraft-gui-themes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("themes.json");
+    let mut app = PdfCraftApp::new();
+    app.restore(r#"{"theme":"System"}"#);
+    app.enable_theme_store(&path).unwrap();
+    let store = ThemeStore::new(&path);
+    let id = "custom:00000000-0000-0000-0000-000000000001";
+    store
+        .execute("theme_create", &serde_json::json!({"id":"00000000-0000-0000-0000-000000000001", "name":"CLI Executive", "base_theme_id":"ocean"}))
+        .unwrap();
+    store.execute("theme_activate", &serde_json::json!({"id":id})).unwrap();
+    // A GUI action re-reads the current store instead of saving its startup snapshot.
+    app.set_option("theme", "dark").unwrap();
+    assert_eq!(app.theme_library.definitions().count(), 1);
+    assert_eq!(store.load().unwrap().theme, ThemePreference::Dark);
+    app.set_option("theme", id).unwrap();
+    assert_eq!(app.theme_preference.id(), id);
+    // App settings remain a compatibility mirror, never authoritative over themes.json.
+    let mirror = app.persist();
+    store.execute("theme_delete", &serde_json::json!({"id":id})).unwrap();
+    let mut restarted = PdfCraftApp::new();
+    restarted.restore(&mirror);
+    restarted.enable_theme_store(&path).unwrap();
+    assert_eq!(restarted.theme_preference, ThemePreference::Ocean);
+    assert_eq!(restarted.theme_library.definitions().count(), 0);
+    std::fs::write(&path, "{malformed").unwrap();
+    assert!(restarted.set_option("theme", "light").is_err());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "{malformed");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
 fn restored_system_tracks_native_input_without_rewriting_saved_preference() {
     let mut h = Harness::builder().with_size(egui::vec2(1100.0, 800.0)).build_eframe(|_cc| {
         let mut app = PdfCraftApp::new();
@@ -182,7 +364,7 @@ fn native_appearance_remains_inherited_for_every_saved_choice() {
             }
         }
     }
-    for preference in [ThemePreference::System, ThemePreference::Light, ThemePreference::Dark] {
+    for preference in ThemePreference::ALL {
         let commands = NativeCommands(Default::default());
         let observed = commands.clone();
         let mut h = Harness::builder().with_size(egui::vec2(1100.0, 800.0)).build_eframe(move |cc| {

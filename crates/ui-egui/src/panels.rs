@@ -1,6 +1,7 @@
 //! Left tool panel (All tools + tool sub-panels, generated from the engine catalogue) and the
 //! right-hand panels (Comments, Bookmarks, Pages, Fields, Layers, Attachments).
 
+use crate::theme::ThemeContext as _;
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, pos2, vec2};
 use pdfcraft_engine::catalog::{self, Availability, TOOL_GROUPS, ToolGroup};
 use pdfcraft_render::{DocInfo, FieldKind, OutlineItem};
@@ -10,8 +11,8 @@ use crate::{LeftPanel, PdfCraftApp, RightPanel, icons, widgets};
 
 const COLLAPSED_TOOLS: usize = 14;
 
-fn hue(g: &ToolGroup) -> Color32 {
-    Color32::from_rgb(g.hue[0], g.hue[1], g.hue[2])
+fn hue(g: &ToolGroup, t: &Tokens) -> Color32 {
+    t.compatible(Color32::from_rgb(g.hue[0], g.hue[1], g.hue[2]), theme::ColorToken::AccentText)
 }
 
 pub fn left_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
@@ -95,7 +96,7 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
     let press = theme::Press::track(ui, &resp);
     press.wash(ui, rect, 6, false);
     let body = rect.translate(press.offset());
-    icons::paint(ui, Rect::from_min_size(body.min + vec2(6.0, 7.0), vec2(20.0, 20.0)), g.icon, 19.0, hue(g));
+    icons::paint(ui, Rect::from_min_size(body.min + vec2(6.0, 7.0), vec2(20.0, 20.0)), g.icon, 19.0, hue(g, t));
     let right_reserved = match (g.badge, g.availability) {
         (Some(b), _) => ui.fonts_mut(|f| f.layout_no_wrap(tl!(b).to_owned(), theme::semibold(9.5), Color32::WHITE).size().x) + 26.0,
         (None, Availability::Planned(m)) if resp.hovered() => {
@@ -110,10 +111,10 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
         (Some(b), _) => {
             let font = theme::semibold(9.5);
             let badge = tl!(b);
-            let w = ui.fonts_mut(|f| f.layout_no_wrap(badge.to_string(), font.clone(), Color32::WHITE).size().x);
+            let w = ui.fonts_mut(|f| f.layout_no_wrap(badge.to_string(), font.clone(), t.on_accent).size().x);
             let r = Rect::from_center_size(body.right_center() - vec2(w / 2.0 + 10.0, 0.0), vec2(w + 10.0, 16.0));
             ui.painter().rect_filled(r, CornerRadius::same(4), t.badge_new);
-            ui.painter().text(r.center(), Align2::CENTER_CENTER, badge, font, Color32::WHITE);
+            ui.painter().text(r.center(), Align2::CENTER_CENTER, badge, font, t.on_accent);
         }
         // Planned tools: a quiet milestone hint instead of a chip, so the list stays calm.
         (None, Availability::Planned(m)) if resp.hovered() => {
@@ -216,10 +217,14 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
                     Rect::from_min_size(body.min + vec2(6.0, 8.0), vec2(18.0, 18.0)),
                     item.icon,
                     17.0,
-                    if ready { hue(g) } else { t.text_faint },
+                    if ready { hue(g, t) } else { t.text_faint },
                 );
                 let (chip, fill, cfg) = match item.availability {
-                    Availability::Ready => (tl!("Ready"), Color32::from_rgb(0xDD, 0xF3, 0xE4), Color32::from_rgb(0x1E, 0x7B, 0x43)),
+                    Availability::Ready => (
+                        tl!("Ready"),
+                        t.compatible(Color32::from_rgb(0xDD, 0xF3, 0xE4), theme::ColorToken::Panel),
+                        t.compatible(Color32::from_rgb(0x1E, 0x7B, 0x43), theme::ColorToken::Success),
+                    ),
                     Availability::Planned(m) => (m, t.pressed, t.text_muted),
                     Availability::Provider => ("AI", t.pressed, t.text_muted),
                 };
@@ -1265,7 +1270,13 @@ fn fields(
             let press = theme::Press::track(ui, &resp);
             press.wash(ui, rect, 6, selected);
             let body = rect.translate(press.offset());
-            icons::paint(ui, Rect::from_min_size(body.min + vec2(8.0, 7.0), vec2(16.0, 16.0)), icon, 15.0, Color32::from_rgb(0x8E, 0x4E, 0xE6));
+            icons::paint(
+                ui,
+                Rect::from_min_size(body.min + vec2(8.0, 7.0), vec2(16.0, 16.0)),
+                icon,
+                15.0,
+                t.compatible(Color32::from_rgb(0x8E, 0x4E, 0xE6), theme::ColorToken::AccentText),
+            );
             let value =
                 f.value.as_ref().map(|v| if v.chars().count() > 18 { format!("{}…", v.chars().take(17).collect::<String>()) } else { v.clone() });
             let value_font = theme::regular(11.5);

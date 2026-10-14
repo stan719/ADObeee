@@ -2230,6 +2230,13 @@ certificate	Subject	صاحب الشهادة
 	Margins	الهوامش
 	For page sizes and margins.	لأحجام الصفحات والهوامش.
 
+# Application themes
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	ورق وحبر
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	تم تحديد {n} عنصر|تم تحديد {n} عنصر|تم تحديد {n} عنصرين|تم تحديد {n} عناصر|تم تحديد {n} عنصرًا|تم تحديد {n} عنصر
 	Drag the selection to move it. Esc clears the selection.	اسحب التحديد لنقله. يمسح Esc التحديد.
@@ -2304,6 +2311,8 @@ animation effects	Off	معطّلة
 	Original	الأصل
 	Greyscale	تدرج رمادي
 	Black and white	أبيض وأسود
+
+	Custom theme	سمة مخصصة
 	Reading colours	ألوان القراءة
 	Replace document colours	استبدال ألوان المستند
 	Black on white	أسود على أبيض

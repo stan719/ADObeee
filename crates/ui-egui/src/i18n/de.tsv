@@ -2212,6 +2212,13 @@ action wizard	Start	Starten
 	A selected field has no widget on any page, so the fields can't be edited together.	Ein ausgewähltes Feld hat auf keiner Seite ein Widget, daher können die Felder nicht gemeinsam bearbeitet werden.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} mit {dpi} dpi, der größten Auflösung, in der sie gezeichnet werden können)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	Papier & Tinte
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} Objekt ausgewählt|{n} Objekte ausgewählt
 	Drag the selection to move it. Esc clears the selection.	Ziehen Sie die Auswahl, um sie zu verschieben. Esc hebt die Auswahl auf.
@@ -2284,6 +2291,8 @@ animation effects	Off	Aus
 	Original	Original
 	Greyscale	Graustufen
 	Black and white	Schwarzweiß
+
+	Custom theme	Benutzerdefiniertes Design
 	Reading colours	Lesefarben
 	Replace document colours	Dokumentfarben ersetzen
 	Black on white	Schwarz auf weiß

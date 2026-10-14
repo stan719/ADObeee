@@ -4,33 +4,29 @@
 use egui::{Rect, RichText, pos2, vec2};
 
 use crate::PdfCraftApp;
+use crate::theme::ThemeContext as _;
 use crate::theme::{self, ThemeKind, ThemePreference, Tokens};
 use crate::widgets;
-
-/// The themes each card offers. One of each today; a new theme is one more row here.
-pub const LIGHT_THEMES: &[(ThemeKind, &str)] = &[(ThemeKind::Light, "Light gray")];
-pub const DARK_THEMES: &[(ThemeKind, &str)] = &[(ThemeKind::Dark, "Dark gray")];
 
 fn mode_label(preference: ThemePreference) -> &'static str {
     match preference {
         ThemePreference::System => "Use system setting",
         ThemePreference::Light => "Light",
         ThemePreference::Dark => "Dark",
+        other => other.label(),
     }
 }
 
-fn mode_command(preference: ThemePreference) -> &'static str {
+fn mode_name(app: &PdfCraftApp, preference: ThemePreference) -> String {
     match preference {
-        ThemePreference::System => "view.theme.system",
-        ThemePreference::Light => "view.theme.light",
-        ThemePreference::Dark => "view.theme.dark",
+        ThemePreference::Custom(id) => app.theme_library.name(id).map(theme::display_name).unwrap_or_else(|| tl!("Custom theme").into()),
+        _ => tl!(mode_label(preference)).into(),
     }
 }
 
-/// A miniature PdfCraft window in `kind`'s colours: title bar and tabs, the tool bar, the page
+/// A miniature PdfCraft window in the palette's colours: title bar and tabs, the tool bar, the page
 /// thumbnails, a page on the pasteboard and the right-hand panel.
-fn preview(ui: &mut egui::Ui, kind: ThemeKind, width: f32) {
-    let p = Tokens::for_kind(kind);
+fn preview(ui: &mut egui::Ui, p: &Tokens, width: f32) {
     let (rect, _) = ui.allocate_exact_size(vec2(width, 118.0), egui::Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 3.0, p.chrome);
@@ -83,8 +79,8 @@ fn preview(ui: &mut egui::Ui, kind: ThemeKind, width: f32) {
 }
 
 /// One theme card: its title, Active when it is what shows now, a preview of the chosen theme
-/// and a radio row per theme.
-fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(ThemeKind, &str)]) {
+/// and the chosen theme name. Selection uses the shared appearance picker above.
+fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, shown: &Tokens, label: &str) {
     egui::Frame::new()
         .fill(t.card)
         .stroke(egui::Stroke::new(1.0, if active { t.accent } else { t.border }))
@@ -99,13 +95,9 @@ fn card(ui: &mut egui::Ui, t: &Tokens, title: &str, active: bool, themes: &[(The
                 }
             });
             ui.add_space(4.0);
-            let shown = themes.first().map_or(ThemeKind::Light, |(kind, _)| *kind);
             preview(ui, shown, ui.available_width());
             ui.add_space(4.0);
-            for (kind, label) in themes {
-                // One theme per card today, so it is always the chosen one.
-                let _ = ui.add(widgets::radio(*kind == shown, tl!(label)));
-            }
+            let _ = ui.add(widgets::radio(true, label));
         });
 }
 
@@ -114,21 +106,44 @@ pub fn preferences_section(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens)
     ui.label(RichText::new(tl!("Appearance")).font(theme::semibold(13.0)));
     ui.horizontal(|ui| {
         ui.label(tl!("Appearance mode"));
-        egui::ComboBox::from_id_salt("appearance-mode").selected_text(tl!(mode_label(app.theme_preference))).show_ui(ui, |ui| {
-            for preference in [ThemePreference::System, ThemePreference::Light, ThemePreference::Dark] {
-                if ui.selectable_label(app.theme_preference == preference, tl!(mode_label(preference))).clicked() {
-                    app.execute(mode_command(preference));
-                    ui.close();
+        egui::ComboBox::from_id_salt("appearance-mode").selected_text(mode_name(app, app.theme_preference)).show_ui(ui, |ui| {
+            let custom = app.theme_choices();
+            let length = custom.len().saturating_add(ThemePreference::ALL.len());
+            egui::ScrollArea::vertical().max_height(300.0).show_rows(ui, ui.spacing().interact_size.y, length, |ui, rows| {
+                for row in rows {
+                    let preference = if let Some(preference) = ThemePreference::ALL.get(row) {
+                        *preference
+                    } else if let Some(choice) = custom.get(row.saturating_sub(ThemePreference::ALL.len())) {
+                        ThemePreference::Custom(choice.id)
+                    } else {
+                        continue;
+                    };
+                    ui.push_id(preference.id(), |ui| {
+                        if ui.selectable_label(app.theme_preference == preference, mode_name(app, preference)).clicked() {
+                            app.set_theme_preference(preference);
+                            ui.close();
+                        }
+                    });
                 }
-            }
+            });
         });
     });
     ui.add_space(4.0);
     let light_active = app.theme == ThemeKind::Light;
+    let active_palette = Tokens::get(ui.ctx());
+    let active_label = if app.theme_preference == ThemePreference::System {
+        tl!(if light_active { "Light gray" } else { "Dark gray" }).to_owned()
+    } else if matches!(app.theme_preference, ThemePreference::Custom(_)) {
+        mode_name(app, app.theme_preference)
+    } else {
+        tl!(app.theme_preference.label()).to_owned()
+    };
     ui.columns(2, |cols| {
         let [light, dark] = cols else { return };
-        card(light, t, tl!("Light theme"), light_active, LIGHT_THEMES);
-        card(dark, t, tl!("Dark theme"), !light_active, DARK_THEMES);
+        let light_palette = if light_active { active_palette } else { Tokens::for_kind(ThemeKind::Light) };
+        let dark_palette = if light_active { Tokens::for_kind(ThemeKind::Dark) } else { active_palette };
+        card(light, t, tl!("Light theme"), light_active, &light_palette, if light_active { &active_label } else { tl!("Light gray") });
+        card(dark, t, tl!("Dark theme"), !light_active, &dark_palette, if light_active { tl!("Dark gray") } else { &active_label });
     });
 }
 
@@ -178,5 +193,39 @@ mod tests {
         h.get_by_label("Use system setting").click();
         h.run();
         assert_eq!(h.state().theme_preference, ThemePreference::System);
+
+        for (id, label) in [
+            ("catppuccin", "Atelier"),
+            ("solarized", "Editorial"),
+            ("forest", "Heritage"),
+            ("ocean", "Executive"),
+            ("sunset", "Sienna"),
+            ("paper-ink", "Paper & Ink"),
+        ] {
+            h.get_by_role(combo).click();
+            h.run();
+            h.get_by_label(label).click();
+            h.run();
+            assert_eq!(h.state().theme_preference.id(), id);
+            assert_eq!(h.query_all_by_label("Active").count(), 1);
+        }
+        let custom = h
+            .state_mut()
+            .manage_theme(
+                "theme_create",
+                &serde_json::json!({
+                    "id":"00000000-0000-4000-8000-000000000001", "name":"Custom navy", "base_theme_id":"ocean",
+                    "palette":{"text":"#fff4df"}
+                }),
+            )
+            .unwrap();
+        h.get_by_role(combo).click();
+        h.run();
+        h.get_by_label("Custom navy").click();
+        h.run();
+        assert_eq!(h.state().theme_preference.id().as_ref(), custom["id"].as_str().unwrap());
+        assert_eq!(h.state().theme, ThemeKind::Dark);
+        assert_eq!(h.state_mut().manage_theme("theme_inspect", &serde_json::json!({"id":custom["id"]})).unwrap()["palette"]["text"], "#fff4df");
+        assert_eq!(h.query_all_by_label("Active").count(), 1);
     }
 }

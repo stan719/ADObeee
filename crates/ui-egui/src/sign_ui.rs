@@ -2,6 +2,7 @@
 //! click an empty signature field), the Sign with a Digital ID / Configure New Digital ID /
 //! Sign as dialogs, the Signatures panel, and the signature message bar.
 
+use crate::theme::ThemeContext as _;
 use std::path::PathBuf;
 
 use egui::{Align, Color32, CornerRadius, Layout, Pos2, Rect, Stroke, vec2};
@@ -580,7 +581,7 @@ fn title(ui: &mut egui::Ui, text: &str) {
 
 fn error(ui: &mut egui::Ui, err: &Option<String>) {
     if let Some(e) = err.as_ref().filter(|e| !e.is_empty()) {
-        ui.colored_label(Color32::from_rgb(0xD7, 0x37, 0x3F), tl!(e));
+        ui.colored_label(Tokens::get(ui.ctx()).compatible(Color32::from_rgb(0xD7, 0x37, 0x3F), theme::ColorToken::Error), tl!(e));
         ui.add_space(4.0);
     }
 }
@@ -996,7 +997,7 @@ fn sign_as(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool {
 /// The message bar for signed documents: (icon, colour, template, argument).
 /// The template renders through [`crate::i18n::tr_fmt`] at the call site, so the bar follows
 /// the UI language; names inside `argument` stay as they are.
-pub(crate) fn banner(sigs: &[SignatureInfo]) -> Option<(&'static str, Color32, &'static str, String)> {
+pub(crate) fn banner(sigs: &[SignatureInfo], t: &Tokens) -> Option<(&'static str, Color32, &'static str, String)> {
     let signed: Vec<&SignatureInfo> = sigs.iter().filter(|s| s.signed).collect();
     if signed.is_empty() {
         return None;
@@ -1013,26 +1014,43 @@ pub(crate) fn banner(sigs: &[SignatureInfo]) -> Option<(&'static str, Color32, &
             };
             crate::i18n::fmt(tl!(template), &[("who", &who), ("issuer", issuer)])
         });
-        return Some(("badge-check", Color32::from_rgb(0x14, 0x73, 0xE6), "Certified by {by}", by.unwrap_or_default()));
+        return Some((
+            "badge-check",
+            t.compatible(Color32::from_rgb(0x14, 0x73, 0xE6), theme::ColorToken::Info),
+            "Certified by {by}",
+            by.unwrap_or_default(),
+        ));
     }
     Some(if signed.iter().any(|s| s.status == SignatureStatus::Invalid) {
-        ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F), "At least one signature is invalid.", String::new())
+        ("circle-x", t.compatible(Color32::from_rgb(0xD7, 0x37, 0x3F), theme::ColorToken::Error), "At least one signature is invalid.", String::new())
     } else if signed.iter().all(|s| s.status == SignatureStatus::Valid) {
-        ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78), "Signed and all signatures are valid.", String::new())
+        (
+            "circle-check",
+            t.compatible(Color32::from_rgb(0x2D, 0x9D, 0x78), theme::ColorToken::Success),
+            "Signed and all signatures are valid.",
+            String::new(),
+        )
     } else {
-        ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19), "At least one signature has problems.", String::new())
+        (
+            "triangle-alert",
+            t.compatible(Color32::from_rgb(0xE6, 0x86, 0x19), theme::ColorToken::Warning),
+            "At least one signature has problems.",
+            String::new(),
+        )
     })
 }
 
-fn status_icon(s: &SignatureInfo) -> (&'static str, Color32) {
+fn status_icon(s: &SignatureInfo, t: &Tokens) -> (&'static str, Color32) {
     if !s.signed {
-        return ("pen-line", Color32::from_gray(0x80));
+        return ("pen-line", t.compatible(Color32::from_gray(0x80), theme::ColorToken::TextMuted));
     }
     match (s.status, &s.modification) {
-        (SignatureStatus::Valid, Modification::None) => ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78)),
-        (SignatureStatus::Valid, _) => ("circle-check", Color32::from_rgb(0x2D, 0x9D, 0x78)),
-        (SignatureStatus::Unknown, _) => ("triangle-alert", Color32::from_rgb(0xE6, 0x86, 0x19)),
-        (SignatureStatus::Invalid, _) => ("circle-x", Color32::from_rgb(0xD7, 0x37, 0x3F)),
+        (SignatureStatus::Valid, Modification::None) => {
+            ("circle-check", t.compatible(Color32::from_rgb(0x2D, 0x9D, 0x78), theme::ColorToken::Success))
+        }
+        (SignatureStatus::Valid, _) => ("circle-check", t.compatible(Color32::from_rgb(0x2D, 0x9D, 0x78), theme::ColorToken::Success)),
+        (SignatureStatus::Unknown, _) => ("triangle-alert", t.compatible(Color32::from_rgb(0xE6, 0x86, 0x19), theme::ColorToken::Warning)),
+        (SignatureStatus::Invalid, _) => ("circle-x", t.compatible(Color32::from_rgb(0xD7, 0x37, 0x3F), theme::ColorToken::Error)),
     }
 }
 
@@ -1071,7 +1089,7 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
     ordered.sort_by_key(|s| (!s.signed, s.revision));
     for s in ordered {
         let open = expanded.contains(&s.field);
-        let (icon, color) = status_icon(s);
+        let (icon, color) = status_icon(s, t);
         let (template, name) = match (s.signed, s.certify.is_some(), s.signer.as_deref()) {
             (false, ..) => ("Unsigned signature field: {name}", s.field.as_str()),
             (true, true, Some(signer)) => ("Rev. {rev}: Certified by {name}", signer),

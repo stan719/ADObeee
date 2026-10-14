@@ -1627,15 +1627,15 @@ notes = ""
 
 [[feature]]
 id = "view.theme-light-dark"
-title = "Light and dark themes"
+title = "Built-in application themes"
 area = "B"
 tier = "P1"
 milestone = "M3"
 status = "shipped"
-commands = ["view.theme", "view.theme.light", "view.theme.dark"]
-tools = []
-evidence = ["crates/ui-egui/tests/ui_group/theme.rs::toolbar_and_view_menu_share_three_state_preferences", "crates/ui-egui/src/theme.rs::text_is_readable_on_every_surface"]
-notes = "Toolbar and Display theme share three choices and a preference setter; manual choices exit system mode. Every text colour meets WCAG AA (4.5:1) on every surface in both themes; glyphs are pixel-aligned for sharper text at 100–150 % scaling."
+commands = ["view.theme", "view.theme.light", "view.theme.dark", "view.theme.catppuccin", "view.theme.solarized", "view.theme.forest", "view.theme.ocean", "view.theme.sunset", "view.theme.paper-ink"]
+tools = ["theme_list", "theme_inspect", "theme_create", "theme_clone", "theme_update", "theme_rename", "theme_activate", "theme_delete", "theme_export", "theme_import"]
+evidence = ["crates/ui-egui/tests/ui_group/theme.rs::toolbar_and_view_menu_share_three_state_preferences", "crates/ui-egui/src/theme.rs::text_is_readable_on_every_surface", "crates/ui-egui/tests/ui_group/theme.rs::all_presets_switch_live_persist_and_preserve_unsaved_documents", "crates/ui-egui/tests/ui_group/theme.rs::new_presets_are_available_from_the_existing_menu_and_commands", "apps/pdfcraft-cli/tests/themes.rs::complete_theme_workflow_survives_separate_cli_processes", "apps/pdfcraft-cli/tests/mcp_compact.rs::theme_management_uses_existing_mcp_and_compact_discovery"]
+notes = "Toolbar and Display theme share System, Light, Dark and six additional presets through one preference setter; manual choices exit system mode. Every text colour meets WCAG AA (4.5:1) on every surface in both themes; glyphs are pixel-aligned for sharper text at 100–150 % scaling. Custom theme management is available through the existing CLI/MCP registry and a shared native store. Graphical editing and natural-language generation remain future work."
 
 [[feature]]
 id = "view.theme-system"
@@ -1645,7 +1645,7 @@ tier = "P1"
 milestone = "M3"
 status = "shipped"
 commands = ["view.theme.system"]
-tools = []
+tools = ["theme_activate"]
 evidence = ["crates/ui-egui/tests/ui_group/theme.rs::toolbar_and_view_menu_share_three_state_preferences", "crates/ui-egui/tests/ui_group/theme.rs::saved_preferences_restore_with_legacy_light_dark_settings", "crates/ui-egui/tests/control.rs::theme_commands_and_options_report_preference_and_effective_colours"]
 notes = "Toolbar, Display theme and --theme system share a persisted System preference that follows OS changes without losing the selected mode; ui.state reports preference and resolved colours separately."
 

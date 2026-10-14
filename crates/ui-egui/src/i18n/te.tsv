@@ -2133,6 +2133,13 @@ action wizard	Start	ప్రారంభించు
 	A selected field has no widget on any page, so the fields can't be edited together.	ఎంచుకున్న ఒక ఫీల్డ్‌కు ఏ పేజీలోనూ విడ్జెట్ లేదు, కాబట్టి ఫీల్డ్‌లను కలిపి సవరించలేము.
 	 ({n} at {dpi} dpi, the largest size they can be drawn at)	 ({n} {dpi} dpi వద్ద, అవి గీయగల అతిపెద్ద పరిమాణం)
 
+# Application theme names (preset names retain their spelling).
+	Heritage	Heritage
+	Executive	Executive
+	Sienna	Sienna
+	Paper & Ink	కాగితం మరియు సిరా
+	Atelier	Atelier
+	Editorial	Editorial
 # Multi-object selection and movement (#844)
 @plural	{n} object selected|{n} objects selected	{n} వస్తువు ఎంచుకోబడింది|{n} వస్తువులు ఎంచుకోబడ్డాయి
 	Drag the selection to move it. Esc clears the selection.	ఎంపికను కదిలించడానికి లాగండి. Esc ఎంపికను తొలగిస్తుంది.
@@ -2195,6 +2202,8 @@ animation effects	Off	ఆఫ్
 	Original	అసలు
 	Greyscale	గ్రేస్కేల్
 	Black and white	నలుపు తెలుపు
+
+	Custom theme	అనుకూల థీమ్
 	Browser's print dialog	బ్రౌజర్ ముద్రణ డైలాగ్
 	Copies, two-sided printing and colour are chosen in the browser's print dialog.	కాపీలు, రెండు వైపుల ముద్రణ మరియు రంగును బ్రౌజర్ ముద్రణ డైలాగ్‌లో ఎంచుకుంటారు.
 	Preparing {n} sheets for printing…	ముద్రణ కోసం {n} షీట్‌లను సిద్ధం చేస్తోంది…

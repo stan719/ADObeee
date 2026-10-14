@@ -164,6 +164,15 @@ undoable and survive saving/reopening. `image_hit` shares the UI's curve and hol
 The bounds, limits and font requirements are in [existing-text editing](../../docs/editing-existing-text.md)
 and [image editing](../../docs/editing-images.md).
 
+## Application themes
+
+The ten `theme_*` tools use the shared `pdfcraft-themes` API and native transaction
+store, without a document or graphical application. All require a `store` path,
+confined by `--root`; mutations support `expected_revision`. `pdfcraft-cli tools`
+exposes the 31-color schema. The same tools are already available over the opt-in
+MCP server, including compact discovery. See [themes](../../docs/themes.md) for
+commands, import/export examples, migration, concurrent GUI/CLI behavior and errors.
+
 ## Opening local GoToR links
 
 `link_open {doc, page, index, password?}` follows a local PDF link using `link_list`

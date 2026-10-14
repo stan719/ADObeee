@@ -2,6 +2,7 @@
 //! Password Security settings behind "Advanced Options" (compatibility, what to encrypt,
 //! printing, changes, copying, screen readers). Execution plan M8.1.
 
+use crate::theme::ThemeContext as _;
 use egui::{Align, Color32, Layout};
 use pdfcraft_engine::{Changes, Edit, Printing, Protection};
 
@@ -80,7 +81,7 @@ fn radio(ui: &mut egui::Ui, t: &Tokens, on: bool, label: &str) -> egui::Response
     let c = egui::pos2(rect.left() + 9.0, rect.center().y);
     if on {
         ui.painter().circle_filled(c, 8.0, t.accent);
-        ui.painter().circle_filled(c, 3.0, Color32::WHITE);
+        ui.painter().circle_filled(c, 3.0, t.on_accent);
     } else {
         ui.painter().circle_stroke(c, 7.5, egui::Stroke::new(1.5, t.text_muted));
     }
@@ -114,6 +115,15 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     let r = field(ui, "Type Password", &mut d.password, "protect-pw");
     if r.changed() || !d.password.is_empty() {
         let (s, c) = strength(&d.password);
+        let t = Tokens::get(ui.ctx());
+        let c = t.compatible(
+            c,
+            match s {
+                "Strong" => theme::ColorToken::Success,
+                "Medium" => theme::ColorToken::Warning,
+                _ => theme::ColorToken::Error,
+            },
+        );
         if !d.password.is_empty() {
             ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Strength: {s}"), &[("s", tl!(s))])).font(theme::medium(11.5)).color(c));
         }

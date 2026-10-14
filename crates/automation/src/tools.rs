@@ -52,6 +52,38 @@ fn measure_schema() -> Value {
     )
 }
 
+fn theme_palette_schema() -> Value {
+    let properties: serde_json::Map<String, Value> = pdfcraft_themes::ColorToken::ALL
+        .iter()
+        .map(|token| token.key())
+        .map(|name| {
+            (
+                name.into(),
+                json!({ "type": "string", "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$", "description": "Hex color #RRGGBB or #RRGGBBAA." }),
+            )
+        })
+        .collect();
+    json!({ "type": "object", "properties": properties, "additionalProperties": false,
+        "description": "Partial patch; stable fields are the 31 semantic palette token names. Unspecified values remain unchanged." })
+}
+
+fn theme_tool_schema(properties: Value, required: &[&str], mutation: bool) -> Value {
+    let mut properties = properties.as_object().cloned().unwrap_or_default();
+    properties.insert(
+        "store".into(),
+        json!({ "type": "string", "minLength": 1, "description": "Theme store JSON file path; relative paths are confined by --root." }),
+    );
+    if mutation {
+        properties.insert(
+            "expected_revision".into(),
+            json!({ "type": "integer", "minimum": 0, "description": "Optional optimistic concurrency guard from theme_list/theme_inspect." }),
+        );
+    }
+    let mut required = required.to_vec();
+    required.push("store");
+    schema(Value::Object(properties), &required)
+}
+
 fn color() -> Value {
     json!({ "type": "string", "description": "#RRGGBB or a name: yellow, red, orange, green, blue, purple, pink, black, gray, white." })
 }
@@ -1261,6 +1293,26 @@ pub fn tools() -> Vec<ToolDef> {
             .ro().with(schema(json!({"doc":doc()}), &[])),
         t("render_preview", "Render a preview", "Render a PNG bounded by max_side (default 1024), without changing or saving the document. Page defaults to 1; doc may be omitted when exactly one document is open.")
             .ro().with(schema(json!({"doc":doc(),"page":{"type":"integer","minimum":1},"max_side":{"type":"integer","minimum":1,"maximum":4096}}), &[])),
+        t("theme_list", "List themes", "List built-in and custom themes with stable IDs, active selection, store revision, and palette metadata.")
+            .ro().with(theme_tool_schema(json!({}), &[], false)),
+        t("theme_inspect", "Inspect a theme", "Return a theme's complete resolved 31-color palette, identity, metadata and source information. Built-in IDs include system, light, dark and the six named presets; custom IDs use custom:<uuid>.")
+            .ro().with(theme_tool_schema(json!({ "id": { "type": "string" } }), &["id"], false)),
+        t("theme_create", "Create a custom theme", "Create a custom theme from a built-in base and optional partial palette. Supply a UUID id or let the store generate one. Built-ins cannot be changed.")
+            .with(theme_tool_schema(json!({ "id": { "type": "string", "description": "Optional UUID for the new custom theme." }, "name": { "type": "string", "minLength": 1 }, "base_theme_id": { "type": "string", "description": "Built-in theme ID; defaults to light." }, "palette": theme_palette_schema() }), &["name"], true)),
+        t("theme_clone", "Clone a theme", "Copy a built-in or custom theme into a new custom theme with an independent stable ID.")
+            .with(theme_tool_schema(json!({ "id": { "type": "string", "description": "Source theme ID." }, "new_id": { "type": "string", "description": "Optional UUID for the copy." }, "name": { "type": "string", "minLength": 1 } }), &["id", "name"], true)),
+        t("theme_update", "Update theme colors", "Apply a validated partial palette patch to a custom theme. Built-in themes are immutable.")
+            .with(theme_tool_schema(json!({ "id": { "type": "string" }, "palette": theme_palette_schema() }), &["id", "palette"], true)),
+        t("theme_rename", "Rename a custom theme", "Rename a custom theme without changing its stable ID. Built-in themes cannot be renamed.")
+            .with(theme_tool_schema(json!({ "id": { "type": "string" }, "name": { "type": "string", "minLength": 1 } }), &["id", "name"], true)),
+        t("theme_activate", "Activate a theme", "Set the persisted theme preference to a built-in theme or custom stable ID. System continues following OS appearance.")
+            .with(theme_tool_schema(json!({ "id": { "type": "string" } }), &["id"], true)),
+        t("theme_delete", "Delete a custom theme", "Delete a custom theme. Built-ins are protected; deleting the active theme safely selects its base or Light.")
+            .destructive().with(theme_tool_schema(json!({ "id": { "type": "string" } }), &["id"], true)),
+        t("theme_export", "Export a custom theme", "Return a versioned, human-readable JSON definition for backup or sharing.")
+            .ro().with(theme_tool_schema(json!({ "id": { "type": "string" } }), &["id"], false)),
+        t("theme_import", "Import a custom theme", "Validate and import a versioned custom-theme JSON document. Existing IDs are refused; unknown extension metadata is preserved.")
+            .with(theme_tool_schema(json!({ "document": { "type": "object" } }), &["document"], true)),
     ]
 }
 
