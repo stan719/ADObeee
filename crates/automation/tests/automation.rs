@@ -115,6 +115,37 @@ fn auto(dir: &Path) -> Automation {
     Automation::new().with_root(dir).unwrap().with_clock(|| 1_700_000_000)
 }
 
+/// Custom document properties through the tools: set and cleared with doc_set_info under any
+/// name the spec does not use, listed by doc_info apart from the standard entries, bad names
+/// refused without a change.
+#[test]
+fn custom_document_properties_are_set_listed_and_cleared_through_the_tools() {
+    let dir = workdir("custom-info");
+    std::fs::write(dir.join("a.pdf"), fixture(1)).unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "doc_set_info", json!({ "doc": doc, "key": "Title", "value": "Report" }));
+    ok(&mut a, "doc_set_info", json!({ "doc": doc, "key": "Project", "value": "Apollo" }));
+    ok(&mut a, "doc_set_info", json!({ "doc": doc, "key": "Revision", "value": "7" }));
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert_eq!(info["title"], "Report");
+    let mut custom: Vec<(String, String)> =
+        info["custom"].as_array().unwrap().iter().map(|c| (c["name"].as_str().unwrap().into(), c["value"].as_str().unwrap().into())).collect();
+    custom.sort();
+    assert_eq!(custom, [("Project".to_string(), "Apollo".to_string()), ("Revision".to_string(), "7".to_string())], "{}", info["custom"]);
+    assert!(a.call("doc_set_info", &json!({ "doc": doc, "key": "Bad Name", "value": "x" })).is_err(), "a name with a space is refused");
+    assert!(a.call("doc_set_info", &json!({ "doc": doc, "key": "", "value": "x" })).is_err());
+    ok(&mut a, "doc_set_info", json!({ "doc": doc, "key": "Project", "value": "" }));
+    let info = ok(&mut a, "doc_info", json!({ "doc": doc }));
+    assert_eq!(info["custom"].as_array().unwrap().len(), 1, "{}", info["custom"]);
+    assert_eq!(info["custom"][0]["name"], "Revision");
+    ok(&mut a, "doc_save", json!({ "doc": doc, "path": "out/custom.pdf" }));
+    let mut b = auto(&dir);
+    let re = ok(&mut b, "doc_open", json!({ "path": "out/custom.pdf" }))["doc"].as_u64().unwrap();
+    let info = ok(&mut b, "doc_info", json!({ "doc": re }));
+    assert_eq!(info["custom"][0]["value"], "7", "{}", info["custom"]);
+}
+
 #[test]
 fn autotag_preview_proposes_text_without_changing_the_pdf() {
     let dir = workdir("autotag-preview");

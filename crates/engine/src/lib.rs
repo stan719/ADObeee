@@ -724,6 +724,11 @@ impl Document {
         self.editor.as_ref().and_then(|e| pdfcraft_organize::info(&e.cos, key))
     }
 
+    /// The custom document properties as they are now (name, text), Document Properties ▸ Custom.
+    pub fn custom_info(&self) -> Vec<(String, String)> {
+        self.editor.as_ref().map(|e| pdfcraft_organize::custom_info(&e.cos)).unwrap_or_default()
+    }
+
     /// The name shown on the tab and window: the document title when the document asks for it
     /// (Initial View ▸ Show: Document Title) and has a real one, else the file name.
     pub fn display_name(&self) -> String {
@@ -3547,6 +3552,13 @@ impl Session {
             doc.info.keywords = info("Keywords");
             doc.info.creator = info("Creator");
             doc.info.producer = info("Producer");
+            doc.info.custom = pdfcraft_organize::custom_info(&editor.cos)
+                .into_iter()
+                .filter_map(|(k, v)| {
+                    let v = v.trim_matches('\0').trim().to_string();
+                    (!v.is_empty()).then_some((k, v))
+                })
+                .collect();
             doc.info.file_size = bytes.len();
             if !doc.signatures.is_empty() {
                 doc.signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
