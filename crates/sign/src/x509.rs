@@ -480,8 +480,9 @@ pub fn subject_of(raw: &[u8]) -> Option<Name> {
 
 /// The chain from `leaf` up through `pool`, as far as issuers can be found and may issue: each
 /// issuer's key verifies the certificate below it, it is a CA allowed to sign certificates, its
-/// `pathLenConstraint` allows the CA certificates below it, and (when `at` is given) it was valid
-/// then. Stops at a self-signed certificate. Certificates embedded in a document are in `pool`
+/// `pathLenConstraint` allows the CA certificates below it, it has no critical extension we do not
+/// process unless it is self-signed, and (when `at` is given) it was valid then. Stops at a
+/// self-signed certificate. Certificates embedded in a document are in `pool`
 /// too, so an ordinary end-entity certificate must never be accepted as an issuer.
 pub fn build_chain<'a>(leaf: &'a Certificate, pool: &'a [Certificate], at: Option<Time>) -> Vec<&'a Certificate> {
     build_chain_noted(leaf, pool, at).0
@@ -511,6 +512,10 @@ pub fn build_chain_noted<'a>(leaf: &'a Certificate, pool: &'a [Certificate], at:
                 Some("The certificate of {} is not a CA certificate that may issue certificates, so it is not used to vouch for {}.")
             } else if c.path_len.is_some_and(|n| below > n as usize) {
                 Some("The certificate of {} does not allow this many CA certificates below it (path length), so it is not used to vouch for {}.")
+            } else if !c.unknown_critical.is_empty() && !c.is_self_signed() {
+                // A trust anchor's own extensions are a matter of trust policy; an intermediate's
+                // critical extension limits the path and must be understood to honour it.
+                Some("The certificate of {} has critical extensions PdfCraft does not recognize, so it is not used to vouch for {}.")
             } else if at.is_some_and(|t| !c.valid_at(t)) {
                 Some("The certificate of {} was not valid at the time of signing, so it is not used to vouch for {}.")
             } else {

@@ -132,6 +132,27 @@ fn an_end_entity_certificate_cannot_issue() {
 }
 
 #[test]
+fn an_intermediate_with_an_unrecognized_critical_extension_does_not_vouch() {
+    let r = root();
+    let unknown = "1.2.3.4.5.6";
+    // 2.5.29.30 is nameConstraints, which PdfCraft does not enforce.
+    for oid in [unknown, "2.5.29.30"] {
+        let critical = issue("Critical CA", Some(&r), FOREVER, &[basic_constraints(true, None), key_usage(KEY_CERT_SIGN), ext(oid, &der::seq(&[]))]);
+        let l = end_entity("Leaf", &critical);
+        let pool = [critical.cert.clone(), r.cert.clone()];
+        let (chain, why) = build_chain_noted(&l.cert, &pool, None);
+        assert_eq!(names(&chain), ["Leaf"], "{oid}");
+        assert!(why.is_some_and(|w| w.message.contains("critical extensions")), "{oid}");
+    }
+    // The same extension, not critical, is ignored as before.
+    let plain_ext = der::seq(&[&der::oid(unknown), &der::octets(&der::seq(&[]))]);
+    let fine = issue("Plain Ext CA", Some(&r), FOREVER, &[basic_constraints(true, None), key_usage(KEY_CERT_SIGN), plain_ext]);
+    let l = end_entity("Leaf", &fine);
+    let pool = [fine.cert.clone(), r.cert.clone()];
+    assert_eq!(names(&build_chain(&l.cert, &pool, None)), ["Leaf", "Plain Ext CA", "Test Root"]);
+}
+
+#[test]
 fn a_path_length_constraint_limits_the_cas_below() {
     let r = root();
     let i1 = ca("Constrained", &r, Some(0));
