@@ -3083,6 +3083,27 @@ fn auditing_faux_redactions_through_tools() {
     assert_eq!(ok(&mut a, "doc_audit_redactions", json!({ "doc": clean }))["count"], 0);
 }
 
+/// #1885: the audit must not flag the program's own applied redaction. The text left on the
+/// line keeps its place through a `TJ` displacement, and the box over that displacement hides
+/// nothing.
+#[test]
+fn an_applied_redaction_audits_clean() {
+    let dir = workdir("redact-then-audit");
+    std::fs::write(dir.join("call.txt"), "Call 01 23 45 67 89").unwrap();
+    std::fs::write(dir.join("mine.txt"), "01 23 45 67 89 is mine").unwrap();
+    std::fs::write(dir.join("both.txt"), "Call 01 23 45 67 89 is mine").unwrap();
+    let mut a = auto(&dir);
+    for file in ["call.txt", "mine.txt", "both.txt"] {
+        let doc = ok(&mut a, "doc_create", json!({ "from": "text", "path": file }))["doc"].as_u64().unwrap();
+        assert_eq!(ok(&mut a, "redact_mark", json!({ "doc": doc, "pattern": "phone" }))["marked"], 1, "{file}");
+        ok(&mut a, "redact_apply", json!({ "doc": doc }));
+        let text = page_text(&mut a, doc)[0].clone();
+        assert!(!text.contains("89"), "{file}: the number is gone: {text}");
+        let r = ok(&mut a, "doc_audit_redactions", json!({ "doc": doc }));
+        assert_eq!(r["count"], 0, "{file}: {r}");
+    }
+}
+
 #[test]
 fn printing_through_tools() {
     let dir = workdir("print");

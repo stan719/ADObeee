@@ -31,6 +31,10 @@ pub struct TextLine {
     pub text: String,
     /// Its box in user space.
     pub rect: [f64; 4],
+    /// The boxes of the text-showing operators joined into the line, in content order: the
+    /// parts of `rect` that paint glyphs. A `TJ` displacement between or beside them (a tab
+    /// stop, the width of text a redaction removed) paints nothing and is in none of them.
+    spans: Vec<[f64; 4]>,
     /// The font's resource name and `/BaseFont` (or Type 3 descriptor's `/FontName`), and its size in text space.
     pub font: String,
     pub base_font: String,
@@ -63,6 +67,12 @@ pub struct TextLine {
 }
 
 impl TextLine {
+    /// The boxes of the text-showing operators joined into the line, in content order: the
+    /// parts of [`rect`](Self::rect) that paint glyphs.
+    pub fn spans(&self) -> &[[f64; 4]] {
+        &self.spans
+    }
+
     /// Origin of the source baseline in PDF user space, independent of font ascent/descent.
     pub fn baseline(&self) -> [f64; 2] {
         [self.origin.x, self.origin.baseline]
@@ -470,6 +480,8 @@ struct Shown {
     bt_state: Ts,
     text: String,
     rect: [f64; 4],
+    /// The boxes of the glyphs painted, one per run of glyphs between large `TJ` displacements.
+    spans: Vec<[f64; 4]>,
     baseline: f64,
     start_x: f64,
     end_x: f64,
@@ -556,6 +568,7 @@ fn interpret(
                     if let Some(mut first) = items.next() {
                         for shown in items {
                             first.glyph_count = first.glyph_count.saturating_add(shown.glyph_count);
+                            first.spans.extend(shown.spans.iter().copied());
                             first.extra_ops.push(shown.op);
                             first.extra_ops.extend(shown.extra_ops);
                             first.rect = [
@@ -665,6 +678,10 @@ fn interpret(
                 let mut decodable = true;
                 let mut x_text = 0.0;
                 let mut glyph_count = 0_usize;
+                // Where the glyphs painted start and end along the run: one segment per run of
+                // glyphs, split where a large `TJ` displacement leaves a gap between them.
+                let mut segments: Vec<(f64, f64)> = Vec::new();
+                let mut gap = false;
                 for p in &pieces {
                     match p {
                         Object::String(s) => {
@@ -675,15 +692,24 @@ fn interpret(
                                     None => decodable = false,
                                 }
                                 let w = m.width(code) * ts.size + ts.char_spacing + if m.is_space(code, len) { ts.word_spacing } else { 0.0 };
+                                let from = x_text;
                                 x_text += w * ts.scale;
+                                match segments.last_mut() {
+                                    Some(segment) if !gap => segment.1 = x_text,
+                                    _ => segments.push((from, x_text)),
+                                }
+                                gap = false;
                             }
                         }
                         other => {
                             if let Some(n) = other.as_f64() {
                                 let dx = -n / 1000.0 * ts.size * ts.scale;
                                 // A large gap inside TJ reads as a space.
-                                if dx > ts.size * 0.2 && !text.ends_with(' ') {
-                                    text.push(' ');
+                                if dx > ts.size * 0.2 {
+                                    if !text.ends_with(' ') {
+                                        text.push(' ');
+                                    }
+                                    gap = true;
                                 }
                                 x_text += dx;
                             }
@@ -692,16 +718,23 @@ fn interpret(
                 }
                 tm = Matrix([1.0, 0.0, 0.0, 1.0, x_text, 0.0]).then(&tm);
                 let end = tm.then(&ts.ctm).apply(0.0, ts.rise);
-                // The box: from descent to ascent along the run.
-                let corners = [
-                    trm0.apply(0.0, ts.rise + m.descent * ts.size),
-                    trm0.apply(x_text, ts.rise + m.descent * ts.size),
-                    trm0.apply(0.0, ts.rise + m.ascent * ts.size),
-                    trm0.apply(x_text, ts.rise + m.ascent * ts.size),
-                ];
-                let rect = corners
-                    .iter()
-                    .fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, p| [b[0].min(p.0), b[1].min(p.1), b[2].max(p.0), b[3].max(p.1)]);
+                // The boxes: from descent to ascent along the glyphs painted. A `TJ` displacement
+                // before, between or after them (a tab stop, the width of text a redaction
+                // removed) paints nothing, so it is in no box (#1885); the advance keeps it.
+                let span_of = |(x0, x1): (f64, f64)| {
+                    let corners = [
+                        trm0.apply(x0, ts.rise + m.descent * ts.size),
+                        trm0.apply(x1, ts.rise + m.descent * ts.size),
+                        trm0.apply(x0, ts.rise + m.ascent * ts.size),
+                        trm0.apply(x1, ts.rise + m.ascent * ts.size),
+                    ];
+                    corners.iter().fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, p| [b[0].min(p.0), b[1].min(p.1), b[2].max(p.0), b[3].max(p.1)])
+                };
+                let spans: Vec<[f64; 4]> = segments.iter().map(|&segment| span_of(segment)).collect();
+                let rect = match (segments.first(), segments.last()) {
+                    (Some(first), Some(last)) => span_of((first.0, last.1)),
+                    _ => span_of((0.0, x_text)),
+                };
                 let size_user = (trm0.0[2].powi(2) + trm0.0[3].powi(2)).sqrt() * ts.size;
                 // A numeric-only TJ adjusts the current text matrix but paints no glyphs.
                 // It must not create a phantom editable line or enlarge its neighbours' boxes.
@@ -720,6 +753,7 @@ fn interpret(
                     bt_state: at_bt.1.clone(),
                     text,
                     rect,
+                    spans,
                     baseline: start.1,
                     start_x: start.0,
                     end_x: end.0,
@@ -795,6 +829,7 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
             }
             l.text.push_str(&s.text);
             l.rect = [l.rect[0].min(s.rect[0]), l.rect[1].min(s.rect[1]), l.rect[2].max(s.rect[2]), l.rect[3].max(s.rect[3])];
+            l.spans.extend(s.spans.iter().copied());
             l.ops.push(s.op);
             l.ops.extend(s.extra_ops.iter().copied());
             l.decodable &= s.decodable;
@@ -805,6 +840,7 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
             lines.push(TextLine {
                 text: s.text.clone(),
                 rect: s.rect,
+                spans: s.spans.clone(),
                 font: String::from_utf8_lossy(&s.font).into_owned(),
                 base_font: s.base_font.clone(),
                 size: s.size,
@@ -882,6 +918,7 @@ fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<(usize, f64, f64, f64)
         }
         l.text.push_str(&s.text);
         l.rect = [l.rect[0].min(s.rect[0]), l.rect[1].min(s.rect[1]), l.rect[2].max(s.rect[2]), l.rect[3].max(s.rect[3])];
+        l.spans.extend(s.spans.iter().copied());
         l.ops.push(s.op);
         l.ops.extend(s.extra_ops.iter().copied());
         l.decodable &= s.decodable;
@@ -891,6 +928,7 @@ fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<(usize, f64, f64, f64)
         lines.push(TextLine {
             text: s.text.clone(),
             rect: s.rect,
+            spans: s.spans.clone(),
             font: String::from_utf8_lossy(&s.font).into_owned(),
             base_font: s.base_font.clone(),
             size: s.size,

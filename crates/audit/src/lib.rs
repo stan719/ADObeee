@@ -106,7 +106,7 @@ pub fn audit_redactions(doc: &Document) -> Result<Vec<AuditFinding>, AuditError>
         for annot in annots(doc, &page.dict)? {
             let mut covered = String::new();
             for line in &lines {
-                if covers(&annot, &line.rect) {
+                if covers(&annot, line) {
                     if !covered.is_empty() {
                         covered.push(' ');
                     }
@@ -126,23 +126,28 @@ pub fn audit_redactions(doc: &Document) -> Result<Vec<AuditFinding>, AuditError>
 /// make the text unreadable. Light covers (table shading, highlights) over dark text fail the
 /// contrast check and are not flagged.
 fn is_cover(rect: &cover::FilledRect, line: &TextLine) -> bool {
-    rect.pos > line.paint_pos() && covers(&rect.rect, &line.rect) && contrast(line.color, rect.rgb) < COVER_CONTRAST
+    rect.pos > line.paint_pos() && covers(&rect.rect, line) && contrast(line.color, rect.rgb) < COVER_CONTRAST
 }
 
-/// Does `cover` hide a substantial part of `line`?
-fn covers(cover: &[f64; 4], line: &[f64; 4]) -> bool {
-    let ix0 = cover[0].max(line[0]);
-    let iy0 = cover[1].max(line[1]);
-    let ix1 = cover[2].min(line[2]);
-    let iy1 = cover[3].min(line[3]);
-    if ix1 <= ix0 || iy1 <= iy0 {
-        return false;
+/// Does `cover` hide a substantial part of `line`'s text? Measured over the boxes that paint
+/// glyphs, not the line's whole box: a `TJ` displacement (a tab stop, the width of text a
+/// redaction removed) paints nothing, so a cover over it hides nothing (#1885).
+fn covers(cover: &[f64; 4], line: &TextLine) -> bool {
+    let spans = line.spans();
+    let spans = if spans.is_empty() { std::slice::from_ref(&line.rect) } else { spans };
+    let (mut hidden, mut area) = (0.0, 0.0);
+    for span in spans {
+        hidden += overlap(cover, span);
+        area += (span[2] - span[0]).max(0.0) * (span[3] - span[1]).max(0.0);
     }
-    let line_area = (line[2] - line[0]).max(0.0) * (line[3] - line[1]).max(0.0);
-    if line_area <= 0.0 {
-        return false;
-    }
-    (ix1 - ix0) * (iy1 - iy0) / line_area >= COVER_FRACTION
+    area > 0.0 && hidden / area >= COVER_FRACTION
+}
+
+/// The area of `a` ∩ `b`.
+fn overlap(a: &[f64; 4], b: &[f64; 4]) -> f64 {
+    let (x0, y0) = (a[0].max(b[0]), a[1].max(b[1]));
+    let (x1, y1) = (a[2].min(b[2]), a[3].min(b[3]));
+    if x1 <= x0 || y1 <= y0 { 0.0 } else { (x1 - x0) * (y1 - y0) }
 }
 
 /// WCAG 2.x relative luminance of an sRGB triple.

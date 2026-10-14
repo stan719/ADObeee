@@ -250,6 +250,49 @@ fn rectangle_drawn_as_a_path_covers_text_like_re() {
     }
 }
 
+/// #1885: after a redaction, the remaining text keeps its place through a `TJ` displacement
+/// of the removed glyphs' width. That displacement paints nothing, so the cover over it hides
+/// no text, whether the gap trails the text, leads it, or sits between two runs. A cover over
+/// the glyphs themselves is still found.
+#[test]
+fn a_cover_over_a_tj_gap_hides_no_text() {
+    // Helvetica 11 pt from x = 50: "Call " is 22 pt wide, the removed "01 23 45 67 89" 73.392 pt.
+    let gap = b"q 0 g 72 759.8 73.392 11 re f Q
+";
+    let cases: [(&[u8], &str); 3] = [
+        (
+            b"BT 1 0 0 1 50 762 Tm /F1 11 Tf [(Call ) -6672] TJ ET
+",
+            "trailing",
+        ),
+        (
+            b"BT 1 0 0 1 72 762 Tm /F1 11 Tf [-6672 (is mine)] TJ ET
+",
+            "leading",
+        ),
+        (
+            b"BT 1 0 0 1 50 762 Tm /F1 11 Tf [(Call ) -6672 ( is mine)] TJ ET
+",
+            "inner",
+        ),
+    ];
+    for (text, case) in cases {
+        let mut content = text.to_vec();
+        content.extend_from_slice(gap);
+        let findings = audit_redactions(&open(one_page(&content, ""))).expect("audit must run");
+        assert!(findings.is_empty(), "{case} gap: {findings:?}");
+    }
+    // The same text with the cover over "Call" itself (22 pt wide) is a faux redaction.
+    let mut content = cases[0].0.to_vec();
+    content.extend_from_slice(
+        b"q 0 g 50 759.8 22 11 re f Q
+",
+    );
+    let findings = audit_redactions(&open(one_page(&content, ""))).expect("audit must run");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].covered_text, "Call");
+}
+
 #[test]
 fn non_rectangular_path_is_not_a_cover() {
     // Each path's bounding box covers the text, but the shape itself does not hide it all.
