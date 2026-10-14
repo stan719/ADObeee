@@ -108,20 +108,59 @@ pub enum SignatureImageError {
     Read(#[from] std::io::Error),
     #[error("Couldn't decode the signature image: {0}")]
     Decode(#[from] image::ImageError),
+    #[error("Couldn't encode the signature image: {0}")]
+    Encode(#[from] png::EncodingError),
 }
 
-/// A validated image, normalized to PNG without source paths or metadata. Alpha is preserved.
+/// A validated image, normalized to PNG without source paths or metadata other than its
+/// density. Alpha is preserved.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SignatureImage {
     bytes: Arc<Vec<u8>>,
     rgba: Arc<Vec<u8>>,
     size: [usize; 2],
+    /// Pixels per metre across and down, when the source states its physical size (PNG `pHYs`).
+    /// Kept in the normalized PNG, so a saved signature keeps it too.
+    density: Option<[u32; 2]>,
+}
+
+/// 72 points per inch.
+const POINTS_PER_METRE: f64 = 72.0 / 0.0254;
+
+/// The physical size in metres a PNG states with `pHYs`, as stored (before any EXIF
+/// orientation). `None` for other formats and for a density in unknown units (aspect only).
+fn stated_size(bytes: &[u8]) -> Option<[f64; 2]> {
+    let reader = png::Decoder::new(Cursor::new(bytes)).read_info().ok()?;
+    let info = reader.info();
+    match info.pixel_dims? {
+        png::PixelDimensions { xppu, yppu, unit: png::Unit::Meter } if xppu > 0 && yppu > 0 => {
+            Some([f64::from(info.width) / f64::from(xppu), f64::from(info.height) / f64::from(yppu)])
+        }
+        _ => None,
+    }
+}
+
+fn encode_png(rgba: &image::RgbaImage, density: Option<[u32; 2]>) -> Result<Vec<u8>, SignatureImageError> {
+    let mut png = Vec::new();
+    let mut encoder = png::Encoder::new(&mut png, rgba.width(), rgba.height());
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_pixel_dims(density.map(|[xppu, yppu]| png::PixelDimensions { xppu, yppu, unit: png::Unit::Meter }));
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(rgba.as_raw())?;
+    writer.finish()?;
+    Ok(png)
 }
 
 /// Decode an imported PNG or JPEG within the source limits (file size, 32 megapixels, 8192 pixels
 /// per side, bounded allocation), upright per its EXIF orientation and scaled down to at most
 /// 4 megapixels and 4096 pixels per side. Shared by image signatures and scanned photos.
 pub(crate) fn decode_source(bytes: &[u8]) -> Result<DynamicImage, SignatureImageError> {
+    decode_oriented(bytes).map(|(image, _)| image)
+}
+
+/// [`decode_source`], with the EXIF orientation it applied.
+fn decode_oriented(bytes: &[u8]) -> Result<(DynamicImage, image::metadata::Orientation), SignatureImageError> {
     if bytes.len() > MAX_SIGNATURE_IMAGE_BYTES {
         return Err(SignatureImageError::Size);
     }
@@ -152,7 +191,7 @@ pub(crate) fn decode_source(bytes: &[u8]) -> Result<DynamicImage, SignatureImage
         // `thumbnail` resamples in one integer pass, without the large float buffers `resize` keeps.
         image = image.thumbnail(nw, nh);
     }
-    Ok(image)
+    Ok((image, orientation))
 }
 
 impl SignatureImage {
@@ -164,16 +203,21 @@ impl SignatureImage {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureImageError> {
-        let image = decode_source(bytes)?;
+        use image::metadata::Orientation::{Rotate90, Rotate90FlipH, Rotate270, Rotate270FlipH};
+        let (image, orientation) = decode_oriented(bytes)?;
         let rgba = image.into_rgba8();
         let size = [rgba.width() as usize, rgba.height() as usize];
-        let mut png = Cursor::new(Vec::new());
-        DynamicImage::ImageRgba8(rgba.clone()).write_to(&mut png, ImageFormat::Png)?;
-        let bytes = png.into_inner();
+        let stated = stated_size(bytes)
+            .map(|[w, h]| if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) { [h, w] } else { [w, h] });
+        // Per pixel kept: a source scaled down to the pixel limits keeps its physical size.
+        let per_metre =
+            |px: usize, metres: f64| Some((px as f64 / metres).round()).filter(|v| (1.0..=f64::from(u32::MAX)).contains(v)).map(|v| v as u32);
+        let density = stated.and_then(|[w, h]| Some([per_metre(size[0], w)?, per_metre(size[1], h)?]));
+        let bytes = encode_png(&rgba, density)?;
         if bytes.len() > MAX_SIGNATURE_IMAGE_BYTES {
             return Err(SignatureImageError::Size);
         }
-        Ok(Self { bytes: Arc::new(bytes), rgba: Arc::new(rgba.into_raw()), size })
+        Ok(Self { bytes: Arc::new(bytes), rgba: Arc::new(rgba.into_raw()), size, density })
     }
 
     pub fn bytes(&self) -> &Arc<Vec<u8>> {
@@ -207,21 +251,31 @@ impl SignatureImage {
             let keep = ((high - whiteness) / span).clamp(0.0, 1.0);
             pixel.0[3] = (f32::from(a) * keep).round() as u8;
         }
-        let mut png = Cursor::new(Vec::new());
-        DynamicImage::ImageRgba8(rgba).write_to(&mut png, ImageFormat::Png)?;
-        Self::from_bytes(&png.into_inner())
+        Self::from_bytes(&encode_png(&rgba, self.density)?)
     }
 
     /// The user-space box for the image with its left edge at `at` (a user-space point on `page`),
-    /// vertically centered, with the same 150 pt width cap as typed names. Left and centered are
-    /// as displayed: on a page with `/Rotate` the box runs along the turned page's axes.
+    /// vertically centered. An image that states its density is its physical size, scaled down
+    /// to fit a smaller page; one that doesn't (no PNG `pHYs`, or a JPEG) fits the box typed
+    /// names get: 150 pt wide, 32 pt tall (24 pt for initials). Left and centered are as
+    /// displayed: on a page with `/Rotate` the box runs along the turned page's axes.
     pub fn rect(&self, page: &PageInfo, at: [f64; 2], initials: bool) -> Option<[f64; 4]> {
         if !at.iter().all(|v| v.is_finite()) {
             return None;
         }
-        let [w, h] = self.size;
-        let scale = (150.0 / w as f64).min(if initials { 24.0 } else { 32.0 } / h as f64);
-        upright_box(i64::from(page.rotation), at, w as f64 * scale, h as f64 * scale)
+        let [w, h] = self.size.map(|v| v as f64);
+        let (w, h) = match self.density {
+            Some([x, y]) => {
+                let (w, h) = (w * POINTS_PER_METRE / f64::from(x), h * POINTS_PER_METRE / f64::from(y));
+                let fit = (f64::from(page.width) / w).min(f64::from(page.height) / h).min(1.0);
+                (w * fit, h * fit)
+            }
+            None => {
+                let scale = (150.0 / w).min(if initials { 24.0 } else { 32.0 } / h);
+                (w * scale, h * scale)
+            }
+        };
+        upright_box(i64::from(page.rotation), at, w, h)
     }
 
     pub fn edit(&self, page: usize, info: &PageInfo, at: [f64; 2], initials: bool, author: &str) -> Option<Edit> {
@@ -382,6 +436,24 @@ mod tests {
             let rect = image.rect(&page(rotation), at, false).unwrap();
             assert!(rect.iter().zip(want).all(|(a, b)| (a - b).abs() < 0.01), "{rotation}: {rect:?}, want {want:?}");
         }
+    }
+
+    /// #2061: the density survives the clean-up the signature pad applies and a saved
+    /// signature's round trip through its normalized PNG.
+    #[test]
+    fn a_stated_density_survives_cleaning_and_saving() {
+        let mut source = Vec::new();
+        let mut encoder = png::Encoder::new(&mut source, 300, 150);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_pixel_dims(Some(png::PixelDimensions { xppu: 11811, yppu: 11811, unit: png::Unit::Meter }));
+        encoder.write_header().unwrap().write_image_data(&[255, 255, 255, 255].repeat(300 * 150)).unwrap();
+        let image = SignatureImage::from_bytes(&source).unwrap().remove_white_background(245, 35).unwrap();
+        let saved = SignatureImage::from_bytes(image.bytes()).unwrap();
+        assert_eq!(saved, image);
+        let page = PageInfo { width: 600.0, height: 800.0, label: String::new(), crop: [0.0, 0.0, 600.0, 800.0], rotation: 0 };
+        let [x0, y0, x1, y1] = saved.rect(&page, [0.0, 400.0], false).unwrap();
+        assert!(((x1 - x0) - 72.0).abs() < 0.01 && ((y1 - y0) - 36.0).abs() < 0.01, "{:?}", [x0, y0, x1, y1]);
     }
 
     #[test]
