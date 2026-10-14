@@ -7,8 +7,8 @@
   Per-machine install into Program Files, a Start Menu shortcut, a desktop shortcut (on by default,
   optional, and an update keeps it only if it is still there), an App Paths entry, PdfCraft registered as a PDF handler (offered under "Open with"
   and in Default apps, never forced as the default), and "Edit with PdfCraft" on PDF files'
-  right-click menu (on by default, optional). Files opened with PdfCraft arrive on its command
-  line.
+  right-click menu (on by default, optional), and Print on that menu while PdfCraft is the default.
+  Files opened with PdfCraft arrive on its command line.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
@@ -88,6 +88,10 @@
              Resource 1 is the app's lion; resource 2 is the PDF document (build.rs). -->
         <RegistryValue Root="HKLM" Key="Software\Classes\PdfCraft.Document\DefaultIcon" Value="&quot;[#PdfcraftExe]&quot;,-2" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Classes\PdfCraft.Document\shell\open\command" Value="&quot;[#PdfcraftExe]&quot; &quot;%1&quot;" Type="string" />
+        <!-- Print on File Explorer's menu while PdfCraft is the default (#1695): Windows names the
+             canonical verb in its own language. The file prints on the default printer without a
+             window, or opens with the Print dialog when it can't (src/print_verb.rs). -->
+        <RegistryValue Root="HKLM" Key="Software\Classes\PdfCraft.Document\shell\print\command" Value="&quot;[#PdfcraftExe]&quot; --print &quot;%1&quot;" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Classes\.pdf\OpenWithProgids" Name="PdfCraft.Document" Value="" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Classes\Applications\pdfcraft.exe" Name="FriendlyAppName" Value="PdfCraft" Type="string" />
         <RegistryValue Root="HKLM" Key="Software\Classes\Applications\pdfcraft.exe\DefaultIcon" Value="&quot;[#PdfcraftExe]&quot;,-2" Type="string" />
