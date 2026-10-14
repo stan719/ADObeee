@@ -537,8 +537,8 @@ impl Automation {
                 });
             out.push(match result {
                 Ok(r) => {
-                    let target = child(&folder, &name);
-                    write_atomic(&target, &r.bytes)?;
+                    // Never replaces a file: a taken name gets " (2)" and so on, like the batch tools.
+                    let target = crate::batch::publish(&child(&folder, &name), &r.bytes)?;
                     let skipped: Vec<usize> = r.pages.iter().filter(|p| p.skipped.is_some()).map(|p| p.page + 1).collect();
                     json!({ "path": p, "output": target.to_string_lossy(), "words": r.words(), "skipped_pages": skipped })
                 }

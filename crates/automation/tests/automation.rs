@@ -4191,6 +4191,32 @@ fn ocr_recognize_files_writes_searchable_copies() {
 }
 
 #[test]
+fn ocr_recognize_files_keeps_existing_and_same_named_outputs() {
+    let dir = workdir("ocr-files-clobber");
+    let mut a = auto(&dir);
+    if ok(&mut a, "ocr_status", json!({}))["available"] != true {
+        eprintln!("skipped: OCR models not installed");
+        return;
+    }
+    let text = ok(&mut a, "doc_create", json!({ "from": "text", "text": "Batch recognition works" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "doc_export_images", json!({ "doc": text, "folder": "scan", "dpi": 150, "pages": [1] }));
+    let png = std::fs::read_dir(dir.join("scan")).unwrap().next().unwrap().unwrap().path();
+    let scan = ok(&mut a, "doc_create", json!({ "from": "images", "paths": [png.to_string_lossy()] }))["doc"].as_u64().unwrap();
+    ok(&mut a, "doc_save", json!({ "doc": scan, "path": "one/report.pdf" }));
+    ok(&mut a, "doc_save", json!({ "doc": scan, "path": "two/report.pdf" }));
+    let original = std::fs::read(dir.join("one/report.pdf")).unwrap();
+    // The output folder is also the first input's folder, and a file already sits under the second name.
+    std::fs::write(dir.join("one/report (2).pdf"), b"keep me").unwrap();
+    let r = ok(&mut a, "ocr_recognize_files", json!({ "paths": ["one/report.pdf", "two/report.pdf"], "folder": "one" }));
+    let first = r["files"][0]["output"].as_str().unwrap();
+    let second = r["files"][1]["output"].as_str().unwrap();
+    assert_ne!(first, second, "{r}");
+    assert_eq!(std::path::Path::new(first).file_name().unwrap(), "report (3).pdf", "{r}");
+    assert_eq!(std::fs::read(dir.join("one/report.pdf")).unwrap(), original, "the source was overwritten");
+    assert_eq!(std::fs::read(dir.join("one/report (2).pdf")).unwrap(), b"keep me");
+}
+
+#[test]
 fn javascript_through_tools() {
     let dir = workdir("js");
     let mut a = auto(&dir);
