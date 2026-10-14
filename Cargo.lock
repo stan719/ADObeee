@@ -3959,6 +3959,7 @@ dependencies = [
  "pdfcraft-automation",
  "pdfcraft-cos",
  "pdfcraft-engine",
+ "pdfcraft-platform",
  "pdfcraft-render",
  "rustix 1.1.5",
  "serde_json",
@@ -4176,6 +4177,7 @@ version = "0.7.1"
 dependencies = [
  "async-channel",
  "futures-lite",
+ "rustix 1.1.5",
  "zbus",
 ]
 
@@ -4294,7 +4296,6 @@ dependencies = [
  "png 0.18.1",
  "pollster 1.0.1",
  "rfd",
- "rustix 1.1.5",
  "serde",
  "serde_json",
  "skrifa 0.44.0",
