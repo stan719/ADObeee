@@ -4523,3 +4523,22 @@ fn copy_image_finds_a_picture_inside_form_artwork_under_text() {
     assert_eq!(d.page_image_copy_file(0, 0).unwrap(), ("jpg", jpeg));
     assert!(d.page_image_copy_file(0, 1).is_err());
 }
+
+#[test]
+fn system_roots_validate_signatures_but_are_not_the_users_list() {
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let digital_id = sign::pkcs12::open(&p12, "test").unwrap();
+    let mut s = Session::new().with_clock(|| 1_800_000_000);
+    let id = s.open("fixture.pdf", None, Arc::new(fixture(1)), None).unwrap();
+    let signed = s.sign(id, &digital_id, SignOptions { rect: Some([20.0, 20.0, 180.0, 60.0]), ..SignOptions::default() }).unwrap();
+    s.mark_signed(id, signed, None).unwrap();
+    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Unknown);
+    s.set_system_trust(vec![digital_id.certificate.clone()]);
+    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Valid, "an OS root anchors the signature");
+    assert!(s.trusted_certificates().is_empty(), "OS roots are not saved as the user's");
+    // Changing the user's list keeps the OS roots.
+    s.set_trusted_certificates(Vec::new());
+    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Valid);
+    s.set_system_trust(Vec::new());
+    assert_eq!(s.get(id).unwrap().signatures[0].status, SignatureStatus::Unknown);
+}

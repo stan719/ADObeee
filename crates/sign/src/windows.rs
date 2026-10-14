@@ -91,6 +91,17 @@ fn issuers(context: &CertContext, certificate: &Certificate) -> Vec<Certificate>
     chain.iter().filter(|der| **der != certificate.raw).filter_map(|der| Certificate::parse(der).ok()).collect()
 }
 
+/// The root certificates Windows trusts (Current User > Trusted Root Certification Authorities,
+/// which shows the machine's roots too), as anchors for validating signatures. The CA a USB
+/// token's driver installs is among them. Certificates that can't be read are left out.
+pub fn trusted_roots() -> Result<Vec<Certificate>, SignError> {
+    let store = CertStore::open(CertStoreType::CurrentUser, "Root")
+        .map_err(|e| SignError::Crypto(format!("the Windows Trusted Root store couldn't be opened: {}", describe(&e))))?;
+    let contexts =
+        store.find_all().map_err(|e| SignError::Crypto(format!("the Windows certificate store couldn't be searched: {}", describe(&e))))?;
+    Ok(contexts.iter().filter_map(|c| Certificate::parse(c.as_der()).ok()).collect())
+}
+
 /// List usable RSA, P-256 and P-384 CNG identities in Current User > Personal
 /// (the `ids` of [`list`]).
 pub fn identities() -> Result<Vec<DigitalId>, SignError> {

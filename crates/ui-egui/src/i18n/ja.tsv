@@ -2354,3 +2354,8 @@ animation effects	Off	オフ
 	This document is trying to open a local file:	この文書はローカルファイルを開こうとしています：
 	Move tag earlier	タグを前へ移動
 	Move tag later	タグを後へ移動
+	Refresh	更新
+	Repeat on pages	ページに繰り返す
+	Show on other pages too	他のページにも表示
+	There are no other pages in that range.	その範囲に他のページはありません。
+	Insert the USB token or smart card, then refresh to list its digital IDs.	USB トークンまたはスマートカードを挿入し、更新するとデジタル ID が表示されます。

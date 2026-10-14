@@ -21,6 +21,21 @@ fn fixture() -> Vec<u8> {
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Type /Annot /Subtype /Widget /FT /Sig /T (Approval) /Rect [150 20 280 70] /P 3 0 R /F 4 >>",
     ];
+    assemble(&objs)
+}
+
+/// Three pages (the last one larger), no form.
+fn three_pages() -> Vec<u8> {
+    assemble(&[
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 600] >>",
+    ])
+}
+
+fn assemble(objs: &[&[u8]]) -> Vec<u8> {
     let mut out = b"%PDF-1.7\n".to_vec();
     let mut offsets = Vec::new();
     for (i, o) in objs.iter().enumerate() {
@@ -1977,4 +1992,39 @@ fn a_cross_reference_entry_that_misses_its_object_is_not_an_unchanged_object() {
     let honest = append_content_revision(&signed, "Contract text", |new| format!("4 1\n{}", xref_entry(new)));
     let s = signatures(&open(&honest), &honest, &trust).into_iter().find(|s| s.signed).unwrap();
     assert_eq!(s.status, Status::Valid, "{:?}", s.details);
+}
+
+#[test]
+fn one_signature_shows_on_several_pages() {
+    let id = pkcs12::open(&data("ec-p256.p12"), "test").unwrap();
+    let also = vec![(1, [20.0, 100.0, 220.0, 150.0]), (2, [320.0, 400.0, 520.0, 450.0]), (1, [0.0; 4]), (0, [0.0; 4])];
+    let signed = pdfcraft_sign::sign(&open(&three_pages()), &id, &SignOptions { also, ..opts() }).unwrap();
+    let doc = open(&signed);
+    let sigs = signatures(&doc, &signed, &TrustStore::default());
+    assert_eq!(sigs.iter().filter(|s| s.signed).count(), 1, "one signature");
+    let s = sigs.iter().find(|s| s.signed).unwrap();
+    assert_eq!(s.field, "Signature1");
+    assert_eq!(s.status, Status::Unknown, "{:?}", s.details);
+    // Each page has exactly one widget, all children of the one field, all with the appearance.
+    let pages = pdfcraft_annot::page_refs(&doc).unwrap();
+    let mut parent = None;
+    for (i, p) in pages.iter().enumerate() {
+        let annots = doc.get(*p).as_dict().and_then(|d| d.get(b"Annots").map(|a| doc.resolve(a))).and_then(|a| a.as_array().cloned()).unwrap();
+        assert_eq!(annots.len(), 1, "page {i}");
+        let w = doc.resolve(&annots[0]).as_dict().cloned().unwrap();
+        assert!(w.get(b"AP").is_some(), "page {i} shows the signature");
+        let par = w.get(b"Parent").cloned().expect("a kid widget");
+        assert!(parent.get_or_insert(par.clone()) == &par, "one field");
+    }
+}
+
+#[test]
+fn other_pages_need_a_visible_new_signature_on_existing_pages() {
+    let id = pkcs12::open(&data("ec-p256.p12"), "test").unwrap();
+    let doc = open(&three_pages());
+    let r = [20.0, 100.0, 220.0, 150.0];
+    assert!(pdfcraft_sign::sign(&doc, &id, &SignOptions { also: vec![(3, r)], ..opts() }).is_err(), "no page 4");
+    assert!(pdfcraft_sign::sign(&doc, &id, &SignOptions { rect: None, also: vec![(1, r)], ..opts() }).is_err(), "invisible");
+    let form = open(&fixture());
+    assert!(pdfcraft_sign::sign(&form, &id, &SignOptions { field: Some("Approval".into()), also: vec![(0, r), (1, r)], ..opts() }).is_err());
 }

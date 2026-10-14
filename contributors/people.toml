@@ -129,3 +129,8 @@ sync_github_name = false
 
 [people.webdevtodayjason]
 display_name = "Jason Brashear"
+
+[people.mendax-iitm]
+real_name = "Abhishek Kumar"
+display_name = "Abhishek Kumar"
+sync_github_name = false

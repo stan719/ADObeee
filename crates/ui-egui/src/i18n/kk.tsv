@@ -2352,3 +2352,8 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	Refresh	Жаңарту
+	Repeat on pages	Беттерде қайталау
+	Show on other pages too	Басқа беттерде де көрсету
+	There are no other pages in that range.	Бұл ауқымда басқа беттер жоқ.
+	Insert the USB token or smart card, then refresh to list its digital IDs.	USB токенін немесе смарт-картаны салып, оның цифрлық ID-лерін көру үшін жаңартыңыз.

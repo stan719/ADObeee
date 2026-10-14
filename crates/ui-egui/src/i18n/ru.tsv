@@ -2267,3 +2267,8 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+	Refresh	Обновить
+	Repeat on pages	Повторить на страницах
+	Show on other pages too	Показывать и на других страницах
+	There are no other pages in that range.	В этом диапазоне нет других страниц.
+	Insert the USB token or smart card, then refresh to list its digital IDs.	Вставьте USB-токен или смарт-карту, затем обновите, чтобы увидеть её цифровые удостоверения.

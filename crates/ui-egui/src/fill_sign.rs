@@ -466,6 +466,38 @@ pub fn place(page: usize, info: &PageInfo, at: [f64; 2], sig: &SavedSig, initial
     }
 }
 
+/// `p` on page `from` moved to the same place on page `to`, relative to their crop boxes.
+pub(crate) fn same_place(from: &PageInfo, to: &PageInfo, p: [f64; 2]) -> [f64; 2] {
+    [0, 1].map(|i| {
+        // Constant indices into the fixed-size crop boxes: always in bounds.
+        let (f0, f1, t0, t1) = (f64::from(from.crop[i]), f64::from(from.crop[i + 2]), f64::from(to.crop[i]), f64::from(to.crop[i + 2]));
+        let w = f1 - f0;
+        if w.abs() < 1e-3 || !p[i].is_finite() { t0 } else { t0 + (p[i] - f0) / w * (t1 - t0) }
+    })
+}
+
+/// `r` on page `from` moved, same size, so its centre is in the same place on page `to`.
+pub(crate) fn same_rect(from: &PageInfo, to: &PageInfo, r: [f64; 4]) -> [f64; 4] {
+    let c = same_place(from, to, [(r[0] + r[2]) / 2.0, (r[1] + r[3]) / 2.0]);
+    let (hw, hh) = ((r[2] - r[0]) / 2.0, (r[3] - r[1]) / 2.0);
+    [c[0] - hw, c[1] - hh, c[0] + hw, c[1] + hh]
+}
+
+/// The saved signature or initials placed at `at` on `page`, placed again in the same place on
+/// each of `pages` (`page` itself skipped), as one undo step.
+pub fn repeat_on_pages(info: &DocInfo, page: usize, at: [f64; 2], sig: &SavedSig, initials: bool, pages: &[usize], author: &str) -> Option<Edit> {
+    let from = info.pages.get(page)?;
+    let edits: Vec<Edit> = pages
+        .iter()
+        .filter(|&&p| p != page)
+        .filter_map(|&p| {
+            let to = info.pages.get(p)?;
+            place(p, to, same_place(from, to, at), sig, initials, author)
+        })
+        .collect();
+    (!edits.is_empty()).then(|| Edit::Batch { label: "Repeat signature".into(), edits })
+}
+
 /// The text in the script font as a picture (`w`×`h` px, black on transparent), for previews.
 pub(crate) fn script_preview(text: &str, w: usize, h: usize) -> egui::ColorImage {
     let o = pdfcraft_engine::script_outline(text);
@@ -550,6 +582,45 @@ pub(crate) fn signature_entries(ui: &mut egui::Ui, app: &mut crate::PdfCraftApp,
         ui.add_space(4.0);
     }
     command
+}
+
+/// The Fill & Sign menu's Repeat on pages: place the last signature or initials again, in the
+/// same place, on a range of pages. True once repeated.
+pub(crate) fn repeat_entry(ui: &mut egui::Ui, app: &mut crate::PdfCraftApp) -> bool {
+    let Some((i, doc_id)) = app.active_ids() else { return false };
+    let Some((page, at, initials)) = app.views.get(i).and_then(|v| v.last_fill_sig) else { return false };
+    let count = app.session.get(doc_id).map_or(0, |d| d.info.pages.len());
+    if count < 2 {
+        return false;
+    }
+    ui.separator();
+    ui.label(tl!("Repeat on pages"));
+    let r = &mut app.fill_repeat;
+    ui.horizontal(|ui| {
+        crate::widgets::radio_value(ui, &mut r.all, true, tl!("All pages"));
+        crate::widgets::radio_value(ui, &mut r.all, false, tl!("Pages from"));
+    });
+    ui.add_enabled_ui(!r.all, |ui| {
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut r.from).range(1..=count));
+            ui.label(tl!("to"));
+            ui.add(egui::DragValue::new(&mut r.to).range(1..=count));
+        });
+    });
+    if !crate::widgets::pill_button(ui, tl!("Repeat on pages"), true).clicked() {
+        return false;
+    }
+    let pages = app.fill_repeat.pages(count);
+    let sig = if initials { app.initials.clone() } else { app.signature.clone() };
+    let author = app.comment_prefs.author.clone();
+    let edit = sig.zip(app.session.get(doc_id)).and_then(|(sig, d)| repeat_on_pages(&d.info, page, at, &sig, initials, &pages, &author));
+    match edit {
+        Some(edit) => {
+            app.apply_edit(edit);
+        }
+        None => app.notify(tl!("There are no other pages in that range.").to_string()),
+    }
+    true
 }
 
 /// Draw a saved signature as large as fits in `rect`, centred: typed text and images through
@@ -646,11 +717,17 @@ pub(crate) fn page_input(
             Err(why) => FillAction::Refused(why.clone()),
         }),
         FillTool::Signature => match signature {
-            Some(s) => place(page, p, at, s, false, author).map(|e| FillAction::Signature(Box::new(e))),
+            Some(s) => {
+                view.last_fill_sig = Some((page, at, false));
+                place(page, p, at, s, false, author).map(|e| FillAction::Signature(Box::new(e)))
+            }
             None => Some(FillAction::CreateSignature),
         },
         FillTool::Initials => match initials {
-            Some(s) => place(page, p, at, s, true, author).map(|e| FillAction::Signature(Box::new(e))),
+            Some(s) => {
+                view.last_fill_sig = Some((page, at, true));
+                place(page, p, at, s, true, author).map(|e| FillAction::Signature(Box::new(e)))
+            }
             None => Some(FillAction::CreateInitials),
         },
         mark => {
@@ -1212,6 +1289,37 @@ impl crate::PdfCraftApp {
 
 #[cfg(test)]
 mod tests {
+    use pdfcraft_engine::{Edit, NewAnnotation, Shape};
+    use pdfcraft_render::{DocInfo, PageInfo};
+
+    fn page(crop: [f32; 4], rotation: u16) -> PageInfo {
+        PageInfo { width: crop[2] - crop[0], height: crop[3] - crop[1], label: String::new(), crop, rotation }
+    }
+
+    fn left_x(e: &Edit) -> f64 {
+        let Edit::AddAnnotation(NewAnnotation { shape: Shape::Signature { strokes }, .. }) = e else { panic!("{e:?}") };
+        strokes.iter().flatten().map(|p| p[0]).fold(f64::MAX, f64::min)
+    }
+
+    #[test]
+    fn signatures_repeat_in_the_same_place_on_other_pages() {
+        let info = DocInfo {
+            pages: vec![page([0.0, 0.0, 300.0, 300.0], 0), page([0.0, 0.0, 300.0, 300.0], 0), page([100.0, 0.0, 700.0, 600.0], 0)],
+            ..Default::default()
+        };
+        let sig = super::SavedSig::Drawn(vec![vec![[0.0, 0.0], [1.0, 0.2]]]);
+        let Some(Edit::Batch { edits, .. }) = super::repeat_on_pages(&info, 0, [150.0, 30.0], &sig, false, &[0, 1, 2, 9], "Ada") else { panic!() };
+        // Page 0 is the source and page 9 doesn't exist: two copies.
+        assert_eq!(edits.len(), 2);
+        assert!((left_x(&edits[0]) - 150.0).abs() < 1e-6);
+        // Half-way across the 600 pt crop box that starts at 100.
+        assert!((left_x(&edits[1]) - 400.0).abs() < 1e-6);
+        assert!(super::repeat_on_pages(&info, 0, [1.0, 1.0], &sig, false, &[0], "Ada").is_none());
+        // Degenerate crop boxes don't divide by zero.
+        let flat = page([5.0, 5.0, 5.0, 5.0], 0);
+        assert_eq!(super::same_place(&flat, &info.pages[2], [5.0, 5.0]), [100.0, 0.0]);
+    }
+
     #[test]
     fn long_signature_previews_have_clear_margins() {
         for text in ["Alexandria Catherine Elizabeth Montgomery-Wellington", "Jg Jg Jg Jg Jg Jg Jg Jg Jg Jg Jg"] {

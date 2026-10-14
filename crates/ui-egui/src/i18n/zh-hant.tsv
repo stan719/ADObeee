@@ -2228,3 +2228,8 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	Refresh	重新整理
+	Repeat on pages	在頁面上重複
+	Show on other pages too	同時顯示在其他頁面上
+	There are no other pages in that range.	該範圍內沒有其他頁面。
+	Insert the USB token or smart card, then refresh to list its digital IDs.	插入 USB 權杖或智慧卡，然後重新整理以列出其數位識別證。

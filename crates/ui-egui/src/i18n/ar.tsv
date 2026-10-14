@@ -2375,3 +2375,8 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	Refresh	تحديث
+	Repeat on pages	تكرار على الصفحات
+	Show on other pages too	إظهار على صفحات أخرى أيضًا
+	There are no other pages in that range.	لا توجد صفحات أخرى في هذا النطاق.
+	Insert the USB token or smart card, then refresh to list its digital IDs.	أدخل رمز USB أو البطاقة الذكية، ثم حدّث لعرض معرّفاتها الرقمية.

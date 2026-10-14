@@ -440,6 +440,8 @@ pub struct DocView {
     pub fill_text: Option<crate::fill_sign::TypeBox>,
     /// A queued Fill & Sign signature: select it after its edit succeeds, then leave placement.
     pub(crate) fill_signature_page: Option<usize>,
+    /// The last Fill & Sign signature or initials placed: (page, where, initials), to repeat.
+    pub(crate) last_fill_sig: Option<(usize, [f64; 2], bool)>,
     pub(crate) signature_drag: crate::signature_drag::SignatureDrag,
     /// A non-edit action requested by the organize toolbar, handled by the app.
     pub pending_action: Option<ViewAction>,
@@ -676,6 +678,7 @@ impl DocView {
             marquee_done: None,
             fill_text: None,
             fill_signature_page: None,
+            last_fill_sig: None,
             signature_drag: Default::default(),
         }
     }
@@ -4029,6 +4032,9 @@ fn quick_bar(app: &mut PdfCraftApp, area: Rect, ui: &mut egui::Ui) {
                             ui.separator();
                             if let Some(command) = crate::fill_sign::signature_entries(ui, app, &t) {
                                 app.execute(command);
+                                ui.close();
+                            }
+                            if crate::fill_sign::repeat_entry(ui, app) {
                                 ui.close();
                             }
                         });

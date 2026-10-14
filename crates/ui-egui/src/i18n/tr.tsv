@@ -2350,3 +2350,8 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+	Refresh	Yenile
+	Repeat on pages	Sayfalarda yinele
+	Show on other pages too	Diğer sayfalarda da göster
+	There are no other pages in that range.	Bu aralıkta başka sayfa yok.
+	Insert the USB token or smart card, then refresh to list its digital IDs.	USB belirtecini veya akıllı kartı takın, ardından dijital kimliklerini listelemek için yenileyin.
