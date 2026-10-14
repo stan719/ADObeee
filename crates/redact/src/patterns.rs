@@ -73,13 +73,26 @@ fn phone(s: &[char], i: usize) -> Option<usize> {
     if !start_ok || word(i.checked_sub(1).and_then(|p| s.get(p))) || s.get(i.wrapping_sub(1)) == Some(&'+') {
         return None;
     }
+    // #1884: a candidate that is the tail of a longer separated digit run is not a
+    // phone number. If the character before the candidate is a separator and the
+    // character before that is a digit ("… 0112 3456 …"), this start sits inside a
+    // longer run of digit groups — an IBAN, SIRET, NIR and the like — whose earlier
+    // groups were already rejected (too many digits in total). Matching only the
+    // trailing groups would half-redact that identifier and leave its head visible.
+    if i >= 2 && matches!(s[i - 1], ' ' | '-' | '.') && s[i - 2].is_ascii_digit() {
+        return None;
+    }
     let plus = s[i] == '+';
     let first = if plus { i + 1 } else { i };
     let (end, n) = digit_run(s, first, &[' ', '-', '.', '(', ')'], 28);
     let run = s.get(first..end)?;
     let seps = run.iter().filter(|c| !c.is_ascii_digit()).count();
     // Always grouped by at least one separator, so plain numbers never match.
-    if seps == 0 || digit(s.get(end)) {
+    // A separator followed by another digit group at `end` means the run was cut
+    // short by the length cap and continues beyond this candidate (#1884), so the
+    // candidate is only the head of a longer number, not a whole phone number.
+    let continues = matches!(s.get(end), Some(' ' | '-' | '.')) && digit(s.get(end + 1));
+    if seps == 0 || digit(s.get(end)) || continues {
         return None;
     }
     let ok = if plus {
@@ -356,6 +369,21 @@ mod tests {
             ),
             Vec::<String>::new()
         );
+    }
+
+    #[test]
+    fn phone_does_not_match_tail_of_longer_numbers() {
+        // #1884: only the two real phone numbers match; the trailing digit groups
+        // of a NIR, an IBAN and a SIRET are not phone numbers on their own.
+        assert_eq!(
+            found(
+                Pattern::Phone,
+                "NIR 1 85 05 78 006 084 36 end, IBAN FR76 3000 6000 0112 3456 7890 189, SIRET 123 456 782 00010, tel 01 23 45 67 89 / +33 1 23 45 67 89"
+            ),
+            ["01 23 45 67 89", "+33 1 23 45 67 89"]
+        );
+        assert_eq!(found(Pattern::Phone, "IBAN FR76 3000 6000 0112 3456 7890 189"), Vec::<String>::new());
+        assert_eq!(found(Pattern::Phone, "SIRET 123 456 782 00010"), Vec::<String>::new());
     }
 
     #[test]
