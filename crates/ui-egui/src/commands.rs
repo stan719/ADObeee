@@ -104,6 +104,15 @@ impl PdfCraftApp {
     }
 
     fn execute_unguarded(&mut self, id: &str) -> bool {
+        // The reading themes are view-only choices that are not in the command registry.
+        if id == "view.reading_theme.next" {
+            self.set_page_theme(self.page_theme.next());
+            return true;
+        }
+        if let Some(theme) = crate::canvas::PageTheme::ALL.into_iter().find(|t| t.command() == id) {
+            self.set_page_theme(theme);
+            return true;
+        }
         let Some(spec) = commands::command(id) else { return false };
         if !self.command_enabled(spec) {
             let why = match spec.needs {
@@ -738,6 +747,20 @@ pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str
 mod tests {
     use super::*;
     use egui::os::OperatingSystem;
+
+    #[test]
+    fn reading_theme_commands_change_the_theme() {
+        use crate::canvas::PageTheme;
+        let mut app = PdfCraftApp::new();
+        for theme in PageTheme::ALL {
+            assert!(app.execute(theme.command()), "{theme:?}");
+            assert_eq!(app.page_theme, theme);
+        }
+        assert!(app.execute("view.reading_theme.next"));
+        // The loop ended on Sepia, so the next theme wraps to Normal.
+        assert_eq!(app.page_theme, PageTheme::Normal);
+        crate::canvas::set_page_theme(PageTheme::Normal);
+    }
 
     #[test]
     fn localized_shortcut_labels_follow_language_and_platform() {

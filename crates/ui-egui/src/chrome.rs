@@ -509,6 +509,14 @@ fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 ui.separator();
             }
             crate::commands::registry_menu(app, ui, "View");
+            ui.menu_button(tl!("Reading theme"), |ui| {
+                for theme in crate::canvas::PageTheme::ALL {
+                    if ui.add(widgets::radio(app.page_theme == theme, tl!(theme.label()))).clicked() {
+                        app.execute(theme.command());
+                        ui.close();
+                    }
+                }
+            });
             ui.menu_button(tl!("Display theme"), |ui| theme_menu(app, ui));
             ui.menu_button(tl!("Side panels"), |ui| {
                 for (p, label) in [
@@ -581,6 +589,7 @@ pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             // Page navigation cluster at the bottom (as in Acrobat's rail).
             let view = &mut app.views[index];
             let mut page_display = None;
+            let reading_theme = app.page_theme;
             ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;
                 let tip = crate::commands::key_tip(ui.ctx(), tl!("Zoom out ({key})"), crate::commands::ZOOM_OUT);
@@ -603,6 +612,10 @@ pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 let tip = crate::commands::key_tip(ui.ctx(), tl!("Rotate view clockwise ({key})"), crate::commands::ROTATE_CW);
                 if icons::button(ui, "rotate-cw", 32.0, false, &tip).clicked() {
                     view.rotate_view(true);
+                }
+                // A click switches to the next reading theme; the choice list is in Menu ▸ View.
+                if icons::button(ui, "palette", 32.0, reading_theme != crate::canvas::PageTheme::Normal, tl!("Switch page theme")).clicked() {
+                    page_display = Some("view.reading_theme.next");
                 }
                 // Not `columns-2` while fitting the page: that is the two-page view's icon.
                 let fit_icon = if view.fit == Fit::Width { "maximize" } else { "maximize-2" };

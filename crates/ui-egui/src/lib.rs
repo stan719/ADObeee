@@ -549,6 +549,8 @@ pub struct PdfCraftApp {
     pub palette_query: String,
     pub all_tools_expanded: bool,
     pub recent: Vec<RecentFile>,
+    /// How page rasters are tinted for reading (View ▸ Reading theme).
+    pub page_theme: canvas::PageTheme,
     /// Preferences: reopen the files that were open when PdfCraft last closed (#442).
     pub reopen_last_session: bool,
     /// The files open when PdfCraft last closed, read from the settings for
@@ -904,6 +906,7 @@ impl PdfCraftApp {
             palette_query: String::new(),
             all_tools_expanded: false,
             recent: Vec::new(),
+            page_theme: Default::default(),
             reopen_last_session: false,
             last_session: Default::default(),
             quit_session: None,
@@ -1908,6 +1911,15 @@ impl PdfCraftApp {
         }
     }
 
+    /// Set the reading theme for every open document; pages re-render.
+    pub fn set_page_theme(&mut self, theme: canvas::PageTheme) {
+        self.page_theme = theme;
+        canvas::set_page_theme(theme);
+        for view in &mut self.views {
+            view.restyle();
+        }
+    }
+
     /// Enable the Linux desktop portal in a native window. Headless contexts keep
     /// their supplied input and never connect to the user's session bus.
     #[cfg(target_os = "linux")]
@@ -2082,7 +2094,7 @@ impl PdfCraftApp {
     /// Serialize the user's persistent state (recent files, theme). Local only.
     pub fn persist(&self) -> String {
         let trusted: Vec<String> = self.session.trusted_certificates().iter().map(pdfcraft_engine::sign::x509::to_pem).collect();
-        serde_json::json!({
+        let mut state = serde_json::json!({
             "docking": self.docking,
             "docking_left_open": self.left_open,
             "docking_right": self.right,
@@ -2141,8 +2153,10 @@ impl PdfCraftApp {
             "combine_zoom": self.combine_zoom,
             "comments_panel_closed": self.comments_panel_closed,
             "right_panel_closed": self.right_panel_closed,
-        })
-        .to_string()
+        });
+        // Outside the macro: the literal above is at serde_json's recursion limit.
+        state["page_theme"] = self.page_theme.token().into();
+        state.to_string()
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2176,6 +2190,9 @@ impl PdfCraftApp {
         self.last_session = last_session::LastSession::from_json(&v["last_session"]);
         if let Some(on) = v["system_title_bar"].as_bool() {
             self.system_title_bar = on;
+        }
+        if let Some(theme) = v["page_theme"].as_str().and_then(canvas::PageTheme::from_token) {
+            self.set_page_theme(theme);
         }
         if let Some(on) = v["reload_changed_files"].as_bool() {
             self.reload_changed_files = on;
