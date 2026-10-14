@@ -114,7 +114,7 @@ pub struct Report {
     pub forms_removed: usize,
     pub annotations: usize,
     pub fields: usize,
-    /// Structure elements that lost alternate/actual text or emptied marked content.
+    /// Structure elements and ancestors that lost descriptions or emptied marked content.
     pub tags: usize,
     /// The form was an AcroForm+XFA form and its `/XFA` packets (which still held redacted field
     /// values, and from which a relayout could rebuild them) were removed.

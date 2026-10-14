@@ -34,7 +34,7 @@ image is still under an area. Content that can't be decoded makes the operation 
 leave it unredacted.
 
 Structure cleanup resolves named MCIDs and indirect content references. Form content
-references are updated to the cleaned copy; unchanged sibling descriptions remain.
+references are updated to the cleaned copy. Affected structure elements and their ancestors lose alternate text, replacement text, expansions and titles; unchanged sibling descriptions remain.
 
 A redacted page that inherits `/Resources` from the page tree gets them pinned (by reference;
 a direct inherited dictionary is made one shared object first) before it is rewritten. The parent's

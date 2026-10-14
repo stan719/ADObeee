@@ -2,7 +2,7 @@
 //!
 //! Marked content (MCIDs) that applying redactions changed is found by comparing each MCID's
 //! operators before and after. Elements owning such content lose their alternate text, actual
-//! text and expansion (which may spell out the removed words);
+//! text, title and expansion (which may spell out the removed words), as do their ancestors;
 //! references to marked content that is now empty are dropped from the element.
 
 use std::collections::{HashMap, HashSet};
@@ -152,6 +152,32 @@ pub(crate) fn clean(
             _ => {}
         }
     }
+    // Ancestor descriptions can repeat removed descendant text. Promote an existing
+    // remap-only hit instead of processing it twice; preserve main's surviving Form references.
+    let mut indices: HashMap<ObjRef, usize> = hits.iter().enumerate().map(|(i, (r, _, _, _))| (*r, i)).collect();
+    let mut cleaned = HashSet::new();
+    let mut parents: Vec<ObjRef> =
+        hits.iter().filter(|(_, _, _, sensitive)| *sensitive).filter_map(|(_, d, _, _)| d.get(b"P").and_then(Object::as_ref)).collect();
+    while let Some(r) = parents.pop() {
+        if !cleaned.insert(r) || cleaned.len() > 2_000_000 {
+            continue;
+        }
+        let Some(d) = doc.get(r).as_dict().cloned() else { continue };
+        if !d.contains(b"S") {
+            continue;
+        }
+        if let Some(parent) = d.get(b"P").and_then(Object::as_ref) {
+            parents.push(parent);
+        }
+        if let Some(index) = indices.get(&r).copied() {
+            if let Some(hit) = hits.get_mut(index) {
+                hit.3 = true;
+            }
+        } else {
+            indices.insert(r, hits.len());
+            hits.push((r, d, None, true));
+        }
+    }
     let mut n = 0;
     for (r, d, pg, sensitive) in hits {
         let kids = d.get(b"K").map(|k| doc.resolve(k));
@@ -186,7 +212,7 @@ pub(crate) fn clean(
         }
         doc.update_dict(r, |e| {
             if sensitive {
-                for key in [&b"Alt"[..], b"ActualText", b"E"] {
+                for key in [&b"Alt"[..], b"ActualText", b"E", b"T"] {
                     e.remove(key);
                 }
             }

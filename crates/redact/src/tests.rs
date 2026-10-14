@@ -762,19 +762,27 @@ fn tags_lose_what_redaction_removed() {
         FONT.replace("95 0 R", "6 0 R").into_bytes(),
         widths(),
         b"<< /Type /StructTreeRoot /K 8 0 R >>".to_vec(),
-        b"<< /S /Document /P 7 0 R /K [9 0 R 10 0 R] >>".to_vec(),
-        b"<< /S /P /P 8 0 R /Pg 3 0 R /ActualText (SECRET) /Alt (the secret) /K 0 >>".to_vec(),
+        b"<< /S /Document /P 7 0 R /T (SECRET-PARENT) /Alt (SECRET-ALT) /ActualText (SECRET-ACTUAL) /E (SECRET-EXPANSION) /K [9 0 R 10 0 R] >>"
+            .to_vec(),
+        b"<< /S /P /P 8 0 R /Pg 3 0 R /T (SECRET-TITLE) /ActualText (SECRET) /Alt (the secret) /K 0 >>".to_vec(),
         b"<< /S /P /P 8 0 R /Pg 3 0 R /ActualText (Public) /K 1 >>".to_vec(),
     ]);
     mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
     let report = apply(&mut doc, None).unwrap();
-    assert_eq!(report.tags, 1);
+    assert_eq!(report.tags, 2);
     let secret = doc.get(pdfcraft_cos::ObjRef::new(9, 0)).as_dict().cloned().unwrap();
     assert!(secret.get(b"ActualText").is_none() && secret.get(b"Alt").is_none());
     assert!(secret.get(b"K").is_none(), "its marked content is empty now");
+    assert!(!secret.contains(b"T"));
+    let parent = doc.get(ObjRef::new(8, 0));
+    let parent = parent.as_dict().unwrap();
+    assert!([&b"T"[..], b"Alt", b"ActualText", b"E"].iter().all(|k| !parent.contains(k)));
+    assert_eq!(parent.get(b"K").unwrap().as_array().unwrap().len(), 2);
     let public = doc.get(pdfcraft_cos::ObjRef::new(10, 0)).as_dict().cloned().unwrap();
     assert_eq!(public.get(b"K").and_then(Object::as_int), Some(1));
     assert!(public.get(b"ActualText").is_some(), "untouched content keeps its tags");
+    let bytes = write_incremental(&doc, &SaveOptions { object_streams: false, ..SaveOptions::default() }).unwrap();
+    assert!(!bytes.windows(6).any(|w| w == b"SECRET"));
 }
 
 fn assert_no_secret(doc: &Document, secret: &[u8]) {
@@ -814,35 +822,46 @@ fn named_mcids_and_indirect_content_references_lose_descriptions() {
 
 #[test]
 fn form_tags_are_cleaned_and_surviving_references_point_at_the_copy() {
-    let mut doc = one_page(
-        b"/Fm Do",
-        "/XObject << /Fm 7 0 R >>",
-        vec![
-            stream(
-                "/Type /XObject /Subtype /Form /BBox [0 0 300 300] /StructParents 0 /Resources << /Font << /F1 5 0 R >> /Properties << /P0 << /MCID 0 >> >> >>",
-                b"/P /P0 BDC BT /F1 10 Tf 10 200 Td (SECRET) Tj ET EMC /P <</MCID 1>> BDC BT /F1 10 Tf 10 100 Td (Public) Tj ET EMC",
-            ),
-            b"<< /Type /StructTreeRoot /K 9 0 R /ParentTree 14 0 R >>".to_vec(),
-            b"<< /S /Document /P 8 0 R /K [10 0 R 11 0 R] >>".to_vec(),
-            b"<< /S /P /P 9 0 R /Pg 3 0 R /ActualText (LEAK_FORM_TAG) /K 12 0 R >>".to_vec(),
-            b"<< /S /P /P 9 0 R /Pg 3 0 R /ActualText (Public) /K 13 0 R >>".to_vec(),
-            b"<< /Type /MCR /Pg 3 0 R /Stm 7 0 R /MCID 0 >>".to_vec(),
-            b"<< /Type /MCR /Pg 3 0 R /Stm 7 0 R /StmOwn 7 0 R /MCID 1 >>".to_vec(),
-            b"<< /Nums [0 [10 0 R 11 0 R]] >>".to_vec(),
-        ],
-    );
-    doc.update_dict(doc.root().unwrap(), |d| d.set(b"StructTreeRoot".to_vec(), Object::Ref(ObjRef::new(8, 0)))).unwrap();
-    mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
-    apply(&mut doc, None).unwrap();
-    assert_no_secret(&doc, b"LEAK_");
-    assert_no_secret(&doc, b"SECRET");
-    assert!(!doc.get(ObjRef::new(10, 0)).as_dict().unwrap().contains(b"K"));
-    let reference = doc.get(ObjRef::new(13, 0)).as_dict().unwrap().get(b"Stm").unwrap().as_ref().unwrap();
-    assert_ne!(reference, ObjRef::new(7, 0));
-    assert_eq!(doc.get(ObjRef::new(13, 0)).as_dict().unwrap().get(b"StmOwn").unwrap().as_ref(), Some(reference));
-    let Object::Stream(s) = &*doc.get(reference) else { panic!() };
-    assert!(String::from_utf8(s.decoded().unwrap()).unwrap().contains("Public"));
-    assert!(doc.get(ObjRef::new(11, 0)).as_dict().unwrap().contains(b"ActualText"));
+    for cyclic_parent in [false, true] {
+        let mut doc = one_page(
+            b"/Fm Do",
+            "/XObject << /Fm 7 0 R >>",
+            vec![
+                stream(
+                    "/Type /XObject /Subtype /Form /BBox [0 0 300 300] /StructParents 0 /Resources << /Font << /F1 5 0 R >> /Properties << /P0 << /MCID 0 >> >> >>",
+                    b"/P /P0 BDC BT /F1 10 Tf 10 200 Td (SECRET) Tj ET EMC /P <</MCID 1>> BDC BT /F1 10 Tf 10 100 Td (Public) Tj ET EMC",
+                ),
+                b"<< /Type /StructTreeRoot /K 9 0 R /ParentTree 14 0 R >>".to_vec(),
+                b"<< /S /Document /P 8 0 R /T (LEAK_PARENT_TITLE) /Alt (LEAK_PARENT_DESCRIPTION) /K [10 0 R 11 0 R] >>".to_vec(),
+                b"<< /S /P /P 9 0 R /Pg 3 0 R /T (LEAK_FORM_TITLE) /ActualText (LEAK_FORM_TAG) /K 12 0 R >>".to_vec(),
+                b"<< /S /P /P 9 0 R /Pg 3 0 R /T (Public title) /ActualText (Public) /K 13 0 R >>".to_vec(),
+                b"<< /Type /MCR /Pg 3 0 R /Stm 7 0 R /MCID 0 >>".to_vec(),
+                b"<< /Type /MCR /Pg 3 0 R /Stm 7 0 R /StmOwn 7 0 R /MCID 1 >>".to_vec(),
+                b"<< /Nums [0 [10 0 R 11 0 R]] >>".to_vec(),
+            ],
+        );
+        doc.update_dict(doc.root().unwrap(), |d| d.set(b"StructTreeRoot".to_vec(), Object::Ref(ObjRef::new(8, 0)))).unwrap();
+        if cyclic_parent {
+            // Damaged parent pointers must not prevent cleanup or loop forever.
+            doc.update_dict(ObjRef::new(9, 0), |d| d.set(b"P".to_vec(), Object::Ref(ObjRef::new(9, 0)))).unwrap();
+        }
+        mark(&mut doc, 0, &[[5.0, 195.0, 60.0, 212.0]], "");
+        assert_eq!(apply(&mut doc, None).unwrap().tags, 2);
+        assert_no_secret(&doc, b"LEAK_");
+        assert_no_secret(&doc, b"SECRET");
+        assert!(!doc.get(ObjRef::new(10, 0)).as_dict().unwrap().contains(b"K"));
+        let reference = doc.get(ObjRef::new(13, 0)).as_dict().unwrap().get(b"Stm").unwrap().as_ref().unwrap();
+        assert_ne!(reference, ObjRef::new(7, 0));
+        assert_eq!(doc.get(ObjRef::new(13, 0)).as_dict().unwrap().get(b"StmOwn").unwrap().as_ref(), Some(reference));
+        let Object::Stream(s) = &*doc.get(reference) else { panic!() };
+        assert!(String::from_utf8(s.decoded().unwrap()).unwrap().contains("Public"));
+        let survivor = doc.get(ObjRef::new(11, 0));
+        let survivor = survivor.as_dict().unwrap();
+        assert!(survivor.contains(b"ActualText"));
+        assert_eq!(survivor.get(b"T").unwrap().as_string().unwrap().to_text(), "Public title");
+        let saved = reopen(&doc);
+        assert_no_secret(&saved, b"LEAK_");
+    }
 }
 
 #[test]
