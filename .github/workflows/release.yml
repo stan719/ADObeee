@@ -24,7 +24,9 @@ jobs:
     with:
       app-name: pdfcraft
       app-title: PdfCraft
-      craft-fonts-ref: 3d9ab3a132ed0eff457e424226a435a901da30d3
+      # craft-fonts build input (Japanese, Chinese, Arabic and Thai faces). Bump deliberately; the
+      # faces it must have are asserted by the crates/fonts and ui-egui tests.
+      craft-fonts-ref: 2cc8f61096afe714240e73f439086105bc7061af
       version: ${{ inputs.version }}
     secrets:
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

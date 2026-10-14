@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Check the compiled MSI's install scope, publisher, shortcuts, native UI and OCR models, without installing it.
+  Check the compiled MSI's install scope, publisher, shortcuts, native UI, OCR models and font licences, without installing it.
 .EXAMPLE
   pwsh packaging/windows/test-msi.ps1 dist/release/pdfcraft-0.2.1-windows-x64.msi
 #>
@@ -200,8 +200,29 @@ try {
   while ($record = $view.Fetch()) { if ($record.StringData(1) -match '\.rten$') { $modelFiles++ } }
 } finally { [void] $view.Close() }
 if ($modelFiles -lt 2) { throw "expected the OCR models (*.rten) in models\, found $modelFiles" }
+# Font licences: licences\ beside pdfcraft.exe holds FONTS.txt and, in a craft-fonts build, the
+# licence file of every font it embeds, worked out from CRAFT_FONTS_DIR the way package.ps1 does.
+$licencesDir = Read-Row 'SELECT `Directory_Parent`, `DefaultDir` FROM `Directory` WHERE `Directory` = ''LicencesFolder''' 2
+Assert-Equal $licencesDir[0] 'INSTALLFOLDER' 'Font licences folder parent'
+if ($licencesDir[1] -notmatch '(^|\|)licences$') { throw "Font licences folder name: '$($licencesDir[1])'" }
+$licenceFiles = @()
+$view = $Database.OpenView('SELECT `File`.`FileName` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component` AND `Component`.`Directory_` = ''LicencesFolder''')
+try {
+  [void] $view.Execute()
+  # FileName is `long` or `SHORT|long`.
+  while ($record = $view.Fetch()) { $licenceFiles += ($record.StringData(1) -split '\|')[-1] }
+} finally { [void] $view.Close() }
+if ($licenceFiles -notcontains 'FONTS.txt') { throw "licences\ lacks FONTS.txt (has: $($licenceFiles -join ', '))" }
+. (Join-Path $PSScriptRoot 'font-licences.ps1')
+$expectedDir = Join-Path ([IO.Path]::GetTempPath()) "pdfcraft-msi-licences-$PID"
+New-Item -ItemType Directory -Force -Path $expectedDir | Out-Null
+try { $expected = @(Copy-FontLicences $expectedDir) } finally { Remove-Item -Recurse -Force $expectedDir -ErrorAction SilentlyContinue }
+if ((Test-Path Env:CRAFT_FONTS_REQUIRED) -and -not $expected) { throw 'CRAFT_FONTS_REQUIRED is set but no font licences were expected' }
+foreach ($name in $expected) {
+  if ($licenceFiles -notcontains $name) { throw "MSI lacks the font licence licences\$name (has: $($licenceFiles -join ', '))" }
+}
 $rm = Read-Row 'SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = ''MsiRMFilesInUse''' 1
 Assert-Equal $rm[0] 'MsiRMFilesInUse' 'Files-in-use dialog'
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Database)
 [void] [Runtime.InteropServices.Marshal]::FinalReleaseComObject($Installer)
-Write-Output 'ok MSI: per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut (on for a first install, kept on update only while present, checkbox), optional PDF context menu (default on, checkbox), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models'
+Write-Output 'ok MSI: per-machine scope guard, publisher, persistent progress text, Start Menu shortcut, optional desktop shortcut (on for a first install, kept on update only while present, checkbox), optional PDF context menu (default on, checkbox), icon/key path, full-UI success/cancel/error and Finish controls, files-in-use dialog, OCR models, font licences'

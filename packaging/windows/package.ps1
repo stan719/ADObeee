@@ -93,6 +93,19 @@ foreach ($f in 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE') {
   Copy-Item (Join-Path $Root $f) $Stage
 }
 Copy-Item (Join-Path $Root 'assets\app-icon\LICENSE-document.txt') $Stage
+# The licence file of each craft-fonts font pdfcraft.exe embeds, for licences\ in both the MSI and
+# the portable zip. FONTS.txt keeps the folder non-empty (and explains it) in builds without them.
+. (Join-Path $PSScriptRoot 'font-licences.ps1')
+$FontLicences = Join-Path $Stage 'licences'
+New-Item -ItemType Directory -Force -Path $FontLicences | Out-Null
+Set-Content -Encoding utf8 -Path (Join-Path $FontLicences 'FONTS.txt') -Value @(
+  'Licences of the fonts from craft-fonts (https://github.com/storytold/craft-fonts) that pdfcraft.exe embeds,'
+  'one file per font directory: OFL-<font>.txt (SIL Open Font License 1.1) and NOTICE-<font>.txt (Apache License 2.0).'
+  'Authors and sources: https://github.com/storytold/craft-fonts/blob/main/ATTRIBUTION.md'
+  'A build made without craft-fonts embeds none of them, and this folder holds only this file.'
+)
+$FontLicenceFiles = @(Copy-FontLicences $FontLicences)
+Write-Output "font licences: $(if ($FontLicenceFiles) { $FontLicenceFiles -join ', ' } else { 'none (built without craft-fonts)' })"
 
 & (Join-Path $PSScriptRoot 'sign.ps1') (Join-Path $Stage 'pdfcraft.exe') (Join-Path $Stage 'pdfcraft-cli.exe')
 
@@ -113,7 +126,7 @@ $Msi = Join-Path $Dist "pdfcraft-$Version-windows-$Arch.msi"
 Invoke-Native 'wix build' {
   wix build (Join-Path $PSScriptRoot 'pdfcraft.wxs') -arch $Arch `
     (Join-Path $PSScriptRoot 'installer-ui.wxs') `
-    -d "Version=$MsiVersion" -d "BinDir=$Stage" -d "ModelsDir=$Models" -d "IconPath=$(Join-Path $Root 'assets\app-icon\pdfcraft.ico')" `
+    -d "Version=$MsiVersion" -d "BinDir=$Stage" -d "ModelsDir=$Models" -d "FontLicencesDir=$FontLicences" -d "IconPath=$(Join-Path $Root 'assets\app-icon\pdfcraft.ico')" `
     -o $Msi
 }
 # Inspect the built MSI, not just the XML, before signing/publishing it. In a child process, so
@@ -132,17 +145,11 @@ foreach ($f in 'NOTICE', 'LICENSE-document.txt') {
   Copy-Item (Join-Path $Stage $f) $Portable
 }
 Copy-Item -Recurse $Models (Join-Path $Portable 'models')
-foreach ($f in 'README.md', 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE') {
+# The font licences, in licences\ as in the MSI (see font-licences.ps1).
+Copy-Item -Recurse $FontLicences (Join-Path $Portable 'licences')
+foreach ($f in 'README.md', 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE') {
   $p = Join-Path $Root $f
   if (Test-Path $p) { Copy-Item $p $Portable }
-}
-# Builds made with craft-fonts (CRAFT_FONTS_DIR, set for every release) embed its fonts: ship their
-# licences, fonts\<family>\OFL.txt -> OFL-<family>.txt.
-if ($env:CRAFT_FONTS_DIR) {
-  Get-ChildItem -Path (Join-Path $env:CRAFT_FONTS_DIR 'fonts') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-    $ofl = Join-Path $_.FullName 'OFL.txt'
-    if (Test-Path $ofl) { Copy-Item $ofl (Join-Path $Portable "OFL-$($_.Name).txt") }
-  }
 }
 # portable.txt beside pdfcraft.exe switches on portable mode: settings, logs, recovery files and new
 # digital IDs go to PdfCraftData\ next to the exe instead of %APPDATA% (#157; see
