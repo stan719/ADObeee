@@ -1,6 +1,6 @@
 # Interface language
 
-Choose **Menu > Edit > Preferences…** (Command-comma on macOS, Ctrl-comma elsewhere) **> Interface language** and select **Auto**, **English**, **日本語**, **简体中文**, **繁體中文**, **Čeština**, **Português (Brasil)**, **Deutsch**, **Español**, **Français**, **Русский**, **Қазақша**, **Български**, **తెలుగు**, **Magyar**, **Українська**, **Italiano**, **العربية**, **Polski**, **Slovenščina**, **Ελληνικά**, **Türkçe** or **Lietuvių**. The change applies immediately and persists between launches. Command ids, document contents and file names are unchanged.
+Choose **Menu > Edit > Preferences…** (Command-comma on macOS, Ctrl-comma elsewhere) **> Interface language** and select **Auto**, **English**, **日本語**, **한국어**, **简体中文**, **繁體中文**, **Čeština**, **Português (Brasil)**, **Deutsch**, **Español**, **Français**, **Русский**, **Қазақша**, **Български**, **తెలుగు**, **Magyar**, **Українська**, **Italiano**, **العربية**, **Polski**, **Slovenščina**, **Ελληνικά**, **Türkçe** or **Lietuvių**. The change applies immediately and persists between launches. Command ids, document contents and file names are unchanged.
 
 Displayed keyboard shortcuts use the same active interface language. For example, German shows `Strg+K` and `Strg+Umschalt+S` in the toolbar, menus, command palette, tooltips and Keyboard shortcuts dialog; macOS keeps its modifier symbols (`⌘`, `⇧`, `⌃`). Key names have their own `key` catalog context, so the Delete key can read `Entf` while the command remains `Löschen`. A missing key-name entry falls back to the English key name. Actual bindings and machine-facing command ids remain stable.
 
@@ -12,7 +12,7 @@ The control channel exposes the setting through `ui.set`:
 {"method":"ui.set","params":{"key":"language","value":"ja"}}
 ```
 
-The value is `auto` or a language code (`en`, `ja`, `zh-hans`, `zh-hant`, `cs`, `pt-br`, `de`, `es`, `fr`, `ru`, `kk`, `bg`, `te`, `hu`, `uk`, `it`, `ar`, `pl`, `sl`, `el`, `tr`, `lt`), in any case. `ui.state` reports `language` as written in the preferences (`auto`, `en`, `ja`, `zh-hans`, `zh-hant`, `cs`, `pt-br`, `de`, `es`, `fr`, `ru`, `kk`, `bg`, `te`, `hu`, `uk`, `it`, `ar`, `pl`, `sl`, `el`, `tr` or `lt`). Unknown values return an error without changing the current setting. Preferences saved before this setting existed follow the system language.
+The value is `auto` or a language code (`en`, `ja`, `ko`, `zh-hans`, `zh-hant`, `cs`, `pt-br`, `de`, `es`, `fr`, `ru`, `kk`, `bg`, `te`, `hu`, `uk`, `it`, `ar`, `pl`, `sl`, `el`, `tr`, `lt`), in any case. `ui.state` reports `language` as written in the preferences (`auto`, `en`, `ja`, `ko`, `zh-hans`, `zh-hant`, `cs`, `pt-br`, `de`, `es`, `fr`, `ru`, `kk`, `bg`, `te`, `hu`, `uk`, `it`, `ar`, `pl`, `sl`, `el`, `tr` or `lt`). Unknown values return an error without changing the current setting. Preferences saved before this setting existed follow the system language.
 
 Dialogs, panels, menus, notices and history labels go through the catalog (`tl!`). Japanese, Traditional Chinese, Simplified Chinese, Russian, Bulgarian, German, Spanish, French, Telugu, Hungarian, Ukrainian, Italian, Brazilian Portuguese and Arabic translate them (about 2,000–2,140 entries each); Czech and Turkish cover the menus so far. Untranslated labels use English. Error details that come from the engine or the operating system are shown as they are, inside a translated frame ("操作「…」に失敗しました: …"). The command palette matches the translated label, the English label and the command id. Vertical Japanese PDF rendering is an existing viewer feature; this change does not add vertical text editing. Per-language coverage, script support and what each language still needs are in [localization-parity.md](localization-parity.md).
 Dialogs, panels, menus, notices and history labels go through the catalog (`tl!`). Japanese, Traditional Chinese, Simplified Chinese, Russian, Bulgarian, German, Spanish, French, Telugu, Hungarian, Ukrainian, Italian, Brazilian Portuguese, Arabic and Slovenian translate them (about 2,000–2,190 entries each); Czech covers the menus so far. Untranslated labels use English. Error details that come from the engine or the operating system are shown as they are, inside a translated frame ("操作「…」に失敗しました: …"). The command palette matches the translated label, the English label and the command id. Vertical Japanese PDF rendering is an existing viewer feature; this change does not add vertical text editing. Per-language coverage, script support and what each language still needs are in [localization-parity.md](localization-parity.md).
@@ -84,3 +84,32 @@ Error details that come from the operating system, and faults rather than mistak
 3. Add an `ATTRIBUTION.toml` entry for the catalog (`kind = "translation"`), then run `cargo xtask assets --write` and `cargo xtask assets`.
 
 The Preferences dropdown, the system-language match and the catalog tests (format, duplicates, placeholders, plural forms, command ids) then pick it up.
+
+## Korean
+
+Korean (`ko`, shown as **한국어**) follows the same Preferences setting and automatic locale
+detection (`ko-KR`, `ko_KR.UTF-8`) as the other languages. Its 2,592-entry catalog covers the
+current union of bundled source/context keys, registered commands, tool labels, scanned UI
+literals and the engine's translatable wordings. Korean counts use one plural form. Month and
+weekday names are also registered in `crates/engine/src/dates.rs`, in the same order as the UI
+registry. Language changes preserve document contents, filenames, paths and command ids.
+
+On desktop, the interface reads an installed Korean face at runtime: Malgun Gothic, then Gulim
+on Windows; Apple SD Gothic Neo on macOS; NanumGothic or UnDotum at supported Linux font paths.
+This fallback is installed in every UI family regardless of the selected interface language,
+so Korean filenames work in an English interface too. Inter and JetBrains Mono retain priority
+for characters they cover; Chinese retains its existing regional font order.
+`PDFCRAFT_SYSTEM_FONTS=0` disables the installed face. No system font is copied, embedded,
+distributed or written into a PDF. The web build has no installed-font fallback and still
+requires a permitted Korean font delivery mechanism. Korean PDF text writing is separate work:
+Fill & Sign date names outside WinAnsi are refused with the existing explicit error.
+
+To revise Korean wording, edit the translation column of `crates/ui-egui/src/i18n/ko.tsv`
+with a UTF-8 editor. Keep the context and English key, escapes, placeholders, edge whitespace
+and trailing ellipsis intact. Recompute the file's SHA-256 and update its asset entry in
+`ATTRIBUTION.toml`, then run `cargo xtask assets --write` and `cargo xtask assets`.
+`cargo test -p pdfcraft-ui-egui -j 2 --lib i18n::tests` checks catalog structure and coverage.
+Catalogs are embedded with `include_str!`, so rebuild PdfCraft to use the revised wording.
+
+When adding another language, update `DATE_LANGUAGES` as well as `LANGUAGES`; the registry-equality
+test requires matching codes, native names and order.

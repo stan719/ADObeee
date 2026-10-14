@@ -320,7 +320,7 @@ fn language_switch_preserves_document_and_command_ids() {
     let documents = ok(&mut h, &c, "ui.state", json!({}))["documents"].clone();
     assert_eq!(documents[0]["dirty"], true);
     let commands = ok(&mut h, &c, "ui.commands", json!({}));
-    for code in ["ja", "zh-hans", "fr", "de", "uk", "lt", "en"] {
+    for code in ["ja", "zh-hans", "fr", "de", "uk", "lt", "ko", "en"] {
         ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": code }));
         h.run_steps(2);
         let state = ok(&mut h, &c, "ui.state", json!({}));
@@ -342,6 +342,60 @@ fn language_switch_preserves_document_and_command_ids() {
     let codes = std::iter::once(i18n::AUTO).chain(i18n::Lang::all().map(i18n::Lang::code)).collect::<Vec<_>>().join(", ");
     assert_eq!(error, format!("language must be one of {codes}"));
     assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], "en");
+}
+
+#[test]
+fn korean_switch_preserves_filename_path_document_and_command_ids() {
+    let (mut h, c) = harness();
+    let name = "한글 보고서{n}.pdf";
+    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("pdfcraft-korean-open-{}-{unique}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let file = dir.join(name);
+    std::fs::write(&file, fixture(2)).unwrap();
+    let path = file.to_string_lossy().into_owned();
+    let count = h.state().views.len();
+    let reply = ok(&mut h, &c, "ui.open", json!({ "path": path }));
+    assert_eq!(reply["pending"], true, "the real file must go through the native open worker");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while h.state().views.len() == count && std::time::Instant::now() < deadline {
+        h.step();
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert_eq!(h.state().views.len(), count + 1, "Korean path open did not commit");
+    h.run_steps(3);
+    let doc = h.state().views.last().unwrap().id;
+    assert_eq!(h.state().session.get(doc).unwrap().path.as_deref(), Some(path.as_str()));
+    h.state_mut().session.apply(doc, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+    let before = ok(&mut h, &c, "ui.state", json!({}))["documents"].clone();
+    let commands = ok(&mut h, &c, "ui.commands", json!({}));
+    for code in ["ko", "en", "ko"] {
+        ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": code }));
+        h.run_steps(3);
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"], before);
+        assert_eq!(ok(&mut h, &c, "ui.commands", json!({})), commands);
+        assert_eq!(h.state().session.get(doc).unwrap().name, name);
+        assert_eq!(h.state().recent[0].name, name);
+        assert_eq!(h.state().recent[0].path, path);
+        let installed =
+            std::env::var_os("WINDIR").map_or_else(|| std::path::PathBuf::from(r"C:\Windows"), std::path::PathBuf::from).join("Fonts/malgun.ttf");
+        let disabled = std::env::var_os("PDFCRAFT_SYSTEM_FONTS").is_some_and(|v| v == "0");
+        if cfg!(windows) && installed.is_file() && !disabled {
+            h.ctx.fonts_mut(|fonts| {
+                for id in [egui::FontId::proportional(13.0), pdfcraft_ui_egui::theme::medium(13.0), pdfcraft_ui_egui::theme::semibold(17.0)] {
+                    assert!(fonts.has_glyphs(&id, name), "actual app fonts lack Korean filename glyphs: {code} {id:?}");
+                }
+            });
+        }
+    }
+    ok(&mut h, &c, "ui.set", json!({ "key": "panel", "value": "comments" }));
+    h.run_steps(3);
+    let ko = pdfcraft_ui_egui::i18n::Lang::from_code("ko").unwrap();
+    h.get_by_role_and_label(egui::accesskit::Role::Tab, pdfcraft_ui_egui::i18n::tr(ko, "Inspector"));
+    assert!(h.query_by_role_and_label(egui::accesskit::Role::Tab, "Inspector").is_none());
+    drop(h);
+    std::fs::remove_file(&file).unwrap();
+    std::fs::remove_dir(&dir).unwrap();
 }
 
 #[cfg(target_os = "linux")]

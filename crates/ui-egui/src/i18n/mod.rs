@@ -11,6 +11,8 @@
 //! 1. Add `xx.tsv` next to `ja.tsv` (copy its header; translate from the *meaning* of the English
 //!    text, clean-room, see `ja.tsv`).
 //! 2. Add one row to [`LANGUAGES`] (code, native name, catalog, plural rule).
+//! 3. Add the matching month/weekday row to `pdfcraft_engine::dates::DATE_LANGUAGES`, in the same order.
+//! 4. Attribute the catalog in `ATTRIBUTION.toml` and regenerate `ATTRIBUTION.md` with `cargo xtask assets --write`.
 //!
 //! That is all: the Preferences dropdown, the system-locale match and the catalog tests (parse,
 //! placeholders, plural forms) pick it up from the registry.
@@ -147,9 +149,10 @@ fn plural_sl(n: u64) -> usize {
 }
 
 /// The registry. English first: it is the fallback and the source language.
-pub static LANGUAGES: [LangInfo; 22] = [
+pub static LANGUAGES: [LangInfo; 23] = [
     LangInfo { code: "en", name: "English", source: "", plural: plural_one_other, rtl: false, catalog: OnceLock::new() },
     LangInfo { code: "ja", name: "日本語", source: include_str!("ja.tsv"), plural: plural_none, rtl: false, catalog: OnceLock::new() },
+    LangInfo { code: "ko", name: "한국어", source: include_str!("ko.tsv"), plural: plural_none, rtl: false, catalog: OnceLock::new() },
     // Simplified Chinese; `zh`, `zh-CN`, `zh-SG` and `zh-Hans-*` locales resolve here (see `candidates`).
     LangInfo {
         code: "zh-hans", name: "简体中文", source: include_str!("zh-hans.tsv"), plural: plural_none, rtl: false, catalog: OnceLock::new()
@@ -2053,6 +2056,98 @@ mod tests {
         assert_eq!(fmt(t("{n} pages selected"), &[("n", "3")]), "Выбрано 3 страницы");
         assert_eq!(tr(ru, "CheckBox"), "Флажок");
         set_current(Lang::EN);
+    }
+
+    #[test]
+    fn korean_is_registered_detected_and_persists() {
+        let ko = Lang::from_code("ko").expect("Korean registered");
+        assert_eq!(ko.name(), "한국어");
+        assert_eq!(normalize_pref("KO"), Some("ko"));
+        for tag in ["ko", "ko-KR", "ko_KR.UTF-8", "KO-kr"] {
+            assert_eq!(lang_from_tag(tag), Some(ko), "{tag}");
+        }
+        assert_eq!(tr(ko, "File"), "파일");
+        assert_eq!(tr(ko, "Edit"), "편집");
+        assert_eq!(tr(ko, "Save"), "저장");
+        assert_eq!(tr(ko, "Open…"), "열기…");
+        assert_eq!(tr(ko, "Interface language"), "인터페이스 언어");
+        let calendar = pdfcraft_engine::dates::date_language("ko").expect("Korean date names registered");
+        for (index, month) in
+            ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                .iter()
+                .enumerate()
+        {
+            assert_eq!(tr(ko, month), calendar.months[index]);
+            assert_eq!(tr_ctx(ko, "calendar date", month), calendar.months[index]);
+        }
+        for n in [0, 1, 2, 11, 21, 100, u64::MAX] {
+            assert_eq!((ko.0.plural)(n), 0);
+            let text = trn(ko, n, "{n} page", "{n} pages");
+            assert!(text.contains(&n.to_string()) && text.contains("페이지"), "{text}");
+        }
+        let mut app = crate::PdfCraftApp::default();
+        app.set_option("language", "KO").unwrap();
+        let mut restored = crate::PdfCraftApp::default();
+        restored.restore(&app.persist());
+        assert_eq!(restored.language, "ko");
+        assert!(restored.set_option("language", "unknown").is_err());
+        assert_eq!(restored.language, "ko");
+        let user = "한글 보고서{n}.pdf: 오류 {key}";
+        let notice = fmt(tr(ko, "This page couldn't be displayed.\n{e}"), &[("e", user)]);
+        assert!(notice.ends_with(user), "a user's braces and Hangul must remain literal: {notice}");
+        assert_ne!(tr(ko, "This page couldn't be displayed.\n{e}"), "This page couldn't be displayed.\n{e}");
+    }
+
+    #[test]
+    fn korean_covers_ui_commands_engine_wordings_and_all_catalog_keys() {
+        let ko = Lang::from_code("ko").expect("Korean registered");
+        let literals = scan_ui_literals(true);
+        assert!(literals.len() > 900);
+        for label in literals {
+            assert!(has(ko, &label), "Korean UI literal missing: {label}");
+        }
+        for command in pdfcraft_engine::commands::COMMANDS {
+            assert!(ko.catalog().id(command.id).is_some() || has(ko, command.label), "Korean command missing: {}", command.id);
+            if let Some(menu) = command.menu {
+                assert!(has(ko, menu), "Korean menu missing: {menu}");
+            }
+        }
+        for group in pdfcraft_engine::catalog::TOOL_GROUPS {
+            assert!(has(ko, group.label), "Korean tool group missing: {}", group.label);
+            for section in group.sections {
+                assert!(has(ko, section.title));
+                for item in section.items {
+                    assert!(has(ko, item.label), "Korean tool missing: {}", item.label);
+                }
+            }
+        }
+        for list in [
+            pdfcraft_engine::a11y::WORDINGS,
+            pdfcraft_engine::a11y::REPORT_WORDS,
+            pdfcraft_engine::pdfa::WORDINGS,
+            pdfcraft_engine::sign::pdf::WORDINGS,
+            pdfcraft_engine::sign::pdf::kind::ALL,
+            pdfcraft_engine::print::WORDINGS,
+            pdfcraft_engine::EDIT_LABELS,
+            pdfcraft_engine::BATCH_LABELS,
+        ] {
+            for wording in list {
+                assert!(has(ko, wording), "Korean engine wording missing: {wording}");
+            }
+        }
+        for reference in LANGUAGES.iter().filter(|language| language.code != "ko") {
+            let (entries, errors) = catalog::parse_entries(reference.source, reference.plural_forms());
+            assert!(errors.is_empty());
+            for entry in entries {
+                let translated = match entry.context.as_str() {
+                    "" => ko.catalog().plain(&entry.source),
+                    "@id" => ko.catalog().id(&entry.source),
+                    "@plural" => entry.source.split_once('|').and_then(|(one, other)| ko.catalog().plural(one, other, 0)),
+                    context => ko.catalog().contextual(context, &entry.source),
+                };
+                assert!(translated.is_some(), "Korean catalog key missing: {:?} / {:?}", entry.context, entry.source);
+            }
+        }
     }
 
     #[test]

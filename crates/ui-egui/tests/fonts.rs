@@ -8,9 +8,59 @@ const JAPANESE: &str = "日本語の文字";
 const CHINESE: &str = "简体中文欢迎";
 const ARABIC: &str = "واحد اثنين";
 const TELUGU: &str = "తెలుగు ఫైల్";
+const KOREAN: &str = "한국어 환경 설정 한글 보고서{n}.pdf";
 
 fn families() -> Vec<FontId> {
     vec![FontId::proportional(13.0), FontId::monospace(13.0), theme::medium(13.0), theme::semibold(17.0)]
+}
+
+/// A Korean filename must render even when the interface is English or Chinese. Installed
+/// faces remain interface-only and obey the same screenshot opt-out as the other fallbacks.
+#[test]
+fn korean_ui_and_filenames_have_glyphs_in_every_interface_family() {
+    const NAME: &str = "system-korean-fallback";
+    assert!(!theme::font_definitions().font_data.contains_key(NAME));
+    let disabled = std::env::var_os("PDFCRAFT_SYSTEM_FONTS").is_some_and(|v| v == "0");
+    let windows_font = std::env::var_os("WINDIR").map_or_else(|| std::path::PathBuf::from(r"C:\Windows"), std::path::PathBuf::from).join("Fonts");
+    let required = cfg!(windows) && ["malgun.ttf", "gulim.ttc"].iter().any(|f| windows_font.join(f).is_file())
+        || cfg!(target_os = "macos") && std::path::Path::new("/System/Library/Fonts/AppleSDGothicNeo.ttc").is_file();
+    for language in ["en", "ko", "zh-hans", "zh-hant"] {
+        let defs = theme::installed_font_definitions(theme::CjkPreference::for_language(language));
+        if disabled {
+            assert!(!defs.font_data.contains_key(NAME));
+            assert!(defs.families.values().all(|stack| !stack.iter().any(|n| n == NAME)));
+            continue;
+        }
+        if required {
+            assert!(defs.font_data.contains_key(NAME), "{language}: an installed Korean face was not registered");
+        }
+        if !defs.font_data.contains_key(NAME) {
+            eprintln!("skipping Korean glyph check: no supported installed face");
+            continue;
+        }
+        for (family, stack) in &defs.families {
+            assert_eq!(stack.iter().filter(|n| *n == NAME).count(), 1, "{language} {family:?}");
+            if (language == "en" || language == "ko")
+                && let Some(general) = stack.iter().position(|n| n == theme::SYSTEM_FALLBACK)
+            {
+                assert!(stack.iter().position(|n| n == NAME).unwrap() < general, "the general fallback remains last outside Chinese");
+            }
+        }
+        use skrifa::MetadataProvider as _;
+        let data = &defs.font_data[NAME];
+        let face = skrifa::FontRef::from_index(data.font.as_ref(), data.index).unwrap();
+        let hangul = include_str!("../src/i18n/ko.tsv")
+            .chars()
+            .filter(|c| matches!(*c, '\u{1100}'..='\u{11FF}' | '\u{3130}'..='\u{318F}' | '\u{AC00}'..='\u{D7A3}'));
+        for c in hangul {
+            assert!(face.charmap().map(c).is_some(), "{language}: installed face lacks Korean catalog character {c}");
+        }
+        let mut fonts = Fonts::new(TextOptions::default(), defs);
+        for id in families() {
+            assert!(fonts.has_glyphs(&id, KOREAN), "{language} {id:?}: missing Hangul filename glyphs");
+        }
+        assert!(layout_widths(&mut fonts, KOREAN).iter().all(|w| w.is_finite() && *w > 0.0));
+    }
 }
 
 /// Lays `text` out in every interface family and returns each galley's width.
@@ -232,6 +282,9 @@ fn chinese_ui_uses_an_installed_chinese_face() {
             assert!(own < system, "{family:?}: {stack:?}");
             if let Some(first_ja) = stack.iter().position(|n| n.starts_with("BIZ UDPGothic")) {
                 assert!(system < first_ja, "{family:?}: {stack:?}");
+            }
+            if let Some(korean) = stack.iter().position(|n| n == theme::SYSTEM_KOREAN_FALLBACK) {
+                assert!(system < korean, "Chinese keeps its own face before shared Han glyphs in Korean: {family:?}: {stack:?}");
             }
         }
         let han = catalog_han(catalog);

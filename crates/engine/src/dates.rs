@@ -48,6 +48,7 @@ pub struct DateLanguage {
 }
 
 const CJK_MONTHS: [&str; 12] = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+const KOREAN_MONTHS: [&str; 12] = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
 const ZH_MONTHS: [&str; 12] = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
 const ZH_DAYS: [&str; 7] = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
@@ -56,7 +57,7 @@ const AR_DAYS: [&str; 7] = ["الأحد", "الاثنين", "الثلاثاء", 
 
 /// The languages month and weekday names can be written in (Preferences ▸ Date format ▸ Language):
 /// the interface languages, in the same order and with the same names.
-pub static DATE_LANGUAGES: [DateLanguage; 22] = [
+pub static DATE_LANGUAGES: [DateLanguage; 23] = [
     DateLanguage {
         code: "en",
         name: "English",
@@ -74,6 +75,15 @@ pub static DATE_LANGUAGES: [DateLanguage; 22] = [
         months_short: CJK_MONTHS,
         days: ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"],
         days_short: ["日", "月", "火", "水", "木", "金", "土"],
+    },
+    DateLanguage {
+        code: "ko",
+        name: "한국어",
+        months: KOREAN_MONTHS,
+        months_with_day: None,
+        months_short: KOREAN_MONTHS,
+        days: ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],
+        days_short: ["일", "월", "화", "수", "목", "금", "토"],
     },
     DateLanguage {
         code: "zh-hans",
@@ -648,6 +658,19 @@ mod tests {
         for l in &DATE_LANGUAGES {
             assert!(l.months.iter().chain(&l.months_short).chain(&l.days).chain(&l.days_short).all(|n| !n.is_empty()), "{}", l.code);
         }
+    }
+
+    #[test]
+    fn korean_names_and_session_language_are_preserved() {
+        assert_eq!(date_language("KO").map(|l| (l.code, l.name)), Some(("ko", "한국어")));
+        assert_eq!(in_lang("yyyy년 mmmm d일 dddd", "ko"), "2026년 3월 7일 토요일");
+        assert_eq!(in_lang("mmm ddd", "ko"), "3월 토");
+        let mut session = Session::new().with_clock(|| 1_700_000_000);
+        session.set_date_language(Some("KO")).unwrap();
+        assert_eq!(session.date_language(), Some("ko"));
+        assert_eq!(session.today_text(Some("yyyy년 mmmm d일 dddd"), None).as_deref(), Ok("2023년 11월 14일 화요일"));
+        assert!(session.today_text_for_pdf(Some("dddd"), None).unwrap_err().contains("can't be written into the PDF yet"));
+        assert_eq!(session.today_text_for_pdf(Some("yyyy-mm-dd"), None).as_deref(), Ok("2023-11-14"));
     }
 
     #[test]

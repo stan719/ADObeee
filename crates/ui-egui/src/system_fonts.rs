@@ -2,9 +2,8 @@
 //!
 //! The embedded faces (Inter, egui's defaults, craft-fonts) come first in every family; this one
 //! only draws characters none of them has, such as an Arabic file name in a build without
-//! craft-fonts, or the Simplified Chinese interface in a build without a `Hans` face (#826). A
-//! second and a third installed face, [`devanagari_fallback`] and [`telugu_fallback`], draw Hindi
-//! and Telugu when one is installed. It is
+//! craft-fonts, or the Simplified Chinese interface in a build without a `Hans` face (#826).
+//! Additional installed faces draw Hindi, Telugu and Korean when available. They are
 //! read at runtime and never embedded or shipped (AGENTS.md §1.4), and `PDFCRAFT_SYSTEM_FONTS=0`
 //! turns it off (published screenshots do).
 
@@ -25,6 +24,8 @@ const PROBE: char = '\u{0627}';
 const DEVANAGARI_PROBE: char = '\u{0915}';
 /// Telugu letter ka: the face must have it to cover Telugu.
 const TELUGU_PROBE: char = '\u{0C15}';
+/// Hangul syllable ga: a Korean face must actually map Hangul, not just Latin characters.
+const KOREAN_PROBE: char = '\u{AC00}';
 /// 欢 (U+6B22): Simplified only, absent from the Japanese craft-fonts faces.
 const HANS_PROBE: char = '\u{6B22}';
 /// 說 (U+8AAA): Traditional only, absent from the Japanese craft-fonts faces.
@@ -82,11 +83,30 @@ pub fn telugu_fallback() -> Option<Arc<FontData>> {
     CACHE.get_or_init(|| script_fallback(&telugu_candidates(), TELUGU_PROBE)).clone()
 }
 
+/// The installed Hangul face, read once, for Korean labels and file names in any UI language.
+/// It remains interface-only; the bytes never enter a PDF or a distributed package.
+pub fn korean_fallback() -> Option<Arc<FontData>> {
+    static CACHE: OnceLock<Option<Arc<FontData>>> = OnceLock::new();
+    CACHE.get_or_init(|| script_fallback(&korean_candidates(), KOREAN_PROBE)).clone()
+}
+
 fn script_fallback(candidates: &[PathBuf], probe: char) -> Option<Arc<FontData>> {
     if std::env::var_os("PDFCRAFT_SYSTEM_FONTS").is_some_and(|v| v == "0") {
         return None;
     }
     candidates.iter().find_map(|path| read(path, probe, MAX_BYTES))
+}
+
+/// PhotoCraft's platform preference: Malgun Gothic then Gulim on Windows, Apple SD Gothic Neo
+/// on macOS. Linux uses installed NanumGothic/UnDotum; Adobe-derived CJK faces stay excluded.
+fn korean_candidates() -> Vec<PathBuf> {
+    if cfg!(windows) {
+        ["malgun.ttf", "gulim.ttc"].iter().map(|f| windows_fonts().join(f)).collect()
+    } else if cfg!(target_os = "macos") {
+        vec![PathBuf::from("/System/Library/Fonts/AppleSDGothicNeo.ttc")]
+    } else {
+        unix_fonts(&["truetype/nanum/NanumGothic.ttf", "nanum/NanumGothic.ttf", "truetype/unfonts-core/UnDotum.ttf", "unfonts-core/UnDotum.ttf"])
+    }
 }
 
 /// Well-known locations of Devanagari (Hindi) faces, best first.
@@ -266,6 +286,7 @@ mod tests {
         assert_eq!(face_with(inter, PROBE), None);
         assert_eq!(face_with(inter, HANS_PROBE), None);
         assert_eq!(face_with(inter, HANT_PROBE), None);
+        assert_eq!(face_with(inter, KOREAN_PROBE), None);
         assert_eq!(face_with(inter, 'A'), Some(0));
     }
 
@@ -296,10 +317,24 @@ mod tests {
 
     #[test]
     fn script_candidates_are_absolute_font_files() {
-        for list in [devanagari_candidates(), telugu_candidates()] {
+        for list in [devanagari_candidates(), telugu_candidates(), korean_candidates()] {
             assert!(!list.is_empty());
             assert!(list.iter().all(|p| p.is_absolute() || cfg!(windows)), "{list:?}");
             assert!(list.iter().all(|p| p.extension().is_some_and(|e| e == "ttf" || e == "ttc")), "{list:?}");
+        }
+    }
+
+    #[test]
+    fn korean_candidates_follow_the_platform_preference() {
+        let candidates = korean_candidates();
+        assert!(!candidates.is_empty());
+        if cfg!(windows) {
+            let names: Vec<_> = candidates.iter().filter_map(|p| p.file_name().and_then(|n| n.to_str())).collect();
+            assert_eq!(names, ["malgun.ttf", "gulim.ttc"]);
+        }
+        for path in candidates {
+            let name = path.to_string_lossy().to_ascii_lowercase();
+            assert!(!name.contains("notosanscjk") && !name.contains("sourcehan"));
         }
     }
 

@@ -1,4 +1,15 @@
 [[asset]]
+path = "crates/ui-egui/src/i18n/ko.tsv"
+title = "Korean interface translation catalog"
+author = "PdfCraft contributors"
+source = "Contributor-original: clean-room Korean translations of PdfCraft's English UI labels and user-facing messages; no proprietary localisation resources"
+licence = "MIT OR Apache-2.0"
+licence_file = "LICENSE-MIT"
+kind = "translation"
+usage = "Korean UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs"
+sha256 = "ec7d80610ef545befa689aa1c88567f76ad54b9287c223ee52006087fa7241dd"
+
+[[asset]]
 path = "crates/ui-egui/src/i18n/el.tsv"
 title = "Greek interface translation catalog"
 author = "Camthalion77 and contributors"

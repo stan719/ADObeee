@@ -4,10 +4,11 @@
 
 Every asset PdfCraft includes, bundles or uses to build its published material, with its author, source and licence. The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with SHA-256 hashes, is [ATTRIBUTION.toml](ATTRIBUTION.toml). Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).
 
-## In this repository (270)
+## In this repository (271)
 
 | Asset | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
+| `crates/ui-egui/src/i18n/ko.tsv` | Korean interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room Korean translations of PdfCraft's English UI labels and user-facing messages; no proprietary localisation resources | Korean UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
 | `crates/ui-egui/src/i18n/el.tsv` | Greek interface translation catalog | Camthalion77 and contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft English UI labels | Greek UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
 | `crates/ui-egui/src/i18n/zh-hans.tsv` | Simplified Chinese interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources | Simplified Chinese UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
 | `crates/ui-egui/src/i18n/zh-hant.tsv` | Traditional Chinese (Taiwan) interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources | Traditional Chinese UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |

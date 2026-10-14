@@ -2,6 +2,7 @@
 
 **Stage: alpha** · next: beta, ~26% (ready for real work 49% → 75%) and ~400–700 h away
 
+> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** minor (Korean desktop catalog, date names and installed Hangul fallback; scoped tests and strict Clippy verified on c1a41cc5; readiness and hours not re-measured) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-13 · **Change:** minor (M3 candidate: native opens retain chosen tools through password retries and defer startup intake while preparation is pending; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M13: CLI check visits each directory once through aliases and cycles; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (M4: Extract and Split preserve shared Type 3 glyph resources; estimates unchanged) · **Target:** Adobe Acrobat Pro (Acrobat DC, continuous track 26.002.21931, macOS)
@@ -110,7 +111,7 @@ What's strong and missing in each: [target-app-parity.md](docs/target-app-parity
 
 ## Languages
 
-Measured from `crates/ui-egui/src/i18n/*.tsv` (2,143 keys). Detail and script notes:
+The older language percentages below use a 2,143-key snapshot. Korean now covers the current 2,592-key catalog union; the other percentages and weighted readiness have not been re-measured. Detail and script notes:
 [localization-parity.md](docs/localization-parity.md).
 
 | Language | Code | Strings | Status |
@@ -125,11 +126,12 @@ Measured from `crates/ui-egui/src/i18n/*.tsv` (2,143 keys). Detail and script no
 | Indonesian | `id` | 0% | none |
 | Japanese | `ja` | 99.1% | partial |
 | German | `de` | 99.3% | partial |
-| Korean | `ko` | 0% | none |
+| Korean | `ko` | 2,592 current keys | partial (desktop installed-font fallback; web font delivery and localized help remain) |
 | Vietnamese | `vi` | 0% | none |
 
-Also shipped: Traditional Chinese, Russian, Bulgarian, Telugu, Hungarian, Ukrainian, Italian
-(94–100%) and Czech (menus only): **8 more languages**.
+Also shipped: Traditional Chinese, Russian, Bulgarian, Telugu, Hungarian, Ukrainian and Italian
+(94–100% in the older snapshot), Czech (menus only), Kazakh, Polish, Slovenian, Greek, Turkish
+and Lithuanian: **14 more languages**.
 
 ## Upcoming
 
@@ -148,6 +150,11 @@ Ranked; detail and the full milestone table in [docs/roadmap.md](docs/roadmap.md
 | 8 | 1.0 polish: performance, right-to-left, missing languages, keyboard-only (M14) | 55–95 |
 
 ## Progress log
+
+- **2026-10-14 (M14, Korean desktop localization):** Added an original 2,592-entry Korean catalog, locale detection, persistent language selection and Korean date names. Installed Malgun Gothic/Gulim, Apple SD Gothic Neo or NanumGothic/UnDotum provide interface-only Hangul fallback in every UI language. Regression coverage checks catalog completeness, language/date persistence, user-value preservation, real app font installation and opt-out behavior; removed/inverted core conditions are checked with failing mutations. No embedded Korean font or Korean PDF writing is claimed. Estimates unchanged.
+  Validation on base `c1a41cc5`: scoped native tests for `pdfcraft-ui-egui`, `pdfcraft-engine` and `pdfcraft-forms` passed (1,423 passed, 8 ignored, no failures). Strict scoped all-target Clippy passed with `-D warnings`.
+  Six Korean regression mutations and one forms date-guard mutation failed behavioral assertions as intended, and original production source bytes were restored. Scoped wasm32 checks, formatting, system-font opt-out, asset index write/check, layer checks and partial parity checks passed.
+  macOS and Linux runtime behavior was not verified. Readiness and effort estimates have not been re-measured and remain unchanged.
 
 - **2026-10-13 (M3, native-opening candidate):** Chosen tools survive preparation, conversion and password retries; startup intake waits for pending preparation. Regression tests cover completion, cancellation and document identity. Estimates unchanged.
 - **2026-10-12 (M10, Windows printing without PowerShell, #1107):** craft-print now prints on Windows in-process: printers from EnumPrinters/GetDefaultPrinter, jobs drawn as vectors by Windows.Data.Pdf into the XPS print API with a driver-validated PrintTicket (exact paper, orientation, no scaling), so printing works where App Control for Business or AppLocker run PowerShell in Constrained Language Mode. Portrait and landscape sheets still print as one job (turned with /Rotate); a sheet size the driver lacks is refused rather than shrunk. Pins craft-libs f03ec27 (craft-libs#28); deny.toml allows the storytold/winprint.rs fork and adds a webpki-root-certs licence exception and a RUSTSEC-2024-0370 ignore for winprint's build-dependencies. An earlier craft-print revision was checked in Windows Sandbox under enforced WDAC: printers listed, CLI and desktop jobs spooled, and no powershell.exe in the 4688 audit. The final pinned revision passed craft-libs Windows CI, including a real paused-queue job; that Sandbox run has not been repeated. Estimates unchanged.
