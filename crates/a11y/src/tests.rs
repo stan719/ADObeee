@@ -527,6 +527,16 @@ fn figures_are_listed_with_their_alt_text_and_place() {
 }
 
 #[test]
+fn tag_content_lists_direct_marked_content() {
+    let doc = figures_doc();
+    let tags = tags(&doc);
+    let first = tag_content(&doc, tags[1].object).unwrap();
+    let second = tag_content(&doc, tags[2].object).unwrap();
+    assert_eq!((first[0].page, first[0].mcid, first[0].text.as_str()), (Some(0), 0, ""));
+    assert_eq!((second[0].page, second[0].mcid, second[0].text.as_str()), (Some(0), 1, ""));
+}
+
+#[test]
 fn sibling_tags_move_in_reading_order_without_changing_content() {
     let mut doc = figures_doc();
     let before: Vec<_> = tags(&doc).into_iter().map(|tag| tag.object.num).collect();

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use egui::Ui;
 use pdfcraft_cos::ObjRef;
-use pdfcraft_engine::a11y::{TagInfo, TagPlacement, TagProperty};
+use pdfcraft_engine::a11y::{TagContentItem, TagInfo, TagPlacement, TagProperty};
 use pdfcraft_engine::{DocId, Edit};
 
 use crate::{icons, theme::Tokens, widgets};
@@ -64,6 +64,9 @@ impl Draft {
 }
 
 impl State {
+    pub(crate) fn selected(&self) -> Option<ObjRef> {
+        self.selected
+    }
     /// The document's tags, walked again only after an edit.
     pub(crate) fn tags(&mut self, doc: &pdfcraft_engine::Document) -> Arc<Vec<TagInfo>> {
         let generation = doc.edit_generation();
@@ -102,7 +105,15 @@ impl State {
 }
 
 /// The chosen page and an edit to apply after the panel releases its document borrow.
-pub(crate) fn panel(ui: &mut Ui, t: &Tokens, doc: DocId, tags: &[TagInfo], state: &mut State, can_edit: bool) -> (Option<usize>, Option<Edit>) {
+pub(crate) fn panel(
+    ui: &mut Ui,
+    t: &Tokens,
+    doc: DocId,
+    tags: &[TagInfo],
+    content: &[TagContentItem],
+    state: &mut State,
+    can_edit: bool,
+) -> (Option<usize>, Option<Edit>) {
     if state.doc != Some(doc) {
         state.doc = Some(doc);
         state.selected = None;
@@ -196,6 +207,19 @@ pub(crate) fn panel(ui: &mut Ui, t: &Tokens, doc: DocId, tags: &[TagInfo], state
         earlier = ui.add_enabled(can_edit && !dirty && before.is_some(), egui::Button::new(tl!("Move tag earlier"))).clicked();
         later = ui.add_enabled(can_edit && !dirty && after.is_some(), egui::Button::new(tl!("Move tag later"))).clicked();
     });
+    ui.separator();
+    for item in content {
+        let page_label = item.page.map(|p| crate::i18n::fmt(tl!("Go to page {p}"), &[("p", &(p + 1).to_string())]));
+        let label = match (&page_label, item.text.trim()) {
+            (Some(page), text) if !text.is_empty() => format!("MCID {} · {page} · {text}", item.mcid),
+            (Some(page), _) => format!("MCID {} · {page}", item.mcid),
+            (_, text) if !text.is_empty() => format!("MCID {} · {text}", item.mcid),
+            _ => format!("MCID {}", item.mcid),
+        };
+        if ui.button(label).clicked() {
+            page = item.page;
+        }
+    }
     (
         page,
         if save {

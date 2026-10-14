@@ -171,7 +171,7 @@ fn sub(doc: &Document, d: &Dict, key: &[u8]) -> Dict {
 }
 
 /// The text each marked-content id shows on a page (text drawn directly in the page content).
-fn mcid_texts(doc: &Document, page: &Dict) -> HashMap<i64, String> {
+pub(crate) fn mcid_texts(doc: &Document, page: &Dict) -> HashMap<i64, String> {
     let res = sub(doc, page, b"Resources");
     let (fonts, props) = (sub(doc, &res, b"Font"), sub(doc, &res, b"Properties"));
     let mut metrics: HashMap<Vec<u8>, Metrics> = HashMap::new();
