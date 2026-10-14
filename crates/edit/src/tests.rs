@@ -1858,6 +1858,24 @@ fn justify_underline_and_spacing() {
 }
 
 #[test]
+fn paragraph_spacing_adjusts_gap_between_paragraphs() {
+    let src = "BT /F1 10 Tf 12 TL 100 700 Td (First line) Tj T* (Second line) Tj ET";
+    let mut doc = text_page(src);
+    let style_default = text::BlockStyle { line_spacing: Some(1.0), ..Default::default() };
+    text::rewrite_block(&mut doc, 0, 0, Some("Para one\nPara two"), &style_default).unwrap();
+    let lines0 = text::text_lines(&doc, 0).unwrap();
+    let gap0 = lines0[0].origin_baseline() - lines0[1].origin_baseline();
+
+    let mut doc = text_page(src);
+    let style_spaced = text::BlockStyle { line_spacing: Some(1.0), paragraph_spacing: Some(15.0), ..Default::default() };
+    text::rewrite_block(&mut doc, 0, 0, Some("Para one\nPara two"), &style_spaced).unwrap();
+    let lines1 = text::text_lines(&doc, 0).unwrap();
+    let gap1 = lines1[0].origin_baseline() - lines1[1].origin_baseline();
+
+    assert!((gap1 - (gap0 + 15.0)).abs() < 0.1, "gap1 {gap1} should be gap0 {gap0} + 15.0");
+}
+
+#[test]
 fn a_line_drawn_twice_is_replaced_everywhere() {
     // Fake bold: a line drawn twice at the same spot (each copy its own text object). The two
     // copies group apart, but editing one replaces both — a surviving copy would show the old
