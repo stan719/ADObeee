@@ -7,6 +7,9 @@ Agent control for PdfCraft: a headless tool table over the engine, and an opt-in
 
 ## API
 
+For CBZ/ZIP and CBT/TAR conversion, including single-file CLI output and batches,
+see [Comic archives and batch conversion](../../docs/comic-archives.md).
+
 ```rust
 let mut a = Automation::new().with_root("/work")?;      // optional: confine all paths
 let doc = a.call("doc_open", &json!({ "path": "in.pdf" }))?;   // Vec<Content>

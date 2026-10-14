@@ -2796,6 +2796,48 @@ fn create_multiple_has_no_file_count_limit() {
 }
 
 #[test]
+fn comic_archive_conversion_and_batch_preserve_pages_and_existing_outputs() {
+    use std::io::{Cursor, Write};
+    let dir = workdir("comic-conversion");
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, width) in [("10.png", 10), ("2.png", 2)] {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, width, 4);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder.write_header().unwrap().write_image_data(&vec![120; width as usize * 12]).unwrap();
+        }
+        zip.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(&bytes).unwrap();
+    }
+    let bytes = zip.finish().unwrap().into_inner();
+    std::fs::write(dir.join("comic.cbz"), &bytes).unwrap();
+    std::fs::write(dir.join("pages.zip"), &bytes).unwrap();
+    std::fs::write(dir.join("broken.cbz"), b"broken").unwrap();
+    let mut a = auto(&dir);
+    let made = ok(&mut a, "doc_create_multiple", json!({"paths":["comic.cbz"], "out":"converted.pdf", "open":true}));
+    let doc = made["document"]["doc"].as_u64().unwrap();
+    assert_eq!(made["document"]["pages"], 2);
+    for (page, width) in [(1, 10.0), (2, 2.0)] {
+        let images = ok(&mut a, "page_images", json!({"doc":doc, "page":page}));
+        assert_eq!(images["images"][0]["rect"], json!([0.0, 0.0, width, 4.0]));
+    }
+    let reopened = ok(&mut a, "doc_open", json!({"path":"converted.pdf"}));
+    assert_eq!(reopened["pages"], 2);
+    std::fs::create_dir_all(dir.join("out")).unwrap();
+    std::fs::write(dir.join("out/comic.pdf"), b"keep").unwrap();
+    let batch = ok(&mut a, "doc_create_multiple", json!({"paths":["comic.cbz","broken.cbz","pages.zip"],"mode":"separate","out_dir":"out"}));
+    assert!(batch["files"][0]["output"].as_str().unwrap().ends_with("comic (2).pdf"));
+    assert!(batch["files"][1]["error"].is_string());
+    assert!(batch["files"][2]["output"].as_str().unwrap().ends_with("pages.pdf"));
+    assert_eq!(std::fs::read(dir.join("out/comic.pdf")).unwrap(), b"keep");
+    assert!(!dir.join("out/broken.pdf").exists());
+    assert!(a.call("doc_create_multiple", &json!({"paths":["comic.cbz","broken.cbz"],"out":"partial.pdf"})).is_err());
+    assert!(!dir.join("partial.pdf").exists());
+}
+
+#[test]
 fn creating_images_with_dpi_through_tools() {
     let dir = workdir("image-dpi");
     let mut png = Vec::new();

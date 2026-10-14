@@ -6,6 +6,38 @@ use serde_json::{Value, json};
 
 use crate::{PdfCraftApp, control::ControlClient, open_worker};
 
+#[test]
+#[allow(clippy::unwrap_used)]
+fn background_comic_open_converts_the_archive_and_preserves_existing_tabs() {
+    use std::io::{Cursor, Write};
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(8, 4, image::Rgb([120, 120, 120])).write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for name in ["02.png", "01.png"] {
+        zip.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(&png).unwrap();
+    }
+    let bytes = zip.finish().unwrap().into_inner();
+    let path = std::env::temp_dir().join(format!("pdfcraft-background-comic-{}.cbz", std::process::id()));
+    std::fs::write(&path, bytes).unwrap();
+    let (mut harness, _) = harness();
+    let app = harness.state_mut();
+    app.open_path(&path.to_string_lossy());
+    assert_eq!(app.views.len(), 1, "the existing tab stays while conversion is pending");
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !app.pending_opens.is_empty() {
+        app.poll_pending_opens();
+        assert!(std::time::Instant::now() < deadline, "comic open did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(app.views.len(), 2, "background opening must convert comic archives to PDF");
+    assert_eq!(app.session.get(app.views[0].id).unwrap().info.pages.len(), 3);
+    let opened = app.session.get(app.views[1].id).unwrap();
+    assert_eq!(opened.info.pages.len(), 2);
+    assert!(opened.dirty && opened.path.is_none(), "saving must not overwrite the source archive");
+}
+
 fn fixture(pages: usize) -> Vec<u8> {
     let mut objects = vec!["<< /Type /Catalog /Pages 2 0 R >>".to_string()];
     let kids = (0..pages).map(|page| format!("{} 0 R", 4 + 2 * page)).collect::<Vec<_>>().join(" ");

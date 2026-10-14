@@ -27,6 +27,7 @@ default = ["mcp"]
 mcp = ["dep:base64"]
 
 [dev-dependencies]
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 pdfcraft-fonts = { workspace = true }
 flate2.workspace = true
 pdfcraft-model = { workspace = true }

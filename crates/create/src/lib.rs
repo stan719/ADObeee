@@ -4,7 +4,9 @@
 
 use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString, Stream};
 
+mod archive;
 mod extract;
+pub use archive::{ArchiveFormat, from_comic_archive};
 pub use extract::{ExtractedImage, ImageExport, extract_images, image_file};
 use pdfcraft_fonts::{literal, win_ansi, wrap};
 
@@ -477,16 +479,18 @@ fn tiff_pages(name: &str, bytes: &[u8]) -> Result<Vec<Embedded>, CreateError> {
     Ok(out)
 }
 
-/// What a file picked for Create is, by its bytes (and, for text, its name).
+/// What a file picked for Create is, by its bytes (and, for text and archives, its name).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceKind {
     Pdf,
     Image,
     Text,
+    Archive(ArchiveFormat),
 }
 
-/// File extensions Create converts to PDF (images and plain text).
-pub const CONVERTIBLE: [&str; 12] = ["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx", "txt", "text"];
+/// File extensions Create converts to PDF (images, plain text and comic archives).
+pub const CONVERTIBLE: [&str; 16] =
+    ["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx", "txt", "text", "cbz", "zip", "cbt", "tar"];
 
 /// A classic TIFF or a BigTIFF (version 43), in either byte order.
 fn is_tiff(bytes: &[u8]) -> bool {
@@ -511,9 +515,16 @@ fn is_image(bytes: &[u8]) -> bool {
             && bytes.get(14..18).and_then(|h| <[u8; 4]>::try_from(h).ok()).is_some_and(|h| matches!(u32::from_le_bytes(h), 12 | 40 | 52 | 56 | 108 | 124)))
 }
 
-/// Whether `bytes` named `name` is a PDF, an image Create can embed, or plain text (a `.txt` or
-/// `.text` file). `None` for anything else.
+/// Whether `bytes` named `name` is a PDF, an image, plain text or an explicitly named comic
+/// archive. `None` for anything else; ZIP-based Office and EPUB files are not classified as comics.
 pub fn source_kind(name: &str, bytes: &[u8]) -> Option<SourceKind> {
+    // Archive names opt in: DOCX, EPUB and other ZIP containers are not comic books.
+    let lower = name.to_ascii_lowercase();
+    match lower.rsplit_once('.').map(|(_, extension)| extension) {
+        Some("cbz" | "zip") => return Some(SourceKind::Archive(ArchiveFormat::Zip)),
+        Some("cbt" | "tar") => return Some(SourceKind::Archive(ArchiveFormat::Tar)),
+        _ => {}
+    }
     let head = bytes.get(..bytes.len().min(1024)).unwrap_or_default();
     if head.windows(5).any(|w| w == b"%PDF-") {
         return Some(SourceKind::Pdf);
@@ -521,7 +532,6 @@ pub fn source_kind(name: &str, bytes: &[u8]) -> Option<SourceKind> {
     if is_image(bytes) {
         return Some(SourceKind::Image);
     }
-    let lower = name.to_ascii_lowercase();
     (lower.ends_with(".txt") || lower.ends_with(".text")).then_some(SourceKind::Text)
 }
 
@@ -579,7 +589,27 @@ pub fn from_images_with_resolution(images: &[(String, Vec<u8>)], resolution: Ima
     }
     let mut doc = Document::new_empty();
     let mut profiles = Vec::new();
-    for img in images.iter().map(|(name, bytes)| embed(name, bytes)).collect::<Result<Vec<_>, _>>()?.into_iter().flatten() {
+    for (name, bytes) in images {
+        append_image_pages(&mut doc, &mut profiles, name, bytes, resolution)?;
+    }
+    if let Some((name, _)) = images.first() {
+        set_title(&mut doc, name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s));
+    }
+    Ok(doc)
+}
+
+// Decode and embed one file at a time, so multi-image creation and archives do not retain
+// every page's decoded pixel buffer at once. Callers publish the document only on success.
+fn append_image_pages(
+    doc: &mut Document,
+    profiles: &mut Vec<(Vec<u8>, ObjRef)>,
+    name: &str,
+    bytes: &[u8],
+    resolution: ImageResolution,
+) -> Result<usize, CreateError> {
+    let images = embed(name, bytes)?;
+    let count = images.len();
+    for img in images {
         let dpi = match resolution {
             ImageResolution::Embedded => img.dpi,
             ImageResolution::Dpi(dpi) => (dpi, dpi),
@@ -589,18 +619,15 @@ pub fn from_images_with_resolution(images: &[(String, Vec<u8>)], resolution: Ima
         let k = (MAX_SIDE / w.max(h)).min(1.0);
         w *= k;
         h *= k;
-        let xr = add_image(&mut doc, img, &mut profiles);
+        let xr = add_image(doc, img, profiles);
         let mut xobj = Dict::new();
         xobj.set(b"Im0".to_vec(), Object::Ref(xr));
         let mut res = Dict::new();
         res.set(b"XObject".to_vec(), Object::Dict(xobj));
         let content = format!("q {w:.3} 0 0 {h:.3} 0 0 cm /Im0 Do Q\n").into_bytes();
-        add_page(&mut doc, w, h, res, Some(content))?;
+        add_page(doc, w, h, res, Some(content))?;
     }
-    if let Some((name, _)) = images.first() {
-        set_title(&mut doc, name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s));
-    }
-    Ok(doc)
+    Ok(count)
 }
 
 // ── text ────────────────────────────────────────────────────────────────────────────────────

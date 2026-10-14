@@ -1742,17 +1742,16 @@ impl PdfCraftApp {
     /// The File ▸ Open picker: PDFs, and images and text that become PDFs.
     #[cfg(not(target_arch = "wasm32"))]
     fn open_picker() -> rfd::AsyncFileDialog {
-        rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE)
+        rfd::AsyncFileDialog::new()
+            .add_filter("PDF", &["pdf"])
+            .add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE)
+            .add_filter("CBZ / CBT / ZIP / TAR", &["cbz", "cbt", "zip", "tar"])
     }
 
     pub fn open_dialog(&mut self) {
         self.startup_superseded = true;
         #[cfg(not(target_arch = "wasm32"))]
-        self.pick(
-            pickers::PickFor::Open,
-            rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE),
-            true,
-        );
+        self.pick(pickers::PickFor::Open, Self::open_picker(), true);
         // Browsers pick files asynchronously; the bytes arrive through `inbox`.
         #[cfg(target_arch = "wasm32")]
         {
@@ -1762,6 +1761,7 @@ impl PdfCraftApp {
                 if let Some(h) = rfd::AsyncFileDialog::new()
                     .add_filter("PDF", &["pdf"])
                     .add_filter(tl!("Images and text"), &create_ui::CONVERTIBLE)
+                    .add_filter("CBZ / CBT / ZIP / TAR", &["cbz", "cbt", "zip", "tar"])
                     .pick_file()
                     .await
                 {
