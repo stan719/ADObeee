@@ -2428,3 +2428,8 @@ animation effects	Off	Vypnuto
 	This document is trying to open a local file:	Tento dokument se pokouší otevřít místní soubor:
 	Move tag earlier	Přesunout značku dříve
 	Move tag later	Přesunout značku později
+	PKCS #11 modules	Moduly PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Tokeny a čipové karty podepisují přes modul PKCS #11. Přidávejte jen moduly, kterým důvěřujete: modul spouští vlastní kód.
+	Token PIN	PIN tokenu
+	Token  ·  	Token  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Digitální ID modulu PKCS #11 nelze vypsat: {e}

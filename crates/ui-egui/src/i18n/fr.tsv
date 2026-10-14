@@ -2354,3 +2354,8 @@ animation effects	Off	Désactivés
 	This document is trying to open a local file:	Ce document tente d’ouvrir un fichier local :
 	Move tag earlier	Déplacer la balise plus tôt
 	Move tag later	Déplacer la balise plus tard
+	PKCS #11 modules	Modules PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Les jetons et cartes à puce signent via un module PKCS #11. N’ajoutez que des modules de confiance : un module exécute son propre code.
+	Token PIN	PIN du jeton
+	Token  ·  	Jeton  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Impossible de lister les ID numériques du module PKCS #11 : {e}

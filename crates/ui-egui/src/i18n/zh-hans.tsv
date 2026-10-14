@@ -2318,3 +2318,8 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+	PKCS #11 modules	PKCS #11 模块
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	令牌和智能卡通过 PKCS #11 模块进行签名。请仅添加您信任的模块：模块会运行自己的代码。
+	Token PIN	令牌 PIN
+	Token  ·  	令牌 · 
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	无法列出 PKCS #11 模块的数字 ID：{e}

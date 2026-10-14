@@ -2353,3 +2353,8 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+	PKCS #11 modules	PKCS #11 modulok
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	A tokenek és chipkártyák egy PKCS #11 modulon keresztül írnak alá. Csak megbízható modulokat adj hozzá: a modul saját kódot futtat.
+	Token PIN	Token PIN-kód
+	Token  ·  	Token  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	A PKCS #11 modul digitális azonosítóit nem sikerült kilistázni: {e}

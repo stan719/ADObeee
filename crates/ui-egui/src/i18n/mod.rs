@@ -1356,6 +1356,7 @@ mod tests {
             "JavaScript",
             "ZIP",
             "Text",
+            "Token  ·  ",
             "Index",
             "Metadata",
             "Model",

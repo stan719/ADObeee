@@ -2363,3 +2363,8 @@ animation effects	Off	Disattivati
 	This document is trying to open a local file:	Questo documento sta tentando di aprire un file locale:
 	Move tag earlier	Sposta tag prima
 	Move tag later	Sposta tag dopo
+	PKCS #11 modules	Moduli PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Token e smart card firmano tramite un modulo PKCS #11. Aggiungi solo moduli di cui ti fidi: un modulo esegue il proprio codice.
+	Token PIN	PIN del token
+	Token  ·  	Token  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Impossibile elencare gli ID digitali del modulo PKCS #11: {e}

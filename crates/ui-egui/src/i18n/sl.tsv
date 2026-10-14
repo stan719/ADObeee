@@ -2359,3 +2359,8 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+	PKCS #11 modules	Moduli PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Žetoni in pametne kartice podpisujejo prek modula PKCS #11. Dodajajte le module, ki jim zaupate: modul izvaja lastno kodo.
+	Token PIN	PIN žetona
+	Token  ·  	Žeton  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Digitalnih identitet modula PKCS #11 ni bilo mogoče prikazati: {e}

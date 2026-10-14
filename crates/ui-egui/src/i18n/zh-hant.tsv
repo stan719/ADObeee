@@ -2228,3 +2228,8 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+	PKCS #11 modules	PKCS #11 模組
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	權杖和智慧卡透過 PKCS #11 模組進行簽署。請僅加入您信任的模組：模組會執行自己的程式碼。
+	Token PIN	權杖 PIN
+	Token  ·  	權杖 · 
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	無法列出 PKCS #11 模組的數位 ID：{e}

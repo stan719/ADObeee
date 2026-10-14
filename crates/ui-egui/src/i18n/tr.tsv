@@ -2350,3 +2350,8 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+	PKCS #11 modules	PKCS #11 modülleri
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Jetonlar ve akıllı kartlar bir PKCS #11 modülüyle imzalar. Yalnızca güvendiğiniz modülleri ekleyin: bir modül kendi kodunu çalıştırır.
+	Token PIN	Jeton PIN'i
+	Token  ·  	Jeton  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	PKCS #11 modülünün dijital kimlikleri listelenemedi: {e}

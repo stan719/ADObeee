@@ -2375,3 +2375,8 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+	PKCS #11 modules	وحدات PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	توقع الرموز والبطاقات الذكية عبر وحدة PKCS #11. لا تضف إلا الوحدات التي تثق بها: فالوحدة تشغل شيفرتها الخاصة.
+	Token PIN	PIN الرمز
+	Token  ·  	الرمز  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	تعذّر سرد المعرّفات الرقمية لوحدة PKCS #11: {e}

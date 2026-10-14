@@ -2355,3 +2355,8 @@ animation effects	Off	Aus
 	This document is trying to open a local file:	Dieses Dokument versucht, eine lokale Datei zu öffnen:
 	Move tag earlier	Tag früher verschieben
 	Move tag later	Tag später verschieben
+	PKCS #11 modules	PKCS #11-Module
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Token und Smartcards signieren über ein PKCS #11-Modul. Füge nur Module hinzu, denen du vertraust: Ein Modul führt eigenen Code aus.
+	Token PIN	Token-PIN
+	Token  ·  	Token  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Die digitalen IDs des PKCS #11-Moduls konnten nicht aufgelistet werden: {e}

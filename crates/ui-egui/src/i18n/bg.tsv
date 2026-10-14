@@ -2317,3 +2317,8 @@ animation effects	Off	Изключени
 	This document is trying to open a local file:	Този документ се опитва да отвори локален файл:
 	Move tag earlier	Преместване на етикета по-рано
 	Move tag later	Преместване на етикета по-късно
+	PKCS #11 modules	Модули PKCS #11
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Токените и смарт картите подписват чрез PKCS #11 модул. Добавяйте само модули, на които имате доверие: модулът изпълнява собствен код.
+	Token PIN	PIN на токена
+	Token  ·  	Токен  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	Цифровите идентификатори на модула PKCS #11 не можаха да бъдат изброени: {e}

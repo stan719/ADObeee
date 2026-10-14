@@ -2352,3 +2352,8 @@ animation effects	Off	Өшірулі
 	This document is trying to open a local file:	Бұл құжат жергілікті файлды ашуға әрекеттеніп жатыр:
 	Move tag earlier	Тегті ертерек жылжыту
 	Move tag later	Тегті кейінірек жылжыту
+	PKCS #11 modules	PKCS #11 модульдері
+	Tokens and smart cards sign through a PKCS #11 module. Only add modules you trust: a module runs its own code.	Токендер мен смарт-карталар PKCS #11 модулі арқылы қол қояды. Тек сенетін модульдеріңізді қосыңыз: модуль өз кодын орындайды.
+	Token PIN	Токен PIN-коды
+	Token  ·  	Токен  ·  
+	The PKCS #11 module's digital IDs couldn't be listed: {e}	PKCS #11 модулінің цифрлық ID-лерін тізімдеу мүмкін болмады: {e}
