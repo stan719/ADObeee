@@ -162,3 +162,28 @@ fn an_ocr_word_opens_for_editing_and_stays_open() {
     h.run_steps(4);
     assert_eq!(opened(&h).as_deref(), Some("Recognize"), "moving the pointer away keeps the word open");
 }
+
+/// #1819: when the worker thread cannot start, the run is not left "active" and a retry works.
+#[test]
+fn recognition_that_cannot_start_a_thread_reports_an_error_and_can_retry() {
+    let mut app = PdfCraftApp::new();
+    app.open_bytes("scan.pdf", None, scan()).unwrap();
+    app.fail_spawn = true;
+    app.start_ocr();
+    assert!(app.ocr_run.is_none(), "single run not left active");
+    assert_eq!(app.toast.clone().unwrap().0, "could not start a background thread");
+    app.toast = None;
+    app.start_ocr();
+    assert!(app.ocr_run.is_none());
+    assert_eq!(app.toast.clone().unwrap().0, "could not start a background thread", "not refused as already running");
+
+    let dir = std::env::temp_dir().join(format!("pdfcraft-ocr-spawn-{}", std::process::id()));
+    app.export_dir_override = Some(dir.to_string_lossy().into_owned());
+    app.toast = None;
+    app.ocr_files(vec![("one.pdf".into(), scan())]);
+    assert!(app.ocr_batch.is_none(), "batch not left active");
+    assert_eq!(app.toast.clone().unwrap().0, "could not start a background thread");
+    app.toast = None;
+    app.ocr_files(vec![("one.pdf".into(), scan())]);
+    assert_eq!(app.toast.clone().unwrap().0, "could not start a background thread", "not refused as already running");
+}
