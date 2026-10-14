@@ -170,6 +170,16 @@ fn encrypted(bytes: Vec<u8>, password: &str) -> Vec<u8> {
     pdfcraft_cos::write_full(&doc, &Default::default()).unwrap()
 }
 
+// A prompt in app state can precede its interactive modal by several layout frames.
+fn wait_for_password_input(h: &mut Harness<'_, PdfCraftApp>) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while h.query_by_role(Role::PasswordInput).is_none_or(|node| node.accesskit_node().is_disabled()) {
+        h.step();
+        assert!(std::time::Instant::now() < deadline, "the recovery password field did not become enabled");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
 #[test]
 fn encrypted_documents_are_autosaved_encrypted_and_recovered_with_the_password() {
     let bytes = encrypted(fixture(2), "pw");
@@ -183,6 +193,7 @@ fn encrypted_documents_are_autosaved_encrypted_and_recovered_with_the_password()
     h.get_by_label_contains("password-protected");
     h.get_by_label("Recover").click();
     support::wait_until(&mut h, "recovery password prompt", |app| app.password_prompt.is_some());
+    wait_for_password_input(&mut h);
     let field = h.get_by_role(Role::PasswordInput);
     field.focus();
     field.type_text("pw");
@@ -327,6 +338,7 @@ fn an_encrypted_snapshot_without_metadata_still_requires_its_password() {
     h.get_by_label("Recover").click();
     support::wait_until(&mut h, "orphan recovery password prompt", |app| app.password_prompt.is_some());
     assert!(h.state().views.is_empty());
+    wait_for_password_input(&mut h);
     let field = h.get_by_role(Role::PasswordInput);
     field.focus();
     field.type_text("pw");
