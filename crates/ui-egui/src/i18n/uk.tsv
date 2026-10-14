@@ -686,6 +686,7 @@
 	Show a field	Показати поле
 	Hide a field	Приховати поле
 	Submit a form	Надіслати форму
+	Submit a form with GET	Надіслати форму (GET)
 	Fields to reset (comma-separated; empty: all)	Поля для скидання (через кому; порожньо: усі)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage або LastPage
 	Field names (comma-separated)	Назви полів (через кому)
@@ -2376,3 +2377,22 @@ animation effects	Off	Вимкнено
 	This document is trying to open a local file:	Цей документ намагається відкрити локальний файл:
 	Move tag earlier	Перемістити тег раніше
 	Move tag later	Перемістити тег пізніше
+# HTML form submission
+	Form values to send: {count}	Значення форми для надсилання: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Надсилайте дані, лише якщо довіряєте документу й адресі призначення. Значення форми залишать цей комп’ютер.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Надсилайте лише тоді, коли довіряєте цьому документу та адресі призначення. GET додає значення форми до URL.
+	Form submission is not available in the browser.	Надсилання форм у браузері недоступне.
+	Couldn't send the form: {error}	Не вдалося надіслати форму: {error}
+	Form sent to {url} (HTTP {status}).	Форму надіслано на {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Формат надсилання або вибір полів цієї форми ще не підтримується.
+	Scripted submission to {u} is not supported yet.	Надсилання сценарієм на {u} ще не підтримується.
+
+# Full-document PDF submission
+	Submit PDF document	Надіслати документ PDF
+	Entire PDF document to send: {bytes} bytes	Увесь документ PDF для надсилання: {bytes} байтів
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Надсилайте лише якщо довіряєте документу та адресату. Увесь PDF залишить цей комп’ютер.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Надіслати дані FDF
+	Submit XFDF data	Надіслати дані XFDF
+	Comments to send	Коментарі для надсилання

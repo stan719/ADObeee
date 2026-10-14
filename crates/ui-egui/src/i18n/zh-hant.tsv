@@ -326,6 +326,7 @@
 	Show a field	顯示欄位
 	Hide a field	隱藏欄位
 	Submit a form	提交表單
+	Submit a form with GET	提交表單 (GET)
 	Fields to reset (comma-separated; empty: all)	要重置的欄位（逗號分隔；為空表示全部）
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print、NextPage、PrevPage、FirstPage 或 LastPage
 	Field names (comma-separated)	欄位名（逗號分隔）
@@ -2228,3 +2229,22 @@ animation effects	Off	關
 	This document is trying to open a local file:	此文件正嘗試開啟本機檔案：
 	Move tag earlier	將標記前移
 	Move tag later	將標記後移
+# HTML form submission
+	Form values to send: {count}	要傳送的表單值：{count} 個
+	Only send if you trust this document and destination. The form values leave this computer.	只有在信任此文件與目的地時才傳送。表單值將離開這部電腦。
+	Only send if you trust this document and destination. GET puts form values in the URL.	只有在信任此文件與目的地時才傳送。GET 會將表單值放入 URL。
+	Form submission is not available in the browser.	瀏覽器中無法提交表單。
+	Couldn't send the form: {error}	無法提交表單：{error}
+	Form sent to {url} (HTTP {status}).	表單已傳送至 {url}（HTTP {status}）。
+	This form's submission format or field selection is not supported yet.	尚未支援此表單的提交格式或欄位選擇。
+	Scripted submission to {u} is not supported yet.	尚未支援透過指令碼提交至 {u}。
+
+# Full-document PDF submission
+	Submit PDF document	傳送 PDF 文件
+	Entire PDF document to send: {bytes} bytes	要傳送的完整 PDF 文件：{bytes} 位元組
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	僅在信任此文件和目的地時傳送。完整 PDF 將離開這部電腦。
+
+# FDF and XFDF submission actions
+	Submit FDF data	傳送 FDF 資料
+	Submit XFDF data	傳送 XFDF 資料
+	Comments to send	要傳送的註解

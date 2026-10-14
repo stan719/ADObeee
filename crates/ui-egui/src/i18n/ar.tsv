@@ -688,6 +688,7 @@
 	Show a field	إظهار حقل
 	Hide a field	إخفاء حقل
 	Submit a form	إرسال نموذج
+	Submit a form with GET	إرسال نموذج (GET)
 	Fields to reset (comma-separated; empty: all)	الحقول المراد إعادة ضبطها (مفصولة بفواصل؛ فارغ: الكل)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print أو NextPage أو PrevPage أو FirstPage أو LastPage
 	Field names (comma-separated)	أسماء الحقول (مفصولة بفواصل)
@@ -2375,3 +2376,22 @@ animation effects	Off	معطّلة
 	This document is trying to open a local file:	يحاول هذا المستند فتح ملف محلي:
 	Move tag earlier	نقل العلامة للأعلى
 	Move tag later	نقل العلامة للأسفل
+# HTML form submission
+	Form values to send: {count}	قيم النموذج المراد إرسالها: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. ستغادر قيم النموذج هذا الكمبيوتر.
+	Only send if you trust this document and destination. GET puts form values in the URL.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. يضع GET قيم النموذج في عنوان URL.
+	Form submission is not available in the browser.	إرسال النماذج غير متاح في المتصفح.
+	Couldn't send the form: {error}	تعذر إرسال النموذج: {error}
+	Form sent to {url} (HTTP {status}).	أُرسل النموذج إلى {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	تنسيق إرسال هذا النموذج أو اختيار حقوله غير مدعوم بعد.
+	Scripted submission to {u} is not supported yet.	الإرسال بواسطة برنامج نصي إلى {u} غير مدعوم بعد.
+
+# Full-document PDF submission
+	Submit PDF document	إرسال مستند PDF
+	Entire PDF document to send: {bytes} bytes	ملف PDF الكامل للإرسال: {bytes} بايت
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	أرسل فقط إذا كنت تثق بهذا المستند والوجهة. يغادر ملف PDF الكامل هذا الكمبيوتر.
+
+# FDF and XFDF submission actions
+	Submit FDF data	إرسال بيانات FDF
+	Submit XFDF data	إرسال بيانات XFDF
+	Comments to send	التعليقات التي سيتم إرسالها

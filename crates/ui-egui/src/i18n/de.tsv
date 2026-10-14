@@ -662,6 +662,7 @@
 	Show a field	Feld einblenden
 	Hide a field	Feld ausblenden
 	Submit a form	Formular senden
+	Submit a form with GET	Formular senden (GET)
 	Fields to reset (comma-separated; empty: all)	Zurückzusetzende Felder (kommagetrennt; leer: alle)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage oder LastPage
 	Field names (comma-separated)	Feldnamen (kommagetrennt)
@@ -2355,3 +2356,22 @@ animation effects	Off	Aus
 	This document is trying to open a local file:	Dieses Dokument versucht, eine lokale Datei zu öffnen:
 	Move tag earlier	Tag früher verschieben
 	Move tag later	Tag später verschieben
+# HTML form submission
+	Form values to send: {count}	Zu sendende Formularwerte: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Nur senden, wenn Sie diesem Dokument und dem Ziel vertrauen. Die Formularwerte verlassen diesen Computer.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Nur senden, wenn Sie diesem Dokument und dem Ziel vertrauen. GET fügt die Formularwerte in die URL ein.
+	Form submission is not available in the browser.	Das Senden von Formularen ist im Browser nicht verfügbar.
+	Couldn't send the form: {error}	Das Formular konnte nicht gesendet werden: {error}
+	Form sent to {url} (HTTP {status}).	Formular an {url} gesendet (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Das Übermittlungsformat oder die Feldauswahl dieses Formulars wird noch nicht unterstützt.
+	Scripted submission to {u} is not supported yet.	Das skriptgesteuerte Senden an {u} wird noch nicht unterstützt.
+
+# Full-document PDF submission
+	Submit PDF document	PDF-Dokument senden
+	Entire PDF document to send: {bytes} bytes	Gesamtes PDF-Dokument zum Senden: {bytes} Byte
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Nur senden, wenn Sie diesem Dokument und dem Ziel vertrauen. Das gesamte PDF verlässt diesen Computer.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF-Daten senden
+	Submit XFDF data	XFDF-Daten senden
+	Comments to send	Zu sendende Kommentare

@@ -1132,8 +1132,14 @@ pub enum ButtonAction {
     },
     /// `app.alert("…")`.
     Alert(String),
-    /// Submit the form to a URL (not sent: PdfCraft never posts form data on its own).
-    Submit(String),
+    /// Submit the form to a URL. `has_fields` distinguishes omitted `/Fields` from an empty
+    /// array; `fields: None` with `has_fields: true` means an unsupported field reference.
+    Submit {
+        url: String,
+        flags: i64,
+        has_fields: bool,
+        fields: Option<Vec<String>>,
+    },
     /// `event.target.buttonImportIcon()`: choose an image for the button (an image field).
     ImportIcon,
     /// A script PdfCraft can't run yet.

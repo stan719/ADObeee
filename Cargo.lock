@@ -3939,11 +3939,13 @@ dependencies = [
  "pdfcraft-cos",
  "pdfcraft-engine",
  "pdfcraft-fonts",
+ "pdfcraft-forms",
  "pdfcraft-model",
  "pdfcraft-organize",
  "pdfcraft-platform",
  "pdfcraft-render",
  "pdfcraft-xfa",
+ "pdfcraft-xfdf",
  "png 0.18.1",
  "serde_json",
  "sha2 0.11.0",
@@ -4176,6 +4178,9 @@ version = "0.7.1"
 dependencies = [
  "async-channel",
  "futures-lite",
+ "rustls-native-certs",
+ "ureq",
+ "url",
  "zbus",
 ]
 

@@ -45,7 +45,7 @@ and add a line to the [progress log](#progress-log); when a gap closes, remove i
 
 | | Value | Kind |
 |---|---|---|
-| **Feature breadth** | **≈ 67%** tier-weighted (56.9% unweighted: 423 shipped + 74 partial of 808; P0 94.2%) | measured, `parity/acrobat-features.toml` |
+| **Feature breadth** | **≈ 67%** tier-weighted (57.2% unweighted: 425 shipped + 77 partial of 810; P0 94.2%) | measured, `parity/acrobat-features.toml` |
 | Feature breadth, mainstream practitioner | ≈ 70% tier-weighted (63.2% unweighted; P0 95.3%) | measured ([split](docs/target-app-parity.md#mainstream-practitioner-vs-full-acrobat-pro)) |
 | **Ready for real work**, full Acrobat Pro | **≈ 49%** (45–53%) | estimated, weighted sum over [dimensions](#by-dimension) |
 | **Ready for real work**, mainstream practitioner | **≈ 55%** (50–60%) | estimated ([split](docs/target-app-parity.md#mainstream-practitioner-vs-full-acrobat-pro)) |
@@ -96,7 +96,7 @@ Hours are calibrated as in [Effort and calibration](docs/target-app-parity.md#ef
 | C Content editing | 53.3% | 30% | 100–180 |
 | D Organize pages | 61.2% | 70% | 12–25 |
 | E Comments and review | 77.7% | 70% | 12–25 |
-| F Forms and JavaScript | 78.5% | 65% | 40–75 |
+| F Forms and JavaScript | 79.1% | 65% | 40–75 |
 | G Protect, redact, sanitize | 58.5% | 55% | 15–30 |
 | H Digital signatures | 62.2% | 45% | 40–70 |
 | I Scan and OCR | 23.1% | 15% | 40–75 |
@@ -221,6 +221,7 @@ Newest first: the date, what moved, and the new overall estimate.
 - **2026-10-11 (M5, partial comment imports):** Replacing an editable named comment through XFDF or FDF (including an indirect name in the source PDF) preserves its object identity, so existing replies and review statuses remain attached after saving, reopening and exporting again. Replaced pop-ups are still removed. Locked comments, redaction marks and their pop-ups stay unchanged, including when their names are indirect; imported redactions remain visible. Synthetic round-trip tests cover both formats, incremental and full saves; milestone and effort estimates unchanged.
 
 - **2026-10-10 (M9, signature graphics):** A visible digital signature can show a graphic where the signer's name is large, as Acrobat's Configure Signature Appearance does: the saved Fill & Sign signature (drawn strokes smoothed as ink, typed outlines in the script font, or an image) or an imported PNG/JPEG. Sign as previews it and remembers the choice for the next signing; `sign_document` takes `graphic` (`image`, `text` or `strokes`). Graphics are checked and capped before drawing (non-finite or unbounded points, mismatched pixel buffers, oversized images are refused with an error the caller can act on); images keep their alpha as a soft mask. `sign.signature-appearance` stays partial (no named saved appearances or PDF-page graphics). Overall estimates unchanged.
+- **2026-10-11 (M6, form submission):** Native buttons and the explicit tool now submit current form values as HTML POST or GET, FDF or XFDF POST, and full-PDF POST after desktop review. Imported selected-field actions and NoExport filtering are covered by local-server tests. Email, JavaScript `submitForm`, browser transport and desktop selected-field authoring remain. `form.submit-form` is partial: 425 shipped + 77 partial of 810; readiness estimates unchanged.
 - **2026-10-11 (M14, absolute interface sizes):** A chosen Interface size is now absolute, as PhotoCraft's UI Scale is: "100%" is one screen pixel per point whatever scale the display reports, so on a 1080p screen whose system reports 200 % it draws at a true 100 % (#456, reported after the first change). Auto still keeps the display's scale and adds GNOME's text scaling, and its menu entry shows the size it draws at. The menu offers PhotoCraft's sizes (75–300 %).
 - **2026-10-11 (automation, #971):** `text_find` reads pages in growing batches (8, doubling to 128) and stops once `limit` is reached, so a bounded search on a long document no longer extracts and caches every page first. Results say `complete`, and a capped one gives `next` (`start_page`, `skip`) to continue. Still open from #971: a byte budget for the automation text cache and per-page warnings for pages whose text can't be extracted.
 - **2026-10-11 (M10, #773 integration):** Merged current upstream updates into the Word export fix and adopted the shared Windows symlink test setup. Word layout scope and estimates unchanged.

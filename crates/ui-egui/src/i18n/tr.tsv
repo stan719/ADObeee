@@ -2350,3 +2350,10 @@ animation effects	Off	Kapalı
 	This document is trying to open a local file:	Bu belge yerel bir dosya açmaya çalışıyor:
 	Move tag earlier	Etiketi daha erken taşı
 	Move tag later	Etiketi daha geç taşı
+	Comments to send	Gönderilecek yorumlar
+	Entire PDF document to send: {bytes} bytes	Gönderilecek tam PDF belgesi: {bytes} bayt
+	Form values to send: {count}	Gönderilecek form değerleri: {count}
+	Only send if you trust this document and destination. GET puts form values in the URL.	Yalnızca bu belgeye ve hedefe güveniyorsanız gönderin. GET form değerlerini URL’ye koyar.
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Yalnızca bu belgeye ve hedefe güveniyorsanız gönderin. Tam PDF belgesi bu bilgisayardan çıkar.
+	Only send if you trust this document and destination. The form values leave this computer.	Yalnızca bu belgeye ve hedefe güveniyorsanız gönderin. Form değerleri bu bilgisayardan çıkar.
+	Submit PDF document	PDF belgesini gönder

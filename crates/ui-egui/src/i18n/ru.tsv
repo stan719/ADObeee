@@ -682,6 +682,7 @@
 	Show a field	Показать поле
 	Hide a field	Скрыть поле
 	Submit a form	Отправить форму
+	Submit a form with GET	Отправить форму (GET)
 	Fields to reset (comma-separated; empty: all)	Поля для сброса (через запятую; пусто: все)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage или LastPage
 	Field names (comma-separated)	Имена полей (через запятую)
@@ -2267,3 +2268,22 @@ animation effects	Off	Выкл
 	This document is trying to open a local file:	Этот документ пытается открыть локальный файл:
 	Move tag earlier	Переместить тег раньше
 	Move tag later	Переместить тег позже
+# HTML form submission
+	Form values to send: {count}	Значения формы для отправки: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Отправляйте данные, только если доверяете документу и адресу назначения. Значения формы покинут этот компьютер.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Отправляйте данные, только если доверяете документу и адресу назначения. GET помещает значения формы в URL.
+	Form submission is not available in the browser.	Отправка форм в браузере недоступна.
+	Couldn't send the form: {error}	Не удалось отправить форму: {error}
+	Form sent to {url} (HTTP {status}).	Форма отправлена по адресу {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Формат отправки или выбор полей этой формы пока не поддерживается.
+	Scripted submission to {u} is not supported yet.	Отправка по сценарию на {u} пока не поддерживается.
+
+# Full-document PDF submission
+	Submit PDF document	Отправить документ PDF
+	Entire PDF document to send: {bytes} bytes	Весь документ PDF для отправки: {bytes} байт
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Отправляйте только если доверяете документу и адресу назначения. Весь PDF покинет этот компьютер.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Отправить данные FDF
+	Submit XFDF data	Отправить данные XFDF
+	Comments to send	Отправляемые комментарии

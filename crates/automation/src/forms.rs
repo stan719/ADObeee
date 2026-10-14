@@ -178,6 +178,61 @@ fn value_for(f: &FormField, v: &Value) -> Result<FieldValue> {
 }
 
 impl Automation {
+    pub(crate) fn form_submit(&mut self, a: &Args) -> Result<Value> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = a;
+            Err(failed("form submission is not available in the browser"))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let id = self.doc(a)?.id;
+            let url = a.str("url")?;
+            let destination = pdfcraft_platform::form_submit::FormDestination::new(url).map_err(bad)?;
+            let options = pdfcraft_engine::form_submit::SubmitOptions {
+                names: a.get("fields").map(|_| a.strs("fields").map(|names| names.into_iter().map(str::to_owned).collect())).transpose()?,
+                exclude: a.opt_bool("exclude")?.unwrap_or(false),
+                include_empty: a.opt_bool("include_empty")?.unwrap_or(false),
+            };
+            let format_name = a.opt_str("format")?.unwrap_or("html");
+            let method = a.opt_str("method")?.unwrap_or("post");
+            if !matches!(method, "post" | "get") {
+                return Err(bad(format!("unsupported form submission method {method:?} (post, get)")));
+            }
+            if method == "get" && format_name != "html" {
+                return Err(bad("GET is available for HTML form data only"));
+            }
+            match format_name {
+                "html" => {
+                    let payload = self.session.html_form_selected(id, &options).map_err(failed)?;
+                    let status =
+                        if method == "get" { destination.get_html(&payload.body) } else { destination.post_html(&payload.body) }.map_err(failed)?;
+                    Ok(json!({ "status": status, "format": "html", "method": method, "values": payload.fields, "url": url }))
+                }
+                "fdf" | "xfdf" => {
+                    let format =
+                        if a.opt_str("format")? == Some("fdf") { pdfcraft_engine::DataFormat::Fdf } else { pdfcraft_engine::DataFormat::Xfdf };
+                    let annotations = a.opt_bool("include_annotations")?.unwrap_or(false);
+                    if annotations && format != pdfcraft_engine::DataFormat::Fdf {
+                        return Err(bad("include_annotations is supported only for FDF"));
+                    }
+                    let (payload, fields) = self.session.form_data_submission(id, format, &options, annotations).map_err(failed)?;
+                    let status =
+                        if format == pdfcraft_engine::DataFormat::Fdf { destination.post_fdf(&payload) } else { destination.post_xfdf(&payload) }
+                            .map_err(failed)?;
+                    Ok(
+                        json!({ "status": status, "format": if format == pdfcraft_engine::DataFormat::Fdf { "fdf" } else { "xfdf" }, "fields": fields, "bytes": payload.len(), "url": url }),
+                    )
+                }
+                "pdf" => {
+                    let payload = self.session.save_bytes(id).map_err(failed)?;
+                    let status = destination.post_pdf(&payload).map_err(failed)?;
+                    Ok(json!({ "status": status, "format": "pdf", "bytes": payload.len(), "url": url }))
+                }
+                other => Err(bad(format!("unsupported submission format {other:?} (html, fdf, xfdf, pdf)"))),
+            }
+        }
+    }
     pub(crate) fn form_fields(&self, a: &Args) -> Result<Value> {
         let doc = self.doc(a)?;
         let out: Vec<Value> = doc
@@ -204,6 +259,7 @@ impl Automation {
                     "rotation": w.map(|w| w.rotation).unwrap_or(0),
                     "read_only": f.read_only(),
                     "required": f.has(field_flags::REQUIRED),
+                    "no_export": f.has(field_flags::NO_EXPORT),
                 });
                 let mut more = serde_json::Map::new();
                 let o = &mut more;
@@ -438,6 +494,7 @@ impl Automation {
                             "rich_text" => (ff::RICH_TEXT, false),
                             "password" => (ff::PASSWORD, false),
                             "file_select" => (ff::FILE_SELECT, false),
+                            "no_export" => (ff::NO_EXPORT, false),
                             "spell_check" => (ff::DO_NOT_SPELL_CHECK, true),
                             "comb" => (ff::COMB, false),
                             "sort" => (ff::SORT, false),

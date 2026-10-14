@@ -2598,3 +2598,18 @@ key	Space	Tarpas
 	This document is trying to open a local file:	Šis dokumentas bando atverti vietinį failą:
 	Move tag earlier	Perkelti žymą anksčiau
 	Move tag later	Perkelti žymą vėliau
+	Comments to send	Siunčiami komentarai
+	Entire PDF document to send: {bytes} bytes	Siunčiamas visas PDF dokumentas: {bytes} baitų
+	Form values to send: {count}	Siunčiami formos laukų duomenys: {count}
+	Only send if you trust this document and destination. GET puts form values in the URL.	Siųskite tik tuo atveju, jei pasitikite šiuo dokumentu ir paskirties vieta. GET įrašo formos duomenis į URL.
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Siųskite tik tuo atveju, jei pasitikite šiuo dokumentu ir paskirties vieta. Visas PDF dokumentas palieka šį kompiuterį.
+	Only send if you trust this document and destination. The form values leave this computer.	Siųskite tik tuo atveju, jei pasitikite šiuo dokumentu ir paskirties vieta. Formos duomenys palieka šį kompiuterį.
+	Submit PDF document	Pateikti PDF dokumentą
+	Couldn't send the form: {error}	Nepavyko išsiųsti formos: {error}
+	Form sent to {url} (HTTP {status}).	Forma išsiųsta čia: {url} (HTTP {status}).
+	Form submission is not available in the browser.	Formų pateikimas naršyklėje neprieinamas.
+	Scripted submission to {u} is not supported yet.	Skripto valdomas pateikimas adresu {u} dar nepalaikomas.
+	Submit FDF data	Pateikti FDF duomenis
+	Submit XFDF data	Pateikti XFDF duomenis
+	Submit a form with GET	Pateikti formą naudojant GET
+	This form's submission format or field selection is not supported yet.	Šio formos pateikimo formatas arba laukų pasirinkimas dar nepalaikomas.

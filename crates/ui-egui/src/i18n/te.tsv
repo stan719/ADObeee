@@ -666,6 +666,7 @@ comment menu	Edit	సవరించు
 	Show a field	ఫీల్డ్‌ను చూపించు
 	Hide a field	ఫీల్డ్‌ను దాచు
 	Submit a form	ఫారాన్ని సమర్పించు
+	Submit a form with GET	ఫారాన్ని సమర్పించు (GET)
 	Fields to reset (comma-separated; empty: all)	రీసెట్ చేయాల్సిన ఫీల్డ్‌లు (కామాలతో వేరు చేయండి; ఖాళీగా ఉంటే: అన్నీ)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage లేదా LastPage
 	Field names (comma-separated)	ఫీల్డ్ పేర్లు (కామాలతో వేరు చేయండి)
@@ -2267,3 +2268,22 @@ animation effects	Off	ఆఫ్
 	This document is trying to open a local file:	ఈ పత్రం ఒక స్థానిక ఫైల్‌ను తెరవడానికి ప్రయత్నిస్తోంది:
 	Move tag earlier	ట్యాగ్‌ను ముందుకు తరలించు
 	Move tag later	ట్యాగ్‌ను వెనుకకు తరలించు
+# HTML form submission
+	Form values to send: {count}	పంపాల్సిన ఫారమ్ విలువలు: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	ఈ పత్రాన్ని, గమ్యస్థానాన్ని నమ్మితేనే పంపండి. ఫారమ్ విలువలు ఈ కంప్యూటర్‌ను విడిచిపెడతాయి.
+	Only send if you trust this document and destination. GET puts form values in the URL.	ఈ పత్రం మరియు గమ్యస్థానాన్ని విశ్వసిస్తేనే పంపండి. GET ఫారమ్ విలువలను URLలో ఉంచుతుంది.
+	Form submission is not available in the browser.	బ్రౌజర్‌లో ఫారమ్ పంపడం అందుబాటులో లేదు.
+	Couldn't send the form: {error}	ఫారమ్‌ను పంపలేకపోయాం: {error}
+	Form sent to {url} (HTTP {status}).	ఫారమ్ {url}కు పంపబడింది (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	ఈ ఫారమ్ పంపే ఆకృతి లేదా ఫీల్డ్ ఎంపికకు ఇంకా మద్దతు లేదు.
+	Scripted submission to {u} is not supported yet.	స్క్రిప్ట్ ద్వారా {u}కు పంపడం ఇంకా అందుబాటులో లేదు.
+
+# Full-document PDF submission
+	Submit PDF document	PDF పత్రాన్ని పంపండి
+	Entire PDF document to send: {bytes} bytes	పంపాల్సిన పూర్తి PDF పత్రం: {bytes} బైట్లు
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	ఈ పత్రం మరియు గమ్యస్థానాన్ని నమ్మితే మాత్రమే పంపండి. మొత్తం PDF ఈ కంప్యూటర్‌ను వదిలి వెళ్తుంది.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF డేటాను పంపు
+	Submit XFDF data	XFDF డేటాను పంపు
+	Comments to send	పంపే వ్యాఖ్యలు

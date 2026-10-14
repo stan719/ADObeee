@@ -684,6 +684,7 @@
 	Show a field	Pokaż pole
 	Hide a field	Ukryj pole
 	Submit a form	Wyślij formularz
+	Submit a form with GET	Wyślij formularz (GET)
 	Fields to reset (comma-separated; empty: all)	Pola do zresetowania (oddzielone przecinkami; puste: wszystkie)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage lub LastPage
 	Field names (comma-separated)	Nazwy pól (oddzielone przecinkami)
@@ -2334,3 +2335,22 @@ animation effects	Off	Wyłączone
 	This document is trying to open a local file:	Ten dokument próbuje otworzyć plik lokalny:
 	Move tag earlier	Przenieś znacznik wcześniej
 	Move tag later	Przenieś znacznik później
+# HTML form submission
+	Form values to send: {count}	Wartości formularza do wysłania: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Wyślij dane tylko wtedy, gdy ufasz temu dokumentowi i odbiorcy. Wartości formularza opuszczą ten komputer.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Wyślij tylko wtedy, gdy ufasz temu dokumentowi i miejscu docelowemu. GET umieszcza wartości formularza w adresie URL.
+	Form submission is not available in the browser.	Wysyłanie formularzy nie jest dostępne w przeglądarce.
+	Couldn't send the form: {error}	Nie można wysłać formularza: {error}
+	Form sent to {url} (HTTP {status}).	Formularz wysłano do {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Format wysyłania lub wybór pól tego formularza nie jest jeszcze obsługiwany.
+	Scripted submission to {u} is not supported yet.	Wysyłanie przez skrypt do {u} nie jest jeszcze obsługiwane.
+
+# Full-document PDF submission
+	Submit PDF document	Wyślij dokument PDF
+	Entire PDF document to send: {bytes} bytes	Cały dokument PDF do wysłania: {bytes} bajtów
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Wyślij tylko wtedy, gdy ufasz temu dokumentowi i odbiorcy. Cały PDF opuści ten komputer.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Wyślij dane FDF
+	Submit XFDF data	Wyślij dane XFDF
+	Comments to send	Komentarze do wysłania

@@ -396,7 +396,7 @@ fn xfdf_annots(doc: &Document, out: &mut String) {
 }
 
 /// Field values as nested XFDF `<field>` elements.
-fn xfdf_fields(doc: &Document, out: &mut String) {
+fn xfdf_fields(doc: &Document, out: &mut String, selected: Option<&[String]>) {
     #[derive(Default)]
     struct Node {
         values: Vec<String>,
@@ -404,6 +404,9 @@ fn xfdf_fields(doc: &Document, out: &mut String) {
     }
     let mut root = Node::default();
     for f in pdfcraft_forms::fields(doc) {
+        if selected.is_some_and(|names| !names.contains(&f.name)) {
+            continue;
+        }
         if matches!(f.kind, FieldKind::PushButton | FieldKind::Signature) {
             continue;
         }
@@ -420,8 +423,12 @@ fn xfdf_fields(doc: &Document, out: &mut String) {
         }
         node.values = match f.kind {
             FieldKind::CheckBox | FieldKind::Radio if f.value.is_empty() => vec!["Off".into()],
+            FieldKind::CheckBox | FieldKind::Radio => f.value.iter().map(|v| f.export_for_state(v).to_string()).collect(),
             _ => f.value.clone(),
         };
+        if selected.is_some() && f.value.is_empty() {
+            node.values.clear();
+        }
     }
     fn write_node(name: &str, node: &Node, out: &mut String) {
         let _ = write!(out, "<field name=\"{}\">", esc(name));
@@ -440,6 +447,15 @@ fn xfdf_fields(doc: &Document, out: &mut String) {
 
 /// XFDF with the document's comments and/or field values.
 pub fn export_xfdf(doc: &Document, comments: bool, fields: bool, file: &str) -> String {
+    export_xfdf_with_fields(doc, comments, fields, file, None)
+}
+
+/// XFDF submission containing only the selected terminal form fields.
+pub fn export_xfdf_submission(doc: &Document, file: &str, selected: &[String]) -> String {
+    export_xfdf_with_fields(doc, false, true, file, Some(selected))
+}
+
+fn export_xfdf_with_fields(doc: &Document, comments: bool, fields: bool, file: &str, selected: Option<&[String]>) -> String {
     let mut out = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<xfdf xmlns=\"http://ns.adobe.com/xfdf/\" xml:space=\"preserve\">\n");
     if comments {
         out.push_str("<annots>\n");
@@ -448,7 +464,7 @@ pub fn export_xfdf(doc: &Document, comments: bool, fields: bool, file: &str) -> 
     }
     if fields {
         out.push_str("<fields>\n");
-        xfdf_fields(doc, &mut out);
+        xfdf_fields(doc, &mut out, selected);
         out.push_str("</fields>\n");
     }
     let _ = writeln!(out, "<f href=\"{}\"/>", esc(file));
@@ -466,27 +482,42 @@ fn pdf_string(s: &str) -> Vec<u8> {
 /// indirect object of the FDF, so a reply's `/IRT` can point at its parent's object there
 /// (§12.7.8.3.1); nothing else refers back into the source document.
 pub fn export_fdf(doc: &Document, comments: bool, fields: bool, file: &str) -> Vec<u8> {
+    export_fdf_with_fields(doc, comments, fields, file, None)
+}
+
+/// FDF submission containing only the selected terminal form fields. Markup annotations are
+/// included only when the SubmitForm IncludeAnnotations flag requests them.
+pub fn export_fdf_submission(doc: &Document, file: &str, selected: &[String], comments: bool) -> Vec<u8> {
+    export_fdf_with_fields(doc, comments, true, file, Some(selected))
+}
+
+fn export_fdf_with_fields(doc: &Document, comments: bool, fields: bool, file: &str, selected: Option<&[String]>) -> Vec<u8> {
     let mut body: Vec<u8> = b"<< /FDF << ".to_vec();
     // Comment dictionaries, written after the root as objects 2, 3, …
     let mut annots: Vec<Dict> = Vec::new();
     if fields {
         body.extend_from_slice(b"/Fields [");
         for f in pdfcraft_forms::fields(doc) {
+            if selected.is_some_and(|names| !names.contains(&f.name)) {
+                continue;
+            }
             if matches!(f.kind, FieldKind::PushButton | FieldKind::Signature) {
                 continue;
             }
             body.extend_from_slice(b"<< /T ");
             body.extend(pdf_string(&f.name));
-            body.extend_from_slice(b" /V ");
-            match f.kind {
-                FieldKind::CheckBox | FieldKind::Radio => {
-                    let v = f.value.first().cloned().unwrap_or_else(|| "Off".into());
-                    pdfcraft_cos::serialize(&Object::Name(pdfcraft_forms::name_bytes(&v)), &mut body);
+            if selected.is_none() || !f.value.is_empty() {
+                body.extend_from_slice(b" /V ");
+                match f.kind {
+                    FieldKind::CheckBox | FieldKind::Radio => {
+                        let v = f.value.first().cloned().unwrap_or_else(|| "Off".into());
+                        pdfcraft_cos::serialize(&Object::Name(pdfcraft_forms::name_bytes(f.export_for_state(&v))), &mut body);
+                    }
+                    FieldKind::List if f.value.len() > 1 => {
+                        pdfcraft_cos::serialize(&Object::Array(f.value.iter().map(|v| Object::String(PdfString::text(v))).collect()), &mut body);
+                    }
+                    _ => body.extend(pdf_string(f.value.first().map(String::as_str).unwrap_or(""))),
                 }
-                FieldKind::List if f.value.len() > 1 => {
-                    pdfcraft_cos::serialize(&Object::Array(f.value.iter().map(|v| Object::String(PdfString::text(v))).collect()), &mut body);
-                }
-                _ => body.extend(pdf_string(f.value.first().map(String::as_str).unwrap_or(""))),
             }
             body.extend_from_slice(b" >> ");
         }

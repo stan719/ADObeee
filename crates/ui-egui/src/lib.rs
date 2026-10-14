@@ -782,6 +782,10 @@ pub struct PdfCraftApp {
     pub pending_link: Option<PendingLink>,
     /// An absolute GoToR target waiting for approval, before any target-file I/O (#1364).
     pub pending_remote_link: Option<PendingRemoteLink>,
+    /// An HTML SubmitForm action waits here until the user approves sending its current values.
+    pub pending_submission: Option<PendingSubmission>,
+    #[cfg(not(target_arch = "wasm32"))]
+    submission_results: SubmissionInbox,
 }
 
 /// Where in a document a request to open an address came from.
@@ -819,6 +823,29 @@ pub struct PendingRemoteLink {
     pub path: std::path::PathBuf,
     pub destination: pdfcraft_render::RemoteDestination,
 }
+/// A snapshot of form values waiting for an explicit destination approval.
+/// The data format shown in a form submission prompt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubmissionFormat {
+    Html,
+    HtmlGet,
+    Fdf,
+    Xfdf,
+    Pdf,
+}
+
+/// A snapshot of form data waiting for an explicit destination approval.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingSubmission {
+    pub url: String,
+    pub body: std::sync::Arc<Vec<u8>>,
+    pub values: usize,
+    pub format: SubmissionFormat,
+    pub include_annotations: bool,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+type SubmissionInbox = std::sync::Arc<std::sync::Mutex<Vec<Result<(String, u16), String>>>>;
 
 /// Settings for the Number pages dialog.
 #[derive(Clone, Debug, PartialEq)]
@@ -1013,6 +1040,9 @@ impl PdfCraftApp {
             last_opened_url: None,
             pending_link: None,
             pending_remote_link: None,
+            pending_submission: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            submission_results: Default::default(),
             protect_draft: Default::default(),
             boxes_draft: Default::default(),
             marks_draft: Default::default(),
@@ -1827,6 +1857,7 @@ impl PdfCraftApp {
             || self.unlock_prompt.is_some()
             || self.pending_link.is_some()
             || self.pending_remote_link.is_some()
+            || self.pending_submission.is_some()
             || self.updates.open
     }
 
@@ -1877,6 +1908,122 @@ impl PdfCraftApp {
         {
             self.open_url(&p.url);
         }
+    }
+
+    /// A document button requests an HTML form POST. Commit any field being typed before
+    /// preparing the payload, and show the exact destination before anything is sent.
+    pub fn request_form_submission(&mut self, id: DocId, url: &str) {
+        self.request_selected_form_submission(id, url, SubmissionFormat::Html, &pdfcraft_engine::form_submit::SubmitOptions::default(), false);
+    }
+
+    /// Prepare a selected HTML, FDF or XFDF payload from the current unsaved form and show the
+    /// reviewed destination before a worker sends the frozen bytes.
+    pub fn request_selected_form_submission(
+        &mut self,
+        id: DocId,
+        url: &str,
+        format: SubmissionFormat,
+        options: &pdfcraft_engine::form_submit::SubmitOptions,
+        include_annotations: bool,
+    ) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (id, url, format, options, include_annotations);
+            self.notify_tr("Form submission is not available in the browser.");
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if self.pending_submission.is_some() {
+                return;
+            }
+            if let Err(e) = pdfcraft_platform::form_submit::FormDestination::new(url) {
+                self.notify_error(e);
+                return;
+            }
+            if !self.commit_typing_in(id) {
+                return;
+            }
+            let payload = match format {
+                SubmissionFormat::Html | SubmissionFormat::HtmlGet => {
+                    self.session.html_form_selected(id, options).map(|form| (form.body, form.fields))
+                }
+                SubmissionFormat::Fdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Fdf, options, include_annotations),
+                SubmissionFormat::Xfdf => self.session.form_data_submission(id, pdfcraft_engine::DataFormat::Xfdf, options, false),
+                SubmissionFormat::Pdf => return,
+            };
+            match payload {
+                Ok((body, values)) => {
+                    self.pending_submission =
+                        Some(PendingSubmission { url: url.into(), body: std::sync::Arc::new(body), values, format, include_annotations })
+                }
+                Err(e) => self.notify_error(e),
+            }
+        }
+    }
+
+    /// A SubmitPDF button sends the whole current document, including unsaved edits. Show that
+    /// scope and the destination before the frozen snapshot is sent.
+    pub fn request_pdf_submission(&mut self, id: DocId, url: &str) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (id, url);
+            self.notify_tr("Form submission is not available in the browser.");
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if self.pending_submission.is_some() {
+                return;
+            }
+            if let Err(e) = pdfcraft_platform::form_submit::FormDestination::new(url) {
+                self.notify_error(e);
+                return;
+            }
+            if !self.commit_typing_in(id) {
+                return;
+            }
+            match self.session.save_bytes(id) {
+                Ok(body) => {
+                    self.pending_submission =
+                        Some(PendingSubmission { url: url.into(), body, values: 0, format: SubmissionFormat::Pdf, include_annotations: false });
+                }
+                Err(e) => self.notify_error(e),
+            }
+        }
+    }
+
+    /// Answer the form submission prompt. A worker posts the approved snapshot so the UI never
+    /// waits on a remote server; the destination is validated again before it runs.
+    pub fn resolve_pending_submission(&mut self, send: bool) {
+        let Some(pending) = self.pending_submission.take() else { return };
+        if !send {
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let results = self.submission_results.clone();
+            let ctx = self.ctx.clone();
+            if let Err(e) = std::thread::Builder::new().name("form-submission".into()).spawn(move || {
+                let result = pdfcraft_platform::form_submit::FormDestination::new(&pending.url)
+                    .and_then(|destination| match pending.format {
+                        SubmissionFormat::Html => destination.post_html(&pending.body),
+                        SubmissionFormat::HtmlGet => destination.get_html(&pending.body),
+                        SubmissionFormat::Fdf => destination.post_fdf(&pending.body),
+                        SubmissionFormat::Xfdf => destination.post_xfdf(&pending.body),
+                        SubmissionFormat::Pdf => destination.post_pdf(&pending.body),
+                    })
+                    .map(|status| (pending.url, status));
+                if let Ok(mut results) = results.lock() {
+                    results.push(result);
+                }
+                if let Some(ctx) = ctx {
+                    ctx.request_repaint();
+                }
+            }) {
+                self.notify_fmt("Couldn't send the form: {error}", &[("error", &e.to_string())]);
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = pending;
     }
 
     pub fn notify(&mut self, msg: impl Into<String>) {
@@ -2762,6 +2909,16 @@ impl eframe::App for PdfCraftApp {
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ctx = Some(ctx.clone());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let results = self.submission_results.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default();
+            for result in results {
+                match result {
+                    Ok((url, status)) => self.notify_fmt("Form sent to {url} (HTTP {status}).", &[("url", &url), ("status", &status.to_string())]),
+                    Err(error) => self.notify_fmt("Couldn't send the form: {error}", &[("error", &error)]),
+                }
+            }
+        }
         self.dialog_epoch();
         // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.
         let lang = i18n::Lang::from_pref(&self.language);
@@ -2839,6 +2996,7 @@ impl eframe::App for PdfCraftApp {
             && self.close_request.is_none()
             && self.pending_link.is_none()
             && self.pending_remote_link.is_none()
+            && self.pending_submission.is_none()
         {
             let startup = self.startup_inbox.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default();
             for (name, bytes) in startup {

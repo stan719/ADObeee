@@ -659,6 +659,7 @@
 	Show a field	Mező megjelenítése
 	Hide a field	Mező elrejtése
 	Submit a form	Űrlap elküldése
+	Submit a form with GET	Űrlap elküldése (GET)
 	Fields to reset (comma-separated; empty: all)	Visszaállítandó mezők (vesszővel elválasztva; üres: mind)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage vagy LastPage
 	Field names (comma-separated)	Mezőnevek (vesszővel elválasztva)
@@ -2353,3 +2354,22 @@ animation effects	Off	Ki
 	This document is trying to open a local file:	Ez a dokumentum egy helyi fájlt próbál megnyitni:
 	Move tag earlier	Címke korábbra helyezése
 	Move tag later	Címke későbbre helyezése
+# HTML form submission
+	Form values to send: {count}	Elküldendő űrlapértékek: {count}
+	Only send if you trust this document and destination. The form values leave this computer.	Csak akkor küldd el, ha megbízol a dokumentumban és a címzettben. Az űrlapértékek elhagyják ezt a számítógépet.
+	Only send if you trust this document and destination. GET puts form values in the URL.	Csak akkor küldje el, ha megbízik ebben a dokumentumban és a célban. A GET az űrlap értékeit az URL-be helyezi.
+	Form submission is not available in the browser.	Az űrlapok elküldése böngészőben nem érhető el.
+	Couldn't send the form: {error}	Nem sikerült elküldeni az űrlapot: {error}
+	Form sent to {url} (HTTP {status}).	Az űrlap elküldve ide: {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Az űrlap beküldési formátuma vagy mezőválasztása még nem támogatott.
+	Scripted submission to {u} is not supported yet.	A szkriptből történő beküldés ide: {u} még nem támogatott.
+
+# Full-document PDF submission
+	Submit PDF document	PDF-dokumentum küldése
+	Entire PDF document to send: {bytes} bytes	Elküldendő teljes PDF-dokumentum: {bytes} bájt
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Csak akkor küldje el, ha megbízik a dokumentumban és a címzettben. A teljes PDF elhagyja ezt a számítógépet.
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF-adatok küldése
+	Submit XFDF data	XFDF-adatok küldése
+	Comments to send	Elküldendő megjegyzések

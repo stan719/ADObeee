@@ -63,6 +63,7 @@ pub enum FieldKind {
 pub mod flags {
     pub const READ_ONLY: u32 = 1;
     pub const REQUIRED: u32 = 1 << 1;
+    pub const NO_EXPORT: u32 = 1 << 2;
     pub const MULTILINE: u32 = 1 << 12;
     pub const PASSWORD: u32 = 1 << 13;
     pub const NO_TOGGLE_TO_OFF: u32 = 1 << 14;
@@ -284,12 +285,24 @@ fn button_action(doc: &Document, d: &Dict, widgets: &[ObjRef]) -> Option<af::But
         }
         b"Named" => af::ButtonAction::Named(String::from_utf8_lossy(a.name(b"N")?).into_owned()),
         b"URI" => af::ButtonAction::Uri(s(b"URI")?),
-        b"SubmitForm" => af::ButtonAction::Submit(
-            a.get(b"F")
+        b"SubmitForm" => af::ButtonAction::Submit {
+            url: a
+                .get(b"F")
                 .map(|f| doc.resolve(f))
                 .and_then(|f| f.as_dict().and_then(|fd| fd.get(b"F").and_then(|x| text_of(&doc.resolve(x)))).or_else(|| text_of(&f)))
                 .unwrap_or_default(),
-        ),
+            flags: a.get(b"Flags").and_then(|f| doc.resolve(f).as_int()).unwrap_or(0),
+            has_fields: a.contains(b"Fields"),
+            fields: a.get(b"Fields").and_then(|items| doc.resolve(items).as_array().cloned()).and_then(|items| {
+                items
+                    .iter()
+                    .map(|item| match item {
+                        Object::Ref(reference) => qualified_name(doc, *reference),
+                        _ => text_of(&doc.resolve(item)),
+                    })
+                    .collect::<Option<Vec<_>>>()
+            }),
+        },
         b"GoTo" => {
             let dest = doc.resolve(a.get(b"D")?);
             let target = dest.as_array()?.first()?.as_ref()?;

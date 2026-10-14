@@ -689,6 +689,7 @@
 	Show a field	フィールドを表示
 	Hide a field	フィールドを非表示
 	Submit a form	フォームを送信
+	Submit a form with GET	フォームを送信 (GET)
 	Fields to reset (comma-separated; empty: all)	リセットするフィールド（カンマ区切り、空欄ならすべて）
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print、NextPage、PrevPage、FirstPage、LastPage のいずれか
 	Field names (comma-separated)	フィールド名（カンマ区切り）
@@ -2354,3 +2355,22 @@ animation effects	Off	オフ
 	This document is trying to open a local file:	この文書はローカルファイルを開こうとしています：
 	Move tag earlier	タグを前へ移動
 	Move tag later	タグを後へ移動
+# HTML form submission
+	Form values to send: {count}	送信するフォームの値: {count} 件
+	Only send if you trust this document and destination. The form values leave this computer.	この文書と送信先を信頼できる場合だけ送信してください。フォームの値はこのコンピューターから外部に送られます。
+	Only send if you trust this document and destination. GET puts form values in the URL.	この文書と送信先を信頼できる場合だけ送信してください。GET はフォームの値を URL に含めます。
+	Form submission is not available in the browser.	ブラウザーではフォームを送信できません。
+	Couldn't send the form: {error}	フォームを送信できませんでした: {error}
+	Form sent to {url} (HTTP {status}).	フォームを {url} に送信しました (HTTP {status})。
+	This form's submission format or field selection is not supported yet.	このフォームの送信形式またはフィールドの選択にはまだ対応していません。
+	Scripted submission to {u} is not supported yet.	スクリプトによる {u} への送信にはまだ対応していません。
+
+# Full-document PDF submission
+	Submit PDF document	PDF 文書を送信
+	Entire PDF document to send: {bytes} bytes	送信する PDF 文書全体: {bytes} バイト
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	この文書と送信先を信頼できる場合のみ送信してください。PDF 全体がこのコンピューターから送信されます。
+
+# FDF and XFDF submission actions
+	Submit FDF data	FDF データを送信
+	Submit XFDF data	XFDF データを送信
+	Comments to send	送信するコメント

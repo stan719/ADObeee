@@ -1222,6 +1222,68 @@ fn push_buttons_read_hide_actions() {
 }
 
 #[test]
+fn push_buttons_keep_submit_format_and_field_selection() {
+    let mut doc = fixture();
+    let go = field(&fields(&doc), "go").obj;
+    let mut target = Dict::new();
+    target.set(b"FS".to_vec(), Object::name("URL"));
+    target.set(b"F".to_vec(), PdfString::literal("https://forms.example/submit"));
+    let mut action = Dict::new();
+    action.set(b"S".to_vec(), Object::name("SubmitForm"));
+    action.set(b"F".to_vec(), Object::Dict(target));
+    action.set(b"Flags".to_vec(), Object::Int(4));
+    doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(action.clone()))).unwrap();
+    assert_eq!(
+        field(&fields(&doc), "go").button,
+        Some(af::ButtonAction::Submit { url: "https://forms.example/submit".into(), flags: 4, has_fields: false, fields: None })
+    );
+    set_field_actions(&mut doc, "go", &[(Trigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/pdf".into()))]).unwrap();
+    assert_eq!(field_actions(&doc, "go").unwrap(), [(Trigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/pdf".into()))]);
+    assert_eq!(
+        field(&fields(&doc), "go").button,
+        Some(af::ButtonAction::Submit { url: "https://forms.example/pdf".into(), flags: 256, has_fields: false, fields: None })
+    );
+    for (authored, expected_flags) in [
+        (FieldAction::SubmitFdf("https://forms.example/fdf".into()), 0),
+        (FieldAction::SubmitXfdf("https://forms.example/xfdf".into()), 32),
+        (FieldAction::SubmitGet("https://forms.example/get".into()), 12),
+    ] {
+        set_field_actions(&mut doc, "go", &[(Trigger::MouseUp, authored.clone())]).unwrap();
+        assert_eq!(field_actions(&doc, "go").unwrap(), [(Trigger::MouseUp, authored)]);
+        assert!(matches!(field(&fields(&doc), "go").button, Some(af::ButtonAction::Submit { flags, fields: None, .. }) if flags == expected_flags));
+    }
+    action.set(b"Flags".to_vec(), Object::Int(0));
+    action.set(b"Fields".to_vec(), Object::Array(vec![PdfString::text("name").into()]));
+    doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(action))).unwrap();
+    assert_eq!(
+        field(&fields(&doc), "go").button,
+        Some(af::ButtonAction::Submit { url: "https://forms.example/submit".into(), flags: 0, has_fields: true, fields: Some(vec!["name".into()]) })
+    );
+    let name_ref = field(&fields(&doc), "name").obj;
+    let mut referenced = doc.get(go).as_dict().unwrap().get(b"A").unwrap().as_dict().unwrap().clone();
+    referenced.set(b"Flags".to_vec(), Object::Int(32));
+    referenced.set(b"Fields".to_vec(), Object::Array(vec![Object::Ref(name_ref)]));
+    doc.update_dict(go, |d| d.set(b"A".to_vec(), Object::Dict(referenced))).unwrap();
+    assert_eq!(
+        field(&fields(&doc), "go").button,
+        Some(af::ButtonAction::Submit { url: "https://forms.example/submit".into(), flags: 32, has_fields: true, fields: Some(vec!["name".into()]) })
+    );
+    let actions = field_actions(&doc, "go").unwrap();
+    assert_eq!(actions, [(Trigger::MouseUp, FieldAction::Other("SubmitForm with unsupported options".into()))]);
+    let original = doc.get(go).as_dict().unwrap().get(b"A").cloned().unwrap();
+    set_field_actions(
+        &mut doc,
+        "go",
+        &[
+            (Trigger::MouseUp, FieldAction::Other("SubmitForm with unsupported options".into())),
+            (Trigger::OnBlur, FieldAction::Uri("https://example.org/next".into())),
+        ],
+    )
+    .unwrap();
+    assert_eq!(doc.get(go).as_dict().unwrap().get(b"A"), Some(&original));
+}
+
+#[test]
 fn push_buttons_read_set_layer_actions() {
     use af::LayerOp::{Off, On, Toggle};
     let mut doc = fixture();

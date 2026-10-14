@@ -370,6 +370,7 @@
 	Show a field	显示字段
 	Hide a field	隐藏字段
 	Submit a form	提交表单
+	Submit a form with GET	提交表单 (GET)
 	Fields to reset (comma-separated; empty: all)	要重置的字段（逗号分隔；为空表示全部）
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print、NextPage、PrevPage、FirstPage 或 LastPage
 	Field names (comma-separated)	字段名（逗号分隔）
@@ -2318,3 +2319,22 @@ animation effects	Off	关
 	This document is trying to open a local file:	此文档正尝试打开本地文件：
 	Move tag earlier	将标签前移
 	Move tag later	将标签后移
+# HTML form submission
+	Form values to send: {count}	要发送的表单值：{count} 个
+	Only send if you trust this document and destination. The form values leave this computer.	仅当您信任此文档和目标地址时才发送。表单值将离开这台电脑。
+	Only send if you trust this document and destination. GET puts form values in the URL.	仅在信任此文档和目标地址时发送。GET 会将表单值放入 URL。
+	Form submission is not available in the browser.	浏览器中无法提交表单。
+	Couldn't send the form: {error}	无法提交表单：{error}
+	Form sent to {url} (HTTP {status}).	表单已发送至 {url}（HTTP {status}）。
+	This form's submission format or field selection is not supported yet.	尚不支持此表单的提交格式或字段选择。
+	Scripted submission to {u} is not supported yet.	尚不支持通过脚本提交至 {u}。
+
+# Full-document PDF submission
+	Submit PDF document	发送 PDF 文档
+	Entire PDF document to send: {bytes} bytes	要发送的完整 PDF 文档：{bytes} 字节
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	仅在信任此文档和目标地址时发送。完整 PDF 将离开此计算机。
+
+# FDF and XFDF submission actions
+	Submit FDF data	提交 FDF 数据
+	Submit XFDF data	提交 XFDF 数据
+	Comments to send	要发送的批注

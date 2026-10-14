@@ -81,6 +81,225 @@ fn button_scripts_run_and_alert() {
 }
 
 #[test]
+fn form_submission_shows_destination_and_cancel_sends_nothing() {
+    use pdfcraft_engine::{Edit, FieldValue};
+
+    let mut h = harness();
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada & Co".into()) }));
+    h.state_mut().request_form_submission(id, "https://forms.example/submit");
+    h.run_steps(2);
+    assert_eq!(h.state().pending_submission.as_ref().unwrap().body.as_slice(), b"greeting=Ada+%26+Co");
+    assert!(h.query_all_by_label("Submit a form").count() >= 1);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn submit_button_opens_the_review_prompt() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::Submit("https://forms.example/submit".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("button click opens a prompt");
+    assert_eq!(pending.url, "https://forms.example/submit");
+    assert_eq!(pending.body.as_slice(), b"greeting=Ada");
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn submit_pdf_button_reviews_entire_current_document() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::SubmitPdf("https://forms.example/upload".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("PDF button opens a prompt");
+    assert_eq!(pending.format, SubmissionFormat::Pdf);
+    assert_eq!(pending.url, "https://forms.example/upload");
+    assert!(pending.body.starts_with(b"%PDF-"));
+    assert!(h.query_all_by_label("Submit PDF document").count() >= 1);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn submit_xfdf_button_reviews_current_form_data() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada & Co".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::SubmitXfdf("https://forms.example/xfdf".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("XFDF button opens a prompt");
+    assert_eq!(pending.format, SubmissionFormat::Xfdf);
+    assert_eq!(pending.url, "https://forms.example/xfdf");
+    assert!(String::from_utf8_lossy(&pending.body).contains("Ada &amp; Co"));
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn submit_get_button_reviews_query_transport_before_sending() {
+    use pdfcraft_engine::{Edit, FieldAction, FieldProps, FieldTrigger, FieldValue};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada & Co".into()) }));
+    assert!(h.state_mut().apply_edit(Edit::SetFieldProps {
+        name: "hello".into(),
+        props: Box::new(FieldProps {
+            actions: Some(vec![(FieldTrigger::MouseUp, FieldAction::SubmitGet("https://forms.example/submit?ticket=7".into()))]),
+            ..Default::default()
+        }),
+    }));
+    h.run_steps(3);
+    let p = {
+        let app = h.state();
+        let doc = app.session.get(app.views[0].id).unwrap();
+        let field = doc.form.iter().find(|f| f.name == "hello").unwrap();
+        pdfcraft_ui_egui::forms_ui::field_screen_rect(&app.views[0], &doc.info, field, 0).unwrap().center()
+    };
+    h.hover_at(p);
+    h.run_steps(1);
+    h.drag_at(p);
+    h.run_steps(1);
+    h.drop_at(p);
+    h.run_steps(3);
+    let pending = h.state().pending_submission.as_ref().expect("GET button opens a prompt");
+    assert_eq!(pending.format, SubmissionFormat::HtmlGet);
+    assert_eq!(pending.url, "https://forms.example/submit?ticket=7");
+    assert_eq!(pending.body.as_slice(), b"greeting=Ada+%26+Co");
+    assert!(h.query_all_by_label("GET").count() >= 1);
+    assert!(h.query_all_by_label("Only send if you trust this document and destination. GET puts form values in the URL.").count() >= 1);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn fdf_submission_reviews_comments_option() {
+    use pdfcraft_engine::{Edit, FieldValue, form_submit::SubmitOptions};
+    use pdfcraft_ui_egui::SubmissionFormat;
+
+    let mut h = harness();
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    h.state_mut().request_selected_form_submission(id, "https://forms.example/fdf", SubmissionFormat::Fdf, &SubmitOptions::default(), true);
+    h.run_steps(2);
+    let pending = h.state().pending_submission.as_ref().unwrap();
+    assert_eq!(pending.format, SubmissionFormat::Fdf);
+    assert!(pending.include_annotations);
+    assert!(pending.body.starts_with(b"%FDF-"));
+    assert!(h.query_all_by_label("Comments to send").count() >= 1);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert!(h.state().pending_submission.is_none());
+}
+
+#[test]
+fn approved_form_submission_posts_in_the_background() {
+    use pdfcraft_engine::{Edit, FieldValue};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/submit", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        socket.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+        let mut bytes = Vec::new();
+        let mut buf = [0u8; 4096];
+        loop {
+            let n = socket.read(&mut buf).unwrap();
+            assert!(n > 0);
+            bytes.extend_from_slice(&buf[..n]);
+            if bytes.windows(b"greeting=Ada".len()).any(|w| w == b"greeting=Ada") {
+                socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                break;
+            }
+        }
+    });
+    let mut h = harness();
+    let id = h.state().active_ids().unwrap().1;
+    assert!(h.state_mut().apply_edit(Edit::SetFieldValue { name: "greeting".into(), value: FieldValue::Text("Ada".into()) }));
+    h.state_mut().request_form_submission(id, &url);
+    h.state_mut().resolve_pending_submission(true);
+    server.join().unwrap();
+    for _ in 0..30 {
+        h.run_steps(1);
+        if h.state().toast.as_ref().is_some_and(|t| t.0.contains("Form sent")) {
+            break;
+        }
+    }
+    assert!(h.state().toast.as_ref().is_some_and(|t| t.0.contains("Form sent")), "{:?}", h.state().toast);
+}
+
+#[test]
 fn document_scripts_and_preferences() {
     let mut h = harness();
     assert!(h.state_mut().execute("tools.document_js"));

@@ -662,6 +662,7 @@
 	Show a field	Afficher un champ
 	Hide a field	Masquer un champ
 	Submit a form	Envoyer un formulaire
+	Submit a form with GET	Envoyer un formulaire (GET)
 	Fields to reset (comma-separated; empty: all)	Champs à réinitialiser (séparés par des virgules ; vide : tous)
 	Print, NextPage, PrevPage, FirstPage or LastPage	Print, NextPage, PrevPage, FirstPage ou LastPage
 	Field names (comma-separated)	Noms de champs (séparés par des virgules)
@@ -2354,3 +2355,22 @@ animation effects	Off	Désactivés
 	This document is trying to open a local file:	Ce document tente d’ouvrir un fichier local :
 	Move tag earlier	Déplacer la balise plus tôt
 	Move tag later	Déplacer la balise plus tard
+# HTML form submission
+	Form values to send: {count}	Valeurs du formulaire à envoyer : {count}
+	Only send if you trust this document and destination. The form values leave this computer.	N’envoyez ces données que si vous faites confiance au document et à la destination. Les valeurs du formulaire quittent cet ordinateur.
+	Only send if you trust this document and destination. GET puts form values in the URL.	N’envoyez que si vous faites confiance à ce document et à sa destination. GET place les valeurs du formulaire dans l’URL.
+	Form submission is not available in the browser.	L’envoi de formulaires n’est pas disponible dans le navigateur.
+	Couldn't send the form: {error}	Impossible d’envoyer le formulaire : {error}
+	Form sent to {url} (HTTP {status}).	Formulaire envoyé à {url} (HTTP {status}).
+	This form's submission format or field selection is not supported yet.	Le format d’envoi ou la sélection des champs de ce formulaire ne sont pas encore pris en charge.
+	Scripted submission to {u} is not supported yet.	L’envoi par script à {u} n’est pas encore pris en charge.
+
+# Full-document PDF submission
+	Submit PDF document	Envoyer le document PDF
+	Entire PDF document to send: {bytes} bytes	Document PDF entier à envoyer : {bytes} octets
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Envoyez uniquement si vous faites confiance à ce document et à la destination. Le PDF entier quitte cet ordinateur.
+
+# FDF and XFDF submission actions
+	Submit FDF data	Envoyer les données FDF
+	Submit XFDF data	Envoyer les données XFDF
+	Comments to send	Commentaires à envoyer

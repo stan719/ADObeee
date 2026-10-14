@@ -2359,3 +2359,10 @@ animation effects	Off	Izklopljeni
 	This document is trying to open a local file:	Ta dokument poskuša odpreti lokalno datoteko:
 	Move tag earlier	Premakni oznako prej
 	Move tag later	Premakni oznako pozneje
+	Comments to send	Opombe za pošiljanje
+	Entire PDF document to send: {bytes} bytes	Celoten PDF dokument za pošiljanje: {bytes} bajtov
+	Form values to send: {count}	Vrednosti obrazca za pošiljanje: {count}
+	Only send if you trust this document and destination. GET puts form values in the URL.	Pošljite le, če zaupate dokumentu in cilju. GET vredi obrazca vpiše v URL.
+	Only send if you trust this document and destination. The entire PDF leaves this computer.	Pošljite le, če zaupate dokumentu in cilju. Celoten PDF dokument zapusti ta računalnik.
+	Only send if you trust this document and destination. The form values leave this computer.	Pošljite le, če zaupate dokumentu in cilju. Vrednosti obrazca zapustijo ta računalnik.
+	Submit PDF document	Pošlji PDF dokument

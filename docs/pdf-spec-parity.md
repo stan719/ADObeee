@@ -38,7 +38,7 @@ are borrowed; PDF 2.0 additions and most subset standards are missing. **150–2
 | §12.4 | Page transitions, thumbnails, articles, presentations | full | none (thumbnails discarded or kept) | `organize.page-transitions`, `view.articles-panel` planned |
 | §12.5 | Annotations | 28 types | see table below | |
 | §12.6 | Actions | 19 types | see table below | |
-| §12.7 | Interactive forms (AcroForm): fields, appearances, calculation order, JavaScript actions | full | **own**: all field types, regenerated appearances, Acrobat's AF functions and event order, sandboxed JavaScript (boa) | `form.js-host` partial (object-model subset); submit planned |
+| §12.7 | Interactive forms (AcroForm): fields, appearances, calculation order, JavaScript actions | full | **own**: all field types, regenerated appearances, Acrobat's AF functions and event order, sandboxed JavaScript (boa), HTML GET/POST and FDF/XFDF/full-PDF POST on native hosts | `form.js-host` and `form.submit-form` partial (email and scripted transport missing) |
 | §12.7.8 | XFA (deprecated in PDF 2.0; Acrobat still fills XFA) | static and dynamic | **own**, partial: template layout, FormCalc, XFA JavaScript model, datasets | `form.xfa-*` partial; no flattening |
 | §12.8 | Digital signatures | see table below | | |
 | §12.9 | Measurement and geospatial | full | 2D measuring with viewports and calibration; no geospatial | `comment.geospatial` planned |
@@ -89,7 +89,7 @@ are borrowed; PDF 2.0 additions and most subset standards are missing. **150–2
 | Sound, Movie, Rendition, GoTo3DView, RichMediaExecute | yes | none (P3) |
 | Hide | yes | yes |
 | Named | yes | safe list (print, page navigation) |
-| SubmitForm | yes | explained, not sent |
+| SubmitForm | yes | reviewed HTML GET/POST, FDF/XFDF POST and full-PDF POST on native hosts |
 | ResetForm | yes | yes |
 | ImportData | yes | via Import form data, not as an action |
 | JavaScript | yes | yes in fields and buttons (sandboxed); document actions none |
