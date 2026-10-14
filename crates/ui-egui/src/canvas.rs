@@ -4081,6 +4081,9 @@ fn organize_toolbar(view: &mut DocView, info: &DocInfo, editable: bool, dirty: b
     });
     let targets = view.target_pages();
     let n = info.pages.len();
+    // The toolbar rotates the whole document until the user explicitly selects pages. The
+    // thumbnail buttons below rotate only their named page.
+    let rotate_targets = if view.selected.is_empty() { (0..n).collect::<Vec<_>>() } else { targets.clone() };
     let (first, last) = (targets.first().copied().unwrap_or(0), targets.last().copied().unwrap_or(0));
     egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(16, 8)).show(ui, |ui| {
         ui.horizontal(|ui| {
@@ -4094,10 +4097,10 @@ fn organize_toolbar(view: &mut DocView, info: &DocInfo, editable: bool, dirty: b
             ui.add_sized([150.0, 30.0], egui::Label::new(egui::RichText::new(label).font(theme::medium(13.0)).color(t.text_muted)).truncate());
             ui.add_enabled_ui(editable, |ui| {
                 if icons::button(ui, "rotate-ccw", 30.0, false, tl!("Rotate counterclockwise")).clicked() {
-                    view.pending_edit = Some(Edit::RotatePages { pages: targets.clone(), degrees: -90 });
+                    view.pending_edit = Some(Edit::RotatePages { pages: rotate_targets.clone(), degrees: -90 });
                 }
                 if icons::button(ui, "rotate-cw", 30.0, false, tl!("Rotate clockwise")).clicked() {
-                    view.pending_edit = Some(Edit::RotatePages { pages: targets.clone(), degrees: 90 });
+                    view.pending_edit = Some(Edit::RotatePages { pages: rotate_targets.clone(), degrees: 90 });
                 }
                 let can_delete = targets.len() < n;
                 if ui.add_enabled_ui(can_delete, |ui| icons::button(ui, "trash-2", 30.0, false, tl!("Delete pages (Delete)"))).inner.clicked() {
@@ -4261,7 +4264,7 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
     // need a sharper render than they have. The width is the size drawn, in device pixels.
     let (mut in_view, mut sharper): (Vec<(usize, f32)>, Vec<RenderRequest>) = (Vec::new(), Vec::new());
     // The source cell can scroll out of the virtualized rows during a drag.
-    let mut drop = view.org_drag.is_some() && ui.input(|i| i.pointer.primary_released());
+    let mut drop = view.org_drag.is_some() && ui.input(|i| i.pointer.primary_released() || (i.modifiers.ctrl && i.pointer.secondary_released()));
     egui::ScrollArea::vertical().auto_shrink([false, false]).show_viewport(ui, |ui, clip| {
         if middle_gesture {
             let opacity = ui.opacity();
@@ -4288,8 +4291,11 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                 if let Some((_, above)) = anchor.filter(|(page, _)| *page == i) {
                     ui.scroll_to_rect_animation(c.translate(vec2(0.0, -above)), Some(egui::Align::Min), egui::style::ScrollAnimation::none());
                 }
-                // Drag pages to move them (the selection, or the page grabbed).
-                if resp.drag_started() {
+                // Drag pages to move them; hold Control to copy them at the drop gap.
+                // macOS may report Control-click as a secondary pointer button.
+                if resp.drag_started_by(egui::PointerButton::Primary)
+                    || (ui.input(|i| i.modifiers.ctrl) && resp.drag_started_by(egui::PointerButton::Secondary))
+                {
                     if !view.selected.contains(&i) {
                         view.selected = [i].into();
                         view.select_anchor = Some(i);
@@ -4361,14 +4367,19 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                     view.click_page(i, egui::Modifiers::COMMAND, false);
                     view.current = i;
                 }
-                // Local actions always target the labelled page. The toolbar above the grid
-                // remains the place for actions on the whole selection.
+                // Keep page actions beside the hovered thumbnail, where they stay visible for
+                // a selected page as well. The toolbar above the grid acts on the selection.
                 if selected || resp.contains_pointer() || resp.has_focus() {
-                    let actions = Rect::from_center_size(pos2(c.center().x, c.bottom() - 24.0), vec2(84.0, 26.0));
+                    let actions = Rect::from_min_size(pos2((pr.right() - 3.0).min(c.right() - 38.0), pr.top() + 8.0), vec2(34.0, 116.0));
+                    ui.painter().rect_filled(actions, CornerRadius::same(6), t.chrome);
+                    ui.painter().rect_stroke(actions, CornerRadius::same(6), Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
                     ui.scope_builder(
-                        egui::UiBuilder::new().id_salt(("org-actions", i)).max_rect(actions).layout(egui::Layout::left_to_right(egui::Align::Center)),
+                        egui::UiBuilder::new()
+                            .id_salt(("org-actions", i))
+                            .max_rect(actions.shrink(3.0))
+                            .layout(egui::Layout::top_down(egui::Align::Center)),
                         |ui| {
-                            ui.spacing_mut().item_spacing.x = 3.0;
+                            ui.spacing_mut().item_spacing.y = 2.0;
                             ui.add_enabled_ui(editable, |ui| {
                                 for (icon, degrees, key) in
                                     [("rotate-ccw", -90, "Rotate page {label} counterclockwise"), ("rotate-cw", 90, "Rotate page {label} clockwise")]
@@ -4381,6 +4392,26 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                                 let label = crate::i18n::fmt(tl!("Delete page {label}"), &[("label", &p.label)]);
                                 if ui.add_enabled_ui(info.pages.len() > 1, |ui| icons::button(ui, "trash-2", 26.0, false, &label)).inner.clicked() {
                                     view.pending_edit = Some(Edit::DeletePages { pages: vec![i] });
+                                }
+                            });
+                            let more = icons::button(ui, "ellipsis", 26.0, false, tl!("More"));
+                            if more.clicked() {
+                                view.selected = [i].into();
+                                view.select_anchor = Some(i);
+                                view.current = i;
+                            }
+                            egui::Popup::menu(&more).show(|ui| {
+                                if ui.add_enabled(editable, egui::Button::new(tl!("Cut"))).clicked() {
+                                    view.pending_action = Some(ViewAction::CopyPages { cut: true });
+                                    ui.close();
+                                }
+                                if ui.button(tl!("Copy")).clicked() {
+                                    view.pending_action = Some(ViewAction::CopyPages { cut: false });
+                                    ui.close();
+                                }
+                                if ui.add_enabled(editable, egui::Button::new(tl!("Paste after"))).clicked() {
+                                    view.pending_action = Some(ViewAction::PastePages);
+                                    ui.close();
                                 }
                             });
                         },
@@ -4446,6 +4477,7 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
         }
         // While dragging: the gap the pages would go to, drawn as a bar.
         if let (Some(pages), Some(p)) = (view.org_drag.clone(), ui.input(|i| i.pointer.hover_pos())) {
+            let copying = ui.input(|i| i.modifiers.ctrl);
             if let Some(gap) = drop_gap(&cells, p) {
                 let x = match cells.iter().find(|(i, _)| *i == gap) {
                     Some((_, r)) => r.left() + 3.0,
@@ -4456,7 +4488,21 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
                 ui.painter().text(
                     p + vec2(14.0, 14.0),
                     Align2::LEFT_TOP,
-                    if pages.len() == 1 { tl!("1 page").to_string() } else { crate::i18n::fmt(tl!("{n} pages"), &[("n", &pages.len().to_string())]) },
+                    if copying {
+                        format!(
+                            "{} · {}",
+                            tl!("Copy"),
+                            if pages.len() == 1 {
+                                tl!("1 page").to_string()
+                            } else {
+                                crate::i18n::fmt(tl!("{n} pages"), &[("n", &pages.len().to_string())])
+                            }
+                        )
+                    } else if pages.len() == 1 {
+                        tl!("1 page").to_string()
+                    } else {
+                        crate::i18n::fmt(tl!("{n} pages"), &[("n", &pages.len().to_string())])
+                    },
                     theme::medium(12.0),
                     t.accent_text,
                 );
@@ -4464,6 +4510,12 @@ fn organize_grid(view: &mut DocView, info: &DocInfo, editable: bool, dirty: bool
             if drop {
                 view.org_drag = None;
                 if let Some(gap) = drop_gap(&cells, p) {
+                    if copying {
+                        view.pending_edit = Some(Edit::DuplicatePages { pages: pages.clone(), at: Some(gap) });
+                        view.current = gap;
+                        view.selected = (gap..gap + pages.len()).collect();
+                        return;
+                    }
                     // `to` counts positions without the moving pages.
                     let to = gap - pages.iter().filter(|x| **x < gap).count();
                     let first = pages[0];

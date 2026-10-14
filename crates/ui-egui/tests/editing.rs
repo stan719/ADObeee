@@ -199,6 +199,23 @@ fn organize_page_actions_rotate_only_the_named_page_and_undo() {
 }
 
 #[test]
+fn organize_toolbar_rotates_all_pages_until_a_selection_is_made() {
+    let mut h = organize(3);
+    assert!(h.state().views[0].selected.is_empty());
+    h.get_by_label("Rotate clockwise").click();
+    h.run_steps(3);
+    let rotations = |h: &Harness<'static, PdfCraftApp>| {
+        h.state().session.get(h.state().views[0].id).unwrap().info.pages.iter().map(|p| p.rotation).collect::<Vec<_>>()
+    };
+    assert_eq!(rotations(&h), [90, 90, 90]);
+    h.state_mut().views[0].select_pages(&[1]);
+    h.run_steps(2);
+    h.get_by_label("Rotate counterclockwise").click();
+    h.run_steps(3);
+    assert_eq!(rotations(&h), [90, 0, 90]);
+}
+
+#[test]
 fn organize_hover_actions_delete_only_the_named_page_and_undo() {
     let mut h = organize(3);
     h.get_by_label("Page 2").hover();
@@ -2184,6 +2201,28 @@ fn dragging_thumbnails_reorders_pages() {
     assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().can_undo(), Some("Move page"));
     let sel: Vec<usize> = h.state().views[0].selected.iter().copied().collect();
     assert_eq!(sel, vec![2], "the moved page stays selected");
+}
+
+#[test]
+fn control_dragging_organize_thumbnail_copies_at_drop_gap() {
+    let mut h = organize(4);
+    let before = page_texts(h.state());
+    let grab = |h: &Harness<'static, PdfCraftApp>, label: &str| h.get_by_label(label).rect();
+    let (from, to) = (grab(&h, "Page 1").center(), grab(&h, "Page 3").right_center() - egui::vec2(10.0, 0.0));
+    h.input_mut().events.push(egui::Event::ModifiersChanged(Modifiers::CTRL));
+    h.hover_at(from);
+    h.run_steps(1);
+    h.drag_at(from);
+    h.run_steps(1);
+    for k in 1..=5 {
+        h.hover_at(from + (to - from) * (k as f32 / 5.0));
+        h.run_steps(1);
+    }
+    h.drop_at(to);
+    h.run_steps(4);
+    assert_eq!(page_texts(h.state()), [before[0].clone(), before[1].clone(), before[2].clone(), before[0].clone(), before[3].clone()]);
+    assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().can_undo(), Some("Duplicate page"));
+    assert_eq!(h.state().views[0].target_pages(), [3]);
 }
 
 #[test]

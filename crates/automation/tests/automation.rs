@@ -1857,6 +1857,17 @@ fn duplicating_and_cropping_through_tools() {
 }
 
 #[test]
+fn duplicating_pages_at_a_chosen_gap_through_tools() {
+    let dir = workdir("duplicate-gap");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    ok(&mut a, "page_duplicate", json!({ "doc": doc, "pages": [1, 3], "at": 2 }));
+    assert_eq!(page_text(&mut a, doc), ["Page 1", "Page 1", "Page 3", "Page 2", "Page 3"]);
+    assert!(matches!(a.call("page_duplicate", &json!({ "doc": doc, "pages": [1], "at": 0 })), Err(ToolError::InvalidArgs(_))));
+    assert!(matches!(a.call("page_duplicate", &json!({ "doc": doc, "pages": [1], "at": 7 })), Err(ToolError::Failed(_))));
+}
+
+#[test]
 fn headers_watermarks_and_backgrounds_through_tools() {
     let dir = workdir("marks");
     let mut a = auto(&dir);
