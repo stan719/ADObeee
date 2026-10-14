@@ -155,6 +155,16 @@ impl Catalog {
         (c, errors)
     }
 
+    /// Apply a partial catalog, keeping shared translations from the base language.
+    pub fn overlay(&mut self, other: Catalog) {
+        self.plain.extend(other.plain);
+        self.ids.extend(other.ids);
+        self.plurals.extend(other.plurals);
+        for (context, entries) in other.contextual {
+            self.contextual.entry(context).or_default().extend(entries);
+        }
+    }
+
     /// Rewrite every translation (each plural form on its own), e.g. into display order for a
     /// right-to-left language. Keys are untouched.
     pub fn map_translations(&mut self, f: impl Fn(&str) -> String) {

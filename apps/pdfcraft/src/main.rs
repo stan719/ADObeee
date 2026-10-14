@@ -415,6 +415,7 @@ fn app_creator<'a>(
                 log::warn!("--{k} {v}: {e}");
             }
         }
+        app.request_address_choice();
         Ok(Box::new(app))
     })
 }

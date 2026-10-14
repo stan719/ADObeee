@@ -1800,8 +1800,8 @@
 	Select Icon	Sélectionner une icône
 	Choose images	Choisir des images
 	{dpi} pixels/inch	{dpi} pixels/pouce
-	Type your {what}.	Saisissez votre {what}.
-	Draw your {what} below.	Dessinez votre {what} ci-dessous.
+	Type your {what}.	Saisissez : {what}.
+	Draw your {what} below.	Dessinez ci-dessous : {what}.
 	Your name	Votre nom
 	Images and text (converted to PDF)	Images et texte (convertis en PDF)
 	Images and text	Images et texte
@@ -2341,6 +2341,11 @@ animation effects	Off	Désactivés
 	The linked PDF opened, but its named destination was not applied.	Le PDF lié s'est ouvert, mais sa destination nommée n'a pas été appliquée.
 	The linked PDF opened, but its page destination was out of range.	Le PDF lié s'est ouvert, mais sa page de destination est hors limites.
 	Local cross-PDF links require the desktop app	Les liens locaux entre PDF nécessitent l'application de bureau
+address	Form of address	Forme d’adresse
+address	Formal	Formel (vous)
+address	Informal	Informel (tu)
+address	Choose a form of address	Choisir la forme d’adresse
+address	This can be changed later in Preferences.	Ce choix peut être modifié dans les préférences.
 	Minimize	Réduire
 	Maximize	Agrandir
 	Restore	Restaurer

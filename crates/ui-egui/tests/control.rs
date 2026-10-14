@@ -74,6 +74,30 @@ fn ok(h: &mut Harness<'static, PdfCraftApp>, c: &ControlClient, method: &str, pa
 }
 
 #[test]
+fn address_options_are_per_language_and_preserve_open_documents() {
+    let (mut h, c) = harness();
+    let documents = ok(&mut h, &c, "ui.state", json!({}))["documents"].clone();
+    for (language, address) in [("de", "informal"), ("fr", "formal"), ("es", "formal"), ("it", "informal")] {
+        ok(&mut h, &c, "ui.set", json!({"key": "language", "value": language}));
+        ok(&mut h, &c, "ui.set", json!({"key": "address", "value": address}));
+        let state = ok(&mut h, &c, "ui.state", json!({}));
+        assert_eq!(state["address"], address);
+        assert_eq!(state["documents"], documents);
+        assert!(call(&mut h, &c, "ui.set", json!({"key": "address", "value": "invalid"})).is_err());
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["address"], address);
+    }
+    ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "de"}));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["address"], "informal");
+    ok(&mut h, &c, "ui.set", json!({"key": "address", "value": "ask"}));
+    h.run_steps(3);
+    ok(&mut h, &c, "ui.click", json!({"label": "Formell (Sie)"}));
+    h.run_steps(3);
+    let state = ok(&mut h, &c, "ui.state", json!({}));
+    assert_eq!(state["address"], "formal");
+    assert_eq!(state["documents"], documents);
+}
+
+#[test]
 fn control_resize_reports_observed_dimensions_and_rejects_invalid_sizes() {
     let (mut h, c) = harness();
     for params in [

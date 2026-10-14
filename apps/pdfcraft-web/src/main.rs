@@ -27,6 +27,7 @@ fn main() {
                     if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string("printcraft"))) {
                         app.restore(&json);
                     }
+                    app.request_address_choice();
                     // `?file=<url>` opens a PDF from a URL (same-origin or CORS-enabled).
                     if let Some(url) = query_param("file") {
                         let inbox = app.startup_inbox.clone();

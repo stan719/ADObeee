@@ -33,6 +33,25 @@ use catalog::Catalog;
 /// The `language` preference value that follows the system locale.
 pub const AUTO: &str = "auto";
 
+/// A language's supported form of address, stored separately from its locale.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Address {
+    #[default]
+    Formal,
+    Informal,
+}
+
+impl Address {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "formal" => Some(Self::Formal),
+            "informal" => Some(Self::Informal),
+            _ => None,
+        }
+    }
+}
+
 /// One supported UI language.
 pub struct LangInfo {
     /// BCP 47 code, lowercase (`ja`, `zh-hans`, `pt-br`). Also the `language` preference value.
@@ -169,7 +188,7 @@ pub static LANGUAGES: [LangInfo; 22] = [
         rtl: false,
         catalog: OnceLock::new(),
     },
-    // German (informal "du"); every `de-*` locale (`de-DE`, `de-AT`, `de-CH` ...) resolves here.
+    // German (formal "Sie"); every `de-*` locale (`de-DE`, `de-AT`, `de-CH` ...) resolves here.
     LangInfo { code: "de", name: "Deutsch", source: include_str!("de.tsv"), plural: plural_one_other, rtl: false, catalog: OnceLock::new() },
     // Spanish (European vocabulary); every `es-*` locale (`es-ES`, `es-MX`, `es-419` ...) resolves here.
     LangInfo { code: "es", name: "Español", source: include_str!("es.tsv"), plural: plural_one_other, rtl: false, catalog: OnceLock::new() },
@@ -231,24 +250,24 @@ impl LangInfo {
 
 /// A language the UI can be shown in (a handle into [`LANGUAGES`]).
 #[derive(Clone, Copy)]
-pub struct Lang(&'static LangInfo);
+pub struct Lang(&'static LangInfo, Address);
 
 impl std::fmt::Debug for Lang {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Lang({})", self.0.code)
+        write!(f, "Lang({}, {:?})", self.0.code, self.1)
     }
 }
 
 impl PartialEq for Lang {
     fn eq(&self, other: &Self) -> bool {
-        self.0.code == other.0.code
+        self.0.code == other.0.code && self.1 == other.1
     }
 }
 
 impl Eq for Lang {}
 
 impl Lang {
-    pub const EN: Lang = Lang(&LANGUAGES[0]);
+    pub const EN: Lang = Lang(&LANGUAGES[0], Address::Formal);
 
     pub fn code(self) -> &'static str {
         self.0.code
@@ -256,7 +275,7 @@ impl Lang {
 
     /// A language by its exact code.
     pub fn from_code(code: &str) -> Option<Lang> {
-        LANGUAGES.iter().find(|l| l.code.eq_ignore_ascii_case(code)).map(Lang)
+        LANGUAGES.iter().find(|l| l.code.eq_ignore_ascii_case(code)).map(Self::base)
     }
 
     /// Resolve the `language` preference: a language code, or [`AUTO`] (and anything unknown,
@@ -267,7 +286,7 @@ impl Lang {
 
     /// Every registered language.
     pub fn all() -> impl Iterator<Item = Lang> {
-        LANGUAGES.iter().map(Lang)
+        LANGUAGES.iter().map(Self::base)
     }
 
     pub fn name(self) -> &'static str {
@@ -280,8 +299,48 @@ impl Lang {
         self.0.rtl
     }
 
+    /// Only offer the choice where both registers have a reviewed catalog.
+    pub fn supports_address(self) -> bool {
+        matches!(self.code(), "de" | "fr" | "es" | "it")
+    }
+
+    fn base(info: &'static LangInfo) -> Self {
+        let lang = Self(info, Address::Formal);
+        Self(info, lang.default_address())
+    }
+
+    /// Register of the shared catalog; the first-use UI default is always formal.
+    pub fn default_address(self) -> Address {
+        if matches!(self.code(), "es" | "it") { Address::Informal } else { Address::Formal }
+    }
+
+    pub fn with_address(self, address: Address) -> Self {
+        Self(self.0, if self.supports_address() { address } else { Address::Formal })
+    }
+
     fn catalog(self) -> &'static Catalog {
-        self.0.catalog()
+        let variant = match (self.code(), self.1) {
+            ("de", Address::Informal) => Some((0, include_str!("de-informal.tsv"))),
+            ("fr", Address::Informal) => Some((1, include_str!("fr-informal.tsv"))),
+            ("es", Address::Formal) => Some((2, include_str!("es-formal.tsv"))),
+            ("it", Address::Formal) => Some((3, include_str!("it-formal.tsv"))),
+            _ => None,
+        };
+        if let Some((index, source)) = variant {
+            static VARIANTS: [OnceLock<Catalog>; 4] = [const { OnceLock::new() }; 4];
+            let Some(cache) = VARIANTS.get(index) else { return self.0.catalog() };
+            cache.get_or_init(|| {
+                let (mut base, _) = Catalog::parse(self.0.source, self.0.plural_forms());
+                let (overrides, errors) = Catalog::parse(source, self.0.plural_forms());
+                for error in errors {
+                    log::warn!("{} {:?} interface catalog: {error}; using the base translation", self.code(), self.1);
+                }
+                base.overlay(overrides);
+                base
+            })
+        } else {
+            self.0.catalog()
+        }
     }
 }
 
@@ -750,8 +809,8 @@ mod tests {
             rtl: false,
             catalog: OnceLock::new(),
         };
-        assert_eq!(tr(Lang(&BROKEN), "File"), "File");
-        assert_eq!(trn(Lang(&BROKEN), 2, "{n} page", "{n} pages"), "2 pages");
+        assert_eq!(tr(Lang::base(&BROKEN), "File"), "File");
+        assert_eq!(trn(Lang::base(&BROKEN), 2, "{n} page", "{n} pages"), "2 pages");
     }
 
     #[test]
@@ -764,7 +823,7 @@ mod tests {
             rtl: false,
             catalog: OnceLock::new(),
         };
-        let l = Lang(&TEST);
+        let l = Lang::base(&TEST);
         assert_eq!(tr_ctx(l, "weight", "Light"), "Thin");
         assert_eq!(tr_ctx(l, "theme", "Light"), "Plain light");
         assert_eq!(tr_ctx(l, "theme", "Unknown"), "Unknown");
@@ -1863,6 +1922,37 @@ mod tests {
                     assert!(has(de, item.label), "missing item: {}", item.label);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn address_variants_are_valid_partial_catalogs_with_shared_fallbacks() {
+        for (code, address, source) in [
+            ("de", Address::Informal, include_str!("de-informal.tsv")),
+            ("fr", Address::Informal, include_str!("fr-informal.tsv")),
+            ("es", Address::Formal, include_str!("es-formal.tsv")),
+            ("it", Address::Formal, include_str!("it-formal.tsv")),
+        ] {
+            let base = Lang::from_code(code).unwrap();
+            let variant = base.with_address(address);
+            let (entries, errors) = catalog::parse_entries(source, base.0.plural_forms());
+            assert!(errors.is_empty(), "{code}: {errors:?}");
+            assert!(entries.len() > 100, "{code}: incomplete address catalog");
+            for entry in entries {
+                assert_eq!(entry.context, "", "address overrides currently use plain messages");
+                assert!(has(base, &entry.source), "{code}: unknown base key {}", entry.source);
+                assert_ne!(entry.translation, tr(base, &entry.source), "{code}: redundant override {}", entry.source);
+                assert_eq!(tr(variant, &entry.source), entry.translation);
+            }
+            assert_eq!(variant.code(), code);
+            assert_eq!(tr(variant, "File"), tr(base, "File"));
+            assert_eq!(trn(variant, 2, "{n} page", "{n} pages"), trn(base, 2, "{n} page", "{n} pages"));
+            assert_eq!(tr_ctx(variant, "address", "Formal"), tr_ctx(base, "address", "Formal"));
+            assert_eq!(tr(variant, "unknown {name}"), "unknown {name}");
+            let prompt = tr(variant, "“{name}” is protected. Enter a password to open it.");
+            let rendered = fmt(prompt, &[("name", "{untrusted}.pdf")]);
+            assert!(rendered.contains("{untrusted}.pdf"));
+            assert!(!rendered.contains("{name}"));
         }
     }
 

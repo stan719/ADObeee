@@ -279,9 +279,22 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
         });
         // Relabel the rest of this dialog in the new language right away, not next frame.
         if app.language != before {
-            crate::i18n::set_current(crate::i18n::Lang::from_pref(&app.language));
+            crate::i18n::set_current(app.ui_language());
         }
     });
+    if app.ui_language().supports_address() {
+        ui.horizontal(|ui| {
+            ui.label(tl_ctx!("address", "Form of address"));
+            let selected = app.address.get(app.ui_language().code()).copied().unwrap_or(crate::i18n::Address::Formal);
+            for (address, label) in
+                [(crate::i18n::Address::Formal, tl_ctx!("address", "Formal")), (crate::i18n::Address::Informal, tl_ctx!("address", "Informal"))]
+            {
+                if ui.selectable_label(selected == address, label).clicked() {
+                    app.choose_address(address);
+                }
+            }
+        });
+    }
     ui.horizontal(|ui| {
         use crate::ui_scale;
         ui.label(tl!("Interface size"));

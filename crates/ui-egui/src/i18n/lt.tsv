@@ -2585,6 +2585,11 @@ key	Esc	Esc
 key	Home	Home
 key	End	End
 key	Space	Tarpas
+address	Form of address	Kreipimosi forma
+address	Formal	Oficiali (Jūs)
+address	Informal	Neoficiali (tu)
+address	Choose a form of address	Pasirinkite kreipimosi formą
+address	This can be changed later in Preferences.	Vėliau tai galėsite pakeisti nuostatose.
 	Minimize	Sumažinti
 	Maximize	Išdidinti
 	Restore	Atkurti

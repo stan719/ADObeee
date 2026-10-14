@@ -11,8 +11,32 @@ const INFO_KEYS: [&str; 4] = ["Title", "Author", "Subject", "Keywords"];
 
 pub fn show(app: &mut PdfCraftApp, ctx: &egui::Context) {
     dialogs(app, ctx);
-    // Last, so it sits above Document Properties when Security's Unlock… asked for it.
+    // Keep Unlock above Document Properties when Security's Unlock… asked for it.
     unlock(app, ctx);
+    if app.address_pending() {
+        address_prompt(app, ctx);
+    }
+}
+
+fn address_prompt(app: &mut PdfCraftApp, ctx: &egui::Context) {
+    let response = widgets::show_modal(ctx, "address-choice", |ui| {
+        ui.set_width(420.0);
+        ui.heading(tl_ctx!("address", "Choose a form of address"));
+        ui.label(tl_ctx!("address", "This can be changed later in Preferences."));
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            for (address, label) in
+                [(crate::i18n::Address::Formal, tl_ctx!("address", "Formal")), (crate::i18n::Address::Informal, tl_ctx!("address", "Informal"))]
+            {
+                if ui.button(label).clicked() {
+                    app.choose_address(address);
+                }
+            }
+        });
+    });
+    if response.should_close() {
+        app.choose_address(crate::i18n::Address::Formal);
+    }
 }
 
 fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {

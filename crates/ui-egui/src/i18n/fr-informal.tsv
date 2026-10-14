@@ -1,0 +1,164 @@
+# fr informal address overrides. Shared labels use fr.tsv; same TSV format and project license.
+	Current page — type a page number or label (such as iv) and press Enter	Page actuelle — saisis un numéro ou une étiquette de page (comme iv) et appuie sur Entrée
+	Get help, share feedback and follow development on Discord.	Obtiens de l'aide, partage tes retours et suis le développement sur Discord.
+	Files you open in PdfCraft appear here. Drop a PDF anywhere to open it.	Les fichiers que tu ouvres dans PdfCraft apparaissent ici. Dépose un PDF n'importe où pour l'ouvrir.
+	PdfCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider.	PdfCraft fonctionne hors ligne. Pas de télémétrie, pas de compte, et aucun traitement dans le cloud sauf si tu ajoutes un fournisseur.
+	Bring your own model (off by default)	Apporte ton propre modèle (désactivé par défaut)
+	open to see what it will include	ouvre pour voir ce qu'il comprendra
+	Optional: needs an AI provider you configure	Facultatif : nécessite un fournisseur d'IA que tu configures
+	Try the form as people filling it in will see it	Essaie le formulaire tel que le verront les personnes qui le remplissent
+	Your changes will be lost if you don't save them.	Tes modifications seront perdues si tu ne les enregistres pas.
+	“{name}” is protected. Enter a password to open it.	«{name}» est protégé. Saisis un mot de passe pour l'ouvrir.
+	Incorrect password. Try again.	Mot de passe incorrect. Réessaie.
+	Verify to see what the document needs.	Vérifie pour voir ce dont le document a besoin.
+	This certificate is in your list of trusted certificates.	Ce certificat figure dans ta liste de certificats approuvés.
+	This field is locked. Unlock it to change its properties.	Ce champ est verrouillé. Déverrouille-le pour modifier ses propriétés.
+	Add the choices people pick from.	Ajoute les choix proposés.
+	Field names with + - * / and parentheses; put \\ before spaces in names.	Noms de champs avec + - * / et parenthèses ; place \\ devant les espaces dans les noms.
+	No openly licensed document fonts found. Load a font file.	Aucune police sous licence libre trouvée. Charge un fichier de police.
+	Click on the page to add text; each click starts a new box, and ✓ finishes. Drag items to move them, drag a corner to resize, double-click text to edit it.	Clique sur la page pour ajouter du texte ; chaque clic commence une nouvelle zone, et ✓ termine. Fais glisser les éléments pour les déplacer, fais glisser un coin pour les redimensionner, double-clique sur le texte pour le modifier.
+	You have version {c}. Download the new version from its release page.	Tu as la version {c}. Télécharge la nouvelle version depuis sa page de publication.
+	You have version {c}. All releases are listed at {page}.	Tu as la version {c}. Toutes les versions sont listées sur {page}.
+	Type the web address.	Saisis l'adresse web.
+	Choose the digital ID that you want to use for signing:	Choisis l'ID numérique à utiliser pour signer :
+	Add the steps this action runs, in order.	Ajoute les étapes que cette action exécute, dans l'ordre.
+	Open the older version first	Ouvre d'abord la version la plus ancienne
+	Compare this file with an older version: Compare files… in All tools.	Compare ce fichier avec une version antérieure : Comparer des fichiers… dans Tous les outils.
+	Describe the figure	Décris la figure
+	Security settings must allow assistive technology to read the content ("Enable text access for screen reader devices"). Change the document's security to allow it.	Les paramètres de protection doivent permettre aux technologies d'assistance de lire le contenu (« Activer l'accès au texte pour les lecteurs d'écran »). Modifie la protection du document pour l'autoriser.
+	Pages that are only pictures of text can't be read aloud or searched. Recognize text (OCR) to add a text layer.	Les pages qui ne sont que des images de texte ne peuvent pas être lues à voix haute ni recherchées. Reconnais le texte (OCR) pour ajouter une couche de texte.
+	Tags give the document a logical structure that assistive technology follows. Tag the document (Automatically tag PDF).	Les balises donnent au document une structure logique que suivent les technologies d'assistance. Balise le document (Baliser le PDF automatiquement).
+	Check that the tags read in the order a sighted reader would. Use the Reading Order tool or the Tags panel to correct it.	Vérifie que les balises se lisent dans l'ordre qu'adopterait un lecteur voyant. Utilise l'outil Ordre de lecture ou le panneau Balises pour le corriger.
+	Screen readers choose their voice from the document's language. Set it in Document Properties > Advanced > Language.	Les lecteurs d'écran choisissent leur voix d'après la langue du document. Définis-la dans Propriétés du document > Avancé > Langue.
+	The window should show a meaningful title rather than the file name. Set a title and Initial View > Show: Document Title.	La fenêtre doit afficher un titre explicite plutôt que le nom du fichier. Définis un titre et Affichage initial > Afficher : Titre du document.
+	Documents of more than 20 pages need bookmarks for navigation. Add bookmarks for the main sections.	Les documents de plus de 20 pages ont besoin de signets pour la navigation. Ajoute des signets pour les sections principales.
+	Text must contrast enough with its background for people with low vision. Check the colours by eye or with a contrast tool.	Le texte doit suffisamment contraster avec son arrière-plan pour les personnes malvoyantes. Vérifie les couleurs à l'œil ou avec un outil de contraste.
+	Everything on a page must be tagged or marked as an artifact (decoration, headers, footers). Tag the untagged content.	Tout ce qui figure sur une page doit être balisé ou marqué comme artéfact (décoration, en-têtes, pieds de page). Balise le contenu non balisé.
+	Comments, links and fields must be in the tag tree to be announced. Tag the annotations.	Les commentaires, liens et champs doivent figurer dans l'arbre des balises pour être annoncés. Balise les annotations.
+	Fonts must map their characters to Unicode so text can be read and copied. Fix the fonts or recreate the PDF.	Les polices doivent associer leurs caractères à Unicode pour que le texte puisse être lu et copié. Corrige les polices ou recrée le PDF.
+	Video, sound and rich media must be tagged to be announced. Tag the multimedia annotations.	La vidéo, le son et le média enrichi doivent être balisés pour être annoncés. Balise les annotations multimédias.
+	Animation that flashes can cause seizures. Check scripts and media for flicker.	Une animation qui clignote peut provoquer des crises. Vérifie les scripts et les médias pour le scintillement.
+	People may need more time to respond. Check that nothing has a time limit.	Certaines personnes ont besoin de plus de temps pour répondre. Vérifie que rien n'a de limite de temps.
+	Repeated navigation links should be skippable. Check links that appear on every page.	Les liens de navigation répétés doivent pouvoir être ignorés. Vérifie les liens présents sur chaque page.
+	Form fields must be in the tag tree (Form tags) to be announced. Tag the form fields.	Les champs de formulaire doivent figurer dans l'arbre des balises (balises Form) pour être annoncés. Balise les champs de formulaire.
+	Each field needs a tooltip that says what to enter. Add one in Field Properties > General > Tooltip.	Chaque champ a besoin d'une info-bulle indiquant quoi saisir. Ajoutes-en une dans Propriétés du champ > Général > Info-bulle.
+	Pictures need alternate text that describes them, or must be marked decorative. Add alternate text to each figure.	Les images ont besoin d'un texte de remplacement qui les décrit, ou doivent être marquées comme décoratives. Ajoute un texte de remplacement à chaque figure.
+	Alternate text inside an element that already has alternate text is never read. Remove the inner alternate text.	Un texte de remplacement à l'intérieur d'un élément qui en a déjà un n'est jamais lu. Retire le texte de remplacement intérieur.
+	Alternate text on an element without page content is never reached. Remove it or attach the element to content.	Le texte de remplacement d'un élément sans contenu de page n'est jamais atteint. Retire-le ou rattache l'élément à du contenu.
+	Alternate text on an element that contains a link or field hides that annotation from assistive technology. Move the alternate text.	Le texte de remplacement d'un élément qui contient un lien ou un champ masque cette annotation aux technologies d'assistance. Déplace le texte de remplacement.
+	Formulas and similar non-text elements need alternate text. Add alternate text to them.	Les formules et les éléments similaires qui ne sont pas du texte ont besoin d'un texte de remplacement. Ajoute-leur un texte de remplacement.
+	Table cells belong in a row. Fix the table's tags.	Les cellules d'un tableau appartiennent à une ligne. Corrige les balises du tableau.
+	Header cells (TH) tell listeners what each column or row holds. Mark the header cells.	Les cellules d'en-tête (TH) indiquent ce que contient chaque colonne ou ligne. Marque les cellules d'en-tête.
+	Irregular tables confuse cell navigation. Give every row the same number of cells (counting spans).	Les tableaux irréguliers compliquent la navigation entre les cellules. Donne à chaque ligne le même nombre de cellules (en comptant les fusions).
+	A summary describes the table's purpose and layout. Add a Summary attribute to each table.	Un résumé décrit l'objet et la disposition du tableau. Ajoute un attribut Summary à chaque tableau.
+	List items belong in a list. Fix the list's tags.	Les éléments de liste appartiennent à une liste. Corrige les balises de la liste.
+	List labels and bodies belong in a list item. Fix the list's tags.	Les étiquettes et les corps de liste appartiennent à un élément de liste. Corrige les balises de la liste.
+	Heading levels shouldn't skip (an H1 followed by an H3). Retag the headings.	Les niveaux de titre ne doivent pas être sautés (un H1 suivi d'un H3). Rebalise les titres.
+	Text in images isn't found; recognise text (OCR) first.	Le texte dans les images n'est pas trouvé ; reconnais d'abord le texte (OCR).
+	You are about to apply 1 redaction mark. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Tu vas appliquer 1 marque de biffure. Le texte, les images et les dessins sous les marques, ainsi que les commentaires et champs de formulaire qui les chevauchent, sont supprimés définitivement.
+	You are about to apply {n} redaction marks. Text, images and drawings under the marks, and comments and form fields that overlap them, are removed permanently.	Tu vas appliquer {n} marques de biffure. Le texte, les images et les dessins sous les marques, ainsi que les commentaires et champs de formulaire qui les chevauchent, sont supprimés définitivement.
+	Save the document afterwards: saving rewrites the whole file so no trace of the removed content stays in it.	Enregistre ensuite le document : l'enregistrement réécrit tout le fichier afin qu'il ne reste aucune trace du contenu retiré.
+	Select the items to remove from this document.	Sélectionne les éléments à retirer de ce document.
+	Save the document afterwards; saving rewrites the whole file so nothing removed stays in it.	Enregistre ensuite le document ; l'enregistrement réécrit tout le fichier afin que rien de retiré n'y reste.
+	Removed 1 hidden item. Save to remove them from the file.	1 élément masqué retiré. Enregistre pour le supprimer du fichier.
+	Removed {n} hidden items. Save to remove them from the file.	{n} éléments masqués retirés. Enregistre pour les supprimer du fichier.
+	Document sanitized. Save to finish: saving rewrites the whole file.	Document assaini. Enregistre pour terminer : l'enregistrement réécrit tout le fichier.
+	Applied 1 redaction mark. Save to remove the content from the file.	1 marque de biffure appliquée. Enregistre pour supprimer le contenu du fichier.
+	Applied {n} redaction marks. Save to remove the content from the file.	{n} marques de biffure appliquées. Enregistre pour supprimer le contenu du fichier.
+	Text recognition isn't installed: its model files are missing. Reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them.	La reconnaissance de texte n'est pas installée : ses fichiers de modèles sont absents. Réinstalle PdfCraft, ou définis PDFCRAFT_MODELS sur le dossier qui les contient.
+	Planned for milestone {m} — open to see what it will include	Prévu pour le jalon {m} — ouvre pour voir ce qu'il comprendra
+	Sign Here	Signe ici
+	Choose a stamp, then click on the page to place it.	Choisis un tampon, puis clique sur la page pour le placer.
+	Pick a tool in the quick bar, or type above.	Choisis un outil dans la barre rapide, ou saisis du texte ci-dessus.
+	{kind} — click to show it on the page	{kind} — clique pour l'afficher sur la page
+	Type a password.	Saisis un mot de passe.
+	Choose a layout:	Choisis une disposition :
+	Before each selected page (select pages in Organize)	Avant chaque page sélectionnée (sélectionne des pages dans Organiser)
+	On the web, open or drop an image to convert it	Sur le web, ouvre ou dépose une image pour la convertir
+	The form asks to be submitted to {u}; PdfCraft doesn't send form data. Save the document to keep your entries.	Le formulaire demande un envoi vers {u} ; PdfCraft n'envoie pas les données de formulaire. Enregistre le document pour conserver tes saisies.
+	{name} submits the form to {url}; PdfCraft doesn't send form data. Save the document to keep your entries.	{name} envoie le formulaire vers {url} ; PdfCraft n'envoie pas les données de formulaire. Enregistre le document pour conserver tes saisies.
+	Choose a folder for the exported files	Choisis un dossier pour les fichiers exportés
+	Choose a folder for the results	Choisis un dossier pour les résultats
+	The document now conforms to {level}; save it to keep the changes	Le document est maintenant conforme à {level} ; enregistre-le pour conserver les modifications
+	Choose a folder for the searchable files	Choisis un dossier pour les fichiers recherchables
+	Files are combined in this order. Leave Pages empty to take every page.	Les fichiers sont combinés dans cet ordre. Laisse Pages vide pour prendre toutes les pages.
+	Add at least two files	Ajoute au moins deux fichiers
+	Select data files to merge	Sélectionne les fichiers de données à fusionner
+	Choose a folder for the extracted pages	Choisis un dossier pour les pages extraites
+	Choose a folder for the split files	Choisis un dossier pour les fichiers fractionnés
+	Portable mode is off: {folder} can't be written ({error}). Settings are kept in your user folder instead.	Le mode portable est désactivé : impossible d'écrire dans {folder} ({error}). Les réglages sont conservés dans ton dossier utilisateur.
+	A document needs at least one page: copy instead	Un document doit contenir au moins une page : copie plutôt
+	Copy or cut pages first	Copie ou coupe d'abord des pages
+	That didn't work: an internal error stopped it ({m}). Your documents are unchanged.	Cela n'a pas fonctionné : une erreur interne l'a interrompu ({m}). Tes documents sont inchangés.
+	There are no redaction marks (mark text, areas or pages first)	Il n'y a aucune marque de biffure (marque d'abord du texte, des zones ou des pages)
+	“{name}” has security restrictions. Enter its permissions password to lift them.	«{name}» comporte des restrictions de sécurité. Saisis son mot de passe d'autorisations pour les lever.
+	Open a document first	Ouvre d'abord un document
+	Click text or an image to edit it	Clique sur un texte ou une image pour le modifier
+	Drag a rectangle to create a link; double-click a link to edit it	Fais glisser un rectangle pour créer un lien ; double-clique sur un lien pour le modifier
+	Click on the page to add a {tool}, or drag to set its size	Clique sur la page pour ajouter un {tool}, ou fais glisser pour définir sa taille
+	Drag a rectangle on a page to crop it; double-click a page for Set Page Boxes	Fais glisser un rectangle sur une page pour la rogner ; double-clique sur une page pour Définir les zones de page
+	What word or phrase would you like to search for?	Quel mot ou quelle expression veux-tu rechercher ?
+	This is a dynamic XFA form, which PdfCraft can't display yet. What you see is the file's placeholder page.	Ceci est un formulaire XFA dynamique, que PdfCraft ne peut pas encore afficher. Ce que tu vois est la page de substitution du fichier.
+	This form also contains XFA data, which PdfCraft doesn't read yet. You can fill its fields, but Acrobat may show the XFA values instead.	Ce formulaire contient aussi des données XFA, que PdfCraft ne lit pas encore. Tu peux remplir ses champs, mais Acrobat peut afficher les valeurs XFA à la place.
+	Tab order: move a field with its arrows.	Ordre de tabulation : déplace un champ avec ses flèches.
+	this document is signed: rewriting it would invalidate its signatures (save it incrementally instead)	ce document est signé : le réécrire invaliderait ses signatures (enregistre-le de façon incrémentale)
+	the text recognition models are not installed (reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them)	les modèles de reconnaissance de texte ne sont pas installés (réinstalle PdfCraft, ou définis PDFCRAFT_MODELS sur le dossier qui les contient)
+	Select a file for the stamp	Sélectionne un fichier pour le tampon
+	Embedded files must be PDF/A files themselves (use PDF/A-3 for others)	Les fichiers incorporés doivent eux-mêmes être des fichiers PDF/A (utilise PDF/A-3 pour les autres)
+	Type your {what}.	Saisis : {what}.
+	Draw your {what} below.	Dessine ci-dessous : {what}.
+	Your name	Ton nom
+	Open a PDF to measure it.	Ouvre un PDF pour le mesurer.
+	Click vertices. Enter or double-click finishes a perimeter or area. Click the first point to close an area.	Clique sur les sommets. Entrée ou un double-clic termine un périmètre ou une aire. Clique sur le premier point pour fermer une aire.
+	Click the first point to begin.	Clique sur le premier point pour commencer.
+	Scripts run in a sandbox without file or network access. A script that asks to open a web page needs your permission first. With JavaScript off, Acrobat's standard format, validate and calculate functions still work.	Les scripts s'exécutent dans un bac à sable, sans accès aux fichiers ni au réseau. Un script qui demande d'ouvrir une page web a d'abord besoin de ton autorisation. Si JavaScript est désactivé, les fonctions standard de format, de validation et de calcul d'Acrobat continuent de fonctionner.
+	{who} in this document wants to open this address in your browser:	{who} dans ce document veut ouvrir cette adresse dans ton navigateur :
+	{who} in this document wants to open your email app with this address:	{who} dans ce document veut ouvrir ton application de courrier avec cette adresse :
+	This form's scripts are turned off because one ran too long. Reopen the document to run them again.	Les scripts de ce formulaire sont désactivés, car l'un d'eux s'est exécuté trop longtemps. Rouvre le document pour les exécuter à nouveau.
+	XFA form: its fields and its XFA data are kept in step, so other viewers show what you fill in.	Formulaire XFA : ses champs et ses données XFA restent synchronisés, afin que les autres visionneuses affichent ce que tu remplis.
+	Switch to two-page view first to show the cover page	Passe d'abord à l'affichage sur deux pages pour montrer la couverture
+	This file changed on disk. Reload it to see the new version; your unsaved changes will be lost.	Ce fichier a été modifié sur le disque. Recharge-le pour voir la nouvelle version ; tes modifications non enregistrées seront perdues.
+	None of those files can be made into a PDF; use PDFs, images or .txt files	Aucun de ces fichiers ne peut être converti en PDF ; utilise des PDF, des images ou des fichiers .txt
+	1 file needs attention	1 fichier demande ton attention
+	Add the files to combine	Ajoute les fichiers à combiner
+	Check the pages of {name}: {why}	Vérifie les pages de {name} : {why}
+	Drop PDFs, images, text files or folders here, or choose them.	Dépose ici des PDF, des images, des fichiers texte ou des dossiers, ou choisis-les.
+	Enter the password that opens it	Saisis le mot de passe qui l'ouvre
+	Enter the permissions password to allow combining	Saisis le mot de passe des autorisations pour permettre de le combiner
+	Files are combined from top to bottom. Leave Pages empty to take every page.	Les fichiers sont combinés de haut en bas. Laisse Pages vide pour prendre toutes les pages.
+	Opened, but its security settings don't allow combining. Enter the permissions password.	Ouvert, mais ses paramètres de sécurité n'autorisent pas la combinaison. Saisis le mot de passe des autorisations.
+	Select a file first	Sélectionne d'abord un fichier
+	Select a password-protected file first	Sélectionne d'abord un fichier protégé par mot de passe
+	{n} files need attention	{n} fichiers demandent ton attention
+	Choose a PNG or JPEG image (up to 4 MiB). Transparency is preserved.	Choisis une image PNG ou JPEG (jusqu’à 4 Mio). La transparence est conservée.
+	Pin a folder to list its newest PDFs here, such as where your scanner or a synced cloud drive saves them.	Épingle un dossier pour afficher ici ses PDF les plus récents, par exemple celui où ton scanner ou un stockage cloud synchronisé les enregistre.
+	Choose a folder on this computer to pin	Choisis un dossier de cet ordinateur à épingler
+	You can pin up to {n} folders. Unpin one first.	Tu peux épingler jusqu'à {n} dossiers. Désépingles-en un d'abord.
+	The PDF text fonts can't draw “{c}” ({code}). Choose supported text.	Les polices de texte PDF ne peuvent pas afficher « {c} » ({code}). Choisis un texte pris en charge.
+	yyyy or yy year · m or mm month · mmm or mmmm month name · d or dd day · ddd or dddd weekday. H, h, M, s and t are time letters and can't be used on their own: put {escape} before a letter to show it as is.	yyyy ou yy année · m ou mm mois · mmm ou mmmm nom du mois · d ou dd jour · ddd ou dddd jour de la semaine. H, h, M, s et t sont des lettres d'heure et ne peuvent pas être utilisées seules : place {escape} devant une lettre pour l'afficher telle quelle.
+	{chars} can't be written into the PDF yet: Fill & Sign text is Western European only. Pick a numeric format such as dd.mm.yyyy.	{chars} ne peut pas encore être écrit dans le PDF : le texte de Remplir et signer est limité aux caractères d'Europe occidentale. Choisis un format numérique comme dd.mm.yyyy.
+	Another file dialog is still open. Finish with it first.	Une autre boîte de dialogue de fichier est encore ouverte. Termine d'abord avec celle-ci.
+	Couldn't show the file picker. Please try again.	Impossible d'afficher le sélecteur de fichiers. Réessaie.
+	Only continue if you trust this document. An address can carry information from the document, such as what you typed into its form.	Ne continue que si tu fais confiance à ce document. Une adresse peut transmettre des informations du document, par exemple ce que tu as saisi dans son formulaire.
+	Print single-sided. Keep the sheets in order, cut at the marks, then stack the piles left to right, top to bottom.	Imprime en recto seul. Garde les feuilles dans l'ordre, découpe aux repères, puis empile les piles de gauche à droite et de haut en bas.
+	Scripted content must be usable with a keyboard and assistive technology. Check the document's scripts.	Le contenu scripté doit être utilisable au clavier et avec les technologies d'assistance. Vérifie les scripts du document.
+	Table rows belong directly in a table or its head, body or foot. Fix the table's tags.	Les lignes de tableau doivent se trouver directement dans un tableau ou dans son en-tête, son corps ou son pied. Corrige les balises du tableau.
+	The document changed while you were choosing a file, so nothing was changed.	Le document a changé pendant que tu choisissais un fichier, donc rien n'a été modifié.
+	The pages were extracted but not deleted, because the document changed while you were choosing a folder.	Les pages ont été extraites mais pas supprimées, car le document a changé pendant que tu choisissais un dossier.
+	Shift- or Ctrl/Command-click to select several fields.	Clique avec Maj ou Ctrl/Commande pour sélectionner plusieurs champs.
+	To change locked fields, also set Locked to No.	Pour modifier les champs verrouillés, règle aussi « Verrouillé » sur « Non ».
+	The document changed while you were editing field properties.	Le document a changé pendant que tu modifiais les propriétés des champs.
+	The selected fields could not be found. Select them again.	Les champs sélectionnés sont introuvables. Sélectionne-les de nouveau.
+	Select at most 1000 objects at a time.	Sélectionne au maximum 1000 objets à la fois.
+	Finish or discard the text being edited before selecting several objects.	Termine ou abandonne la modification du texte avant de sélectionner plusieurs objets.
+	These objects could not be moved. Select them again and try a smaller move.	Ces objets n’ont pas pu être déplacés. Sélectionne-les à nouveau et essaie un déplacement plus petit.
+	Check the pages	Vérifie les pages
+	Switch to List view to change the pages it takes.	Passe à la vue en liste pour modifier les pages prises.
+	Printer paper and scaling may differ. Check driver settings.	Le papier et l’échelle de l’imprimante peuvent différer. Vérifie les réglages du pilote.
+	Drawing scale changes. Use Actual size for full-scale plans.	L’échelle du dessin change. Utilise Taille réelle pour les plans à l’échelle.
+	Drag the corners onto the document's edges, then choose Enhance page.	Fais glisser les coins sur les bords du document, puis choisis Améliorer la page.
+	This printer's driver doesn't take two-sided settings from other programs, so its own setting applies. Change it in Properties…	Le pilote de cette imprimante n'accepte pas les réglages recto verso des autres programmes ; son propre réglage s'applique. Modifie-le dans Propriétés…
+	Save or revert changes before selecting another tag.	Enregistre ou annule les modifications avant de sélectionner une autre balise.
+	Sign a sheet of white paper and take a photo of it in bright, even light (use the flash). Choose the photo or drop it here: PdfCraft finds the signature and removes the paper.	Signe une feuille de papier blanc et prends-la en photo sous une lumière vive et uniforme (utilise le flash). Choisis la photo ou dépose-la ici : PdfCraft trouve la signature et retire le papier.
+	No signature was found in the frame. Move the frame over the signature or raise the ink sensitivity.	Aucune signature trouvée dans le cadre. Place le cadre sur la signature ou augmente la sensibilité à l’encre.
+	The page has changed; select the image again	La page a changé ; sélectionne de nouveau l'image
