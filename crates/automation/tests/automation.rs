@@ -5107,6 +5107,38 @@ fn command_batch_refuses_more_than_a_thousand_steps() {
     assert!(err.to_string().contains("at most 1000 steps"), "{err}");
 }
 
+/// Issue #1759: a tool name or an unknown id given as a command id gets an error that says
+/// what is wrong, not "has no headless tool".
+#[test]
+fn command_ids_that_are_tool_names_or_unknown_say_so() {
+    let dir = workdir("command-id-errors");
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({"path": "a.pdf"}))["doc"].as_u64().unwrap();
+    let message = |a: &mut Automation, id: &str| {
+        let batch = ok(a, "command_batch", json!({"steps": [{"id": id, "params": {"doc": doc, "degrees": 90}}]}));
+        assert_eq!(batch["failed"], 1, "{batch}");
+        let from_batch = batch["results"][0]["error"].as_str().unwrap().to_owned();
+        assert_eq!(err(a, "command_run", json!({"id": id})).to_string(), from_batch);
+        from_batch
+    };
+    // A tool with a command: name the command id to use instead.
+    let m = message(&mut a, "page_rotate");
+    assert!(m.contains("is a tool name") && m.contains("\"page.rotate\"") && !m.contains("has no headless tool"), "{m}");
+    // A tool without a command: call it as a tool.
+    let bare = tools().into_iter().find(|t| t.command.is_none()).expect("a tool without a command").name;
+    let m = message(&mut a, bare);
+    assert!(m.contains("is a tool name") && m.contains("no command id") && !m.contains("has no headless tool"), "{m}");
+    // Neither a command nor a tool.
+    let m = message(&mut a, "no.such.command");
+    assert!(m.contains("unknown command id") && !m.contains("has no headless tool"), "{m}");
+    // A real command without a headless tool keeps its message.
+    let m = message(&mut a, "file.open_recent");
+    assert!(m.contains("has no headless tool"), "{m}");
+    // A real command still runs.
+    let rotated = ok(&mut a, "command_batch", json!({"steps": [{"id": "page.rotate", "params": {"doc": doc, "degrees": 90}}]}));
+    assert_eq!(rotated["completed"], 1, "{rotated}");
+}
+
 #[test]
 fn thai_text_through_tools_saves_reopens_extracts_and_renders() {
     let dir = workdir("thai-content");

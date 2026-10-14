@@ -2,15 +2,32 @@
 use serde_json::{Value, json};
 
 use crate::{Args, Automation, Content, Result, ToolError, encode_png, failed, info, tools};
+use pdfcraft_engine::commands;
 use pdfcraft_render::{RenderRequest, RequestKind};
 
 /// The most steps one `command_batch` runs.
 pub(crate) const MAX_BATCH_STEPS: usize = 1000;
 
+/// The tool behind command `id`, or an error that says why there is none: a command without a
+/// headless tool, a tool name given where a command id belongs (#1759), or an unknown id.
+fn command_tool(id: &str) -> Result<&'static str> {
+    if let Some(tool) = tools::tool_for_command(id) {
+        return Ok(tool);
+    }
+    if commands::COMMANDS.iter().any(|c| c.id == id) {
+        return Err(failed(format!("command {id:?} has no headless tool; see command_list")));
+    }
+    Err(failed(match tools::find(id).map(|def| def.command) {
+        Some(Some(command)) => format!("{id:?} is a tool name, not a command id; use command id {command:?} or call the {id} tool directly"),
+        Some(None) => format!("{id:?} is a tool name and has no command id; call the {id} tool directly"),
+        None => format!("unknown command id {id:?}; see command_list for ids such as \"page.rotate\""),
+    }))
+}
+
 impl Automation {
     pub(crate) fn command_run(&mut self, args: &Args) -> Result<Vec<Content>> {
         let id = args.str("id")?;
-        let tool = tools::tool_for_command(id).ok_or_else(|| failed(format!("command {id:?} has no headless tool; see command_list")))?;
+        let tool = command_tool(id)?;
         let def = tools::find(tool).ok_or_else(|| failed("command tool is unavailable"))?;
         let mut params = match args.get("params") {
             None | Some(Value::Null) => serde_json::Map::new(),
