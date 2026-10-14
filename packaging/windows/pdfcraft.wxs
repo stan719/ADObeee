@@ -2,7 +2,7 @@
 <!--
   PdfCraft MSI (WiX Toolset v5: `dotnet tool install -g wix`). Built by package.ps1:
 
-    wix build pdfcraft.wxs installer-ui.wxs -arch x64 -d Version=1.2.3 -d BinDir=... -d ModelsDir=... -d IconPath=... -o out.msi
+    wix build pdfcraft.wxs installer-ui.wxs -arch x64 -d Version=1.2.3 -d BinDir=... -d ModelsDir=... -d FontLicencesDir=... -d IconPath=... -o out.msi
 
   Per-machine install into Program Files, a Start Menu shortcut, a desktop shortcut (on by default,
   optional, and an update keeps it only if it is still there), an App Paths entry, PdfCraft registered as a PDF handler (offered under "Open with"
@@ -59,6 +59,7 @@
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="PdfCraft">
         <Directory Id="ModelsFolder" Name="models" />
+        <Directory Id="LicencesFolder" Name="licences" />
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
@@ -67,6 +68,7 @@
     <Feature Id="Main" Title="PdfCraft" Level="1">
       <ComponentGroupRef Id="PdfcraftFiles" />
       <ComponentGroupRef Id="PdfcraftModels" />
+      <ComponentGroupRef Id="PdfcraftFontLicences" />
     </Feature>
   </Package>
 
@@ -188,6 +190,14 @@
          component each, so new models ship without naming them here. -->
     <ComponentGroup Id="PdfcraftModels" Directory="ModelsFolder">
       <Files Include="$(var.ModelsDir)\*" />
+    </ComponentGroup>
+
+    <!-- The licence file of each craft-fonts font pdfcraft.exe embeds (OFL-<font>.txt,
+         NOTICE-<font>.txt for Apache-2.0) and FONTS.txt, in licences\ beside pdfcraft.exe: every
+         file package.ps1 staged (font-licences.ps1), one component each, so a font added to
+         craft-fonts ships its licence without naming it here. -->
+    <ComponentGroup Id="PdfcraftFontLicences" Directory="LicencesFolder">
+      <Files Include="$(var.FontLicencesDir)\*" />
     </ComponentGroup>
   </Fragment>
 </Wix>

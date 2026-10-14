@@ -21,3 +21,16 @@ jobs:
   lint:
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/packaging-lint.yml@main
+
+  # PdfCraft's own packaging tests, beside the shared lint: every package must ship each
+  # craft-fonts font's licence file from the manifest (packaging/env.sh,
+  # packaging/windows/font-licences.ps1).
+  font-licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Font licences in packages
+        run: bash packaging/tests/font-licences.sh
+      - name: Font licences in Windows packages
+        shell: pwsh
+        run: ./packaging/tests/font-licences.ps1

@@ -68,15 +68,42 @@ copy_docs() {
 }
 
 # Builds made with the optional craft-fonts input (CRAFT_FONTS_DIR, set for every release) embed
-# its fonts, so the package carries their licences: fonts/<family>/OFL.txt -> OFL-<family>.txt.
+# its fonts, so the package carries their licences: the `licence file` field (6th) of each line of
+# fonts/manifest.txt, named after its directory: fonts/<dir>/OFL.txt -> OFL-<dir>.txt (OFL fonts),
+# fonts/droid-sans-fallback/NOTICE -> NOTICE-droid-sans-fallback.txt (Apache-2.0 notice and text).
+# A licence that can't be copied fails a release build (CRAFT_FONTS_REQUIRED set, as for build.rs)
+# and is a warning otherwise. packaging/tests/font-licences.sh tests this function.
 copy_font_licences() {
-  local dest="$1" f family
+  local dest="$1" manifest rel src base
   [ -n "${CRAFT_FONTS_DIR:-}" ] || return 0
-  for f in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
-    [ -f "$f" ] || continue
-    family="$(basename "$(dirname "$f")")"
-    cp "$f" "$dest/OFL-$family.txt"
-  done
+  manifest="$CRAFT_FONTS_DIR/fonts/manifest.txt"
+  if [ ! -f "$manifest" ]; then
+    font_licence_problem "CRAFT_FONTS_DIR=$CRAFT_FONTS_DIR has no fonts/manifest.txt; no font licences copied"
+    return
+  fi
+  awk -F ' [|] ' '$0 !~ /^[[:space:]]*(#|$)/ && NF >= 6 { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6 }' "$manifest" \
+    | sort -u | while IFS= read -r rel; do
+      case "$rel" in /* | *..*)
+        font_licence_problem "font licence path $rel leaves the checkout; skipped" || exit 1
+        continue
+        ;;
+      esac
+      src="$CRAFT_FONTS_DIR/$rel"
+      if [ ! -f "$src" ]; then
+        font_licence_problem "font licence $rel is listed in the craft-fonts manifest but missing" || exit 1
+        continue
+      fi
+      base="$(basename "$rel")"
+      cp "$src" "$dest/${base%.*}-$(basename "$(dirname "$rel")").txt"
+    done
+}
+
+font_licence_problem() {
+  if [ "${CRAFT_FONTS_REQUIRED+set}" = set ]; then
+    echo "error: $* (CRAFT_FONTS_REQUIRED is set)" >&2
+    return 1
+  fi
+  warn "$*"
 }
 
 # Fetch the OCR models into a package directory (#103): `cargo xtask models DEST` downloads every

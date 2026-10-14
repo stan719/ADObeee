@@ -28,7 +28,7 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 | Language | Code | UI strings translated | Dialogs / tooltips / help | Script support | Native review | Status | Acrobat ships it | To `full` (h) |
 |---|---|---|---|---|---|---|---|---|
 | English | `en` | built in (100%) | all; README and docs | Latin | yes | **full** | yes | 0 |
-| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work, but **release builds have no Hans face**: many characters show as boxes (#826, #688, #728, #758; Flatpak #689) | no | partial | yes | 6–12 |
+| Simplified Chinese | `zh-hans` | 2,088 (97.4%) | dialogs and tooltips through `tl!`; no help | CJK text and IME work; the interface is drawn with craft-fonts' Droid Sans Fallback (`Hans`, `Hant`; #879, which fixes the boxes of #499, #688, #728, #758), and a desktop build without it (Flatpak from source, #689) uses an installed Chinese font (#925, #826); Chinese is not yet written into PDFs | no | partial | yes | 6–12 |
 | Spanish | `es` | 2,046 (95.5%) | dialogs and tooltips; no help | Latin | no | partial | yes | 2–4 |
 | Hindi | `hi` | 0 | none | Devanagari not tested (egui shapes Telugu conjuncts, so shaping is likely workable); no Devanagari face in craft-fonts | no | none | no | 10–18 |
 | Arabic | `ar` | 2,143 (100%) | dialogs and tooltips; no help | Letters joined and lines reordered at load, but **layout not mirrored**, wrapped lines break at the wrong end, typed text runs left to right (`localization.md` §Arabic) | no | partial | yes (Middle East edition) | 25–45 |
@@ -37,7 +37,7 @@ add a language: [localization.md](localization.md). Summary in [ROADMAP.md](../R
 | Indonesian | `id` | 0 | none | Latin | no | none | no | 3–5 |
 | Japanese | `ja` | 2,123 (99.1%) | dialogs and tooltips; no help | BIZ UDPGothic from craft-fonts; IME patched on macOS, Windows, X11, Wayland; vertical text renders but can't be edited | no | partial | yes | 4–8 |
 | German | `de` | 2,128 (99.3%) | dialogs and tooltips; no help | Latin | community, in progress (#828: terminology, clipping) | partial | yes | 2–4 |
-| Korean | `ko` | 0 | none | Hangul IME patched (Microsoft and Apple Korean, `vendor/README.md` winit 3, 6, 9, 10); no Hangul UI face in craft-fonts | no | none | yes | 6–10 |
+| Korean | `ko` | 0 | none | Hangul IME patched (Microsoft and Apple Korean, `vendor/README.md` winit 3, 6, 9, 10); NanumGothic from the pinned craft-fonts input draws Hangul names on desktop and web; this does not add a Korean interface translation | no | none | yes | 6–10 |
 | Vietnamese | `vi` | 0 | none | Latin with stacked diacritics; bundled Inter covers them (not tested) | no | none | no | 3–5 |
 
 **Localization dimension ≈ 59%**: the mean over the twelve, counting a catalog's percentage but only
@@ -52,7 +52,7 @@ none has translated help.
 
 | Language | Code | UI strings translated | Status | Acrobat ships it |
 |---|---|---|---|---|
-| Traditional Chinese | `zh-hant` | 2,016 (94.1%) | partial (same Hans/Hant face caveat) | yes |
+| Traditional Chinese | `zh-hant` | 2,016 (94.1%) | partial (same face, Chinese-first for `zh-hant`; #879) | yes |
 | Russian | `ru` | 2,043 (95.3%) | partial | yes |
 | Bulgarian | `bg` | 2,094 (97.7%) | partial | no |
 | Czech | `cs` | 135 (6.3%) | menus only | yes |
