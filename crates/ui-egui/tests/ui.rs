@@ -1025,6 +1025,15 @@ fn close_named_tab(h: &mut Harness<'static, PdfCraftApp>, name: &str) {
     h.run_steps(3);
 }
 
+fn middle_click_named_tab(h: &mut Harness<'static, PdfCraftApp>, name: &str) {
+    let pos = h.get_by_role_and_label(egui::accesskit::Role::Tab, name).rect().center();
+    h.event(egui::Event::PointerMoved(pos));
+    h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Middle, pressed: true, modifiers: egui::Modifiers::NONE });
+    h.run_steps(1);
+    h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Middle, pressed: false, modifiers: egui::Modifiers::NONE });
+    h.run_steps(3);
+}
+
 #[test]
 fn closing_tabs_keeps_the_selected_document_or_selects_its_neighbor() {
     for removed in [0, 1, 2] {
@@ -1049,6 +1058,26 @@ fn closing_tabs_keeps_the_selected_document_or_selects_its_neighbor() {
             assert!(!doc.dirty);
         }
     }
+}
+
+#[test]
+fn middle_click_closes_clean_tabs_and_prompts_for_unsaved_tabs() {
+    let mut clean = three_tab_harness();
+    let clean_id = clean.state().views[1].id;
+    middle_click_named_tab(&mut clean, "middle.pdf");
+    assert_eq!(clean.state().views.len(), 2);
+    assert!(clean.state().session.get(clean_id).is_none());
+    assert!(clean.state().close_request.is_none());
+
+    let mut dirty = three_tab_harness();
+    let dirty_id = dirty.state().views[1].id;
+    dirty.get_by_label("middle.pdf").click();
+    dirty.run_steps(3);
+    assert!(dirty.state_mut().apply_edit(pdfcraft_engine::Edit::SetInfo { key: "Title".into(), value: "Unsaved title".into() }));
+    dirty.run_steps(3);
+    middle_click_named_tab(&mut dirty, "middle.pdf (edited)");
+    assert_eq!(dirty.state().views.len(), 3);
+    assert_eq!(dirty.state().close_request, Some(pdfcraft_ui_egui::CloseRequest::Tab(dirty_id)));
 }
 
 #[test]

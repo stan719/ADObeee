@@ -126,6 +126,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                             for i in 0..app.views.len() {
                                 let Some(doc) = app.session.get(app.views[i].id) else { continue };
                                 let (name, dirty) = (doc.display_name(), doc.dirty);
+                                let id = app.views[i].id;
                                 // A tab showing the document's title names its file on hover.
                                 let file = (name != doc.name).then_some(doc.name.as_str());
                                 let response = tab(
@@ -150,7 +151,6 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                 if changed && app.active == Some(i) && !app.combine_showing() {
                                     response.scroll_to_me(Some(Align::Center));
                                 }
-                                let id = app.views[i].id;
                                 let reveal = cfg!(not(target_arch = "wasm32")) && doc.path.is_some();
                                 response.context_menu(|ui| {
                                     if ui.button(tl!("Close Tab")).clicked() {
@@ -167,7 +167,9 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         ui.close();
                                     }
                                 });
-                                if response.clicked() {
+                                if response.clicked_by(egui::PointerButton::Middle) {
+                                    action = Some(crate::tab_context::Action::Close(id));
+                                } else if response.clicked() {
                                     app.active = Some(i);
                                 }
                             }
@@ -219,7 +221,9 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                 if changed && app.combine_showing() {
                                     response.scroll_to_me(Some(Align::Center));
                                 }
-                                if response.clicked() {
+                                if response.clicked_by(egui::PointerButton::Middle) {
+                                    app.close_combine_tab();
+                                } else if response.clicked() {
                                     app.open_combine_tab();
                                 }
                                 if close.is_some() {
