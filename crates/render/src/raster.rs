@@ -65,6 +65,9 @@ pub struct RenderConfig {
     /// View ▸ Reading colours: solid text and line-art paints are remapped for readability and
     /// the page clears to the setting's background. Display only; the document never changes.
     pub reading_colors: ReadingColors,
+    /// View ▸ Line weights off (Acrobat's Ctrl+5): every path is stroked one device pixel wide,
+    /// whatever its line width and the zoom. Display only; print previews ignore it.
+    pub thin_lines: bool,
 }
 
 impl RenderConfig {
@@ -73,6 +76,7 @@ impl RenderConfig {
         InterpreterSettings {
             ocg_overrides: self.layers.clone(),
             hide_comments: self.hide_comments,
+            thin_lines: self.thin_lines,
             font_resolver: Arc::new(move |query| japanese_fallback(query).or_else(|| standard(query))),
             ..InterpreterSettings::default()
         }
@@ -167,8 +171,9 @@ pub struct RenderRequest {
 }
 
 /// The tag bit of a print-preview raster. Such requests always render the document's true
-/// colours, ignoring `RenderConfig::reading_colors`: a preview's job is fidelity to the
-/// printout, and the print itself — imposed from the document — is never recoloured.
+/// colours and line widths, ignoring `RenderConfig::reading_colors` and `thin_lines`: a
+/// preview's job is fidelity to the printout, and the print itself — imposed from the
+/// document — is never recoloured or thinned.
 pub const PRINT_TAG: u64 = 1 << 60;
 
 /// The reading colours a request renders with: print previews ([`PRINT_TAG`]) ignore the
@@ -369,6 +374,9 @@ fn render_page<'a>(
         // Previews render at low detail (tiny images are skipped); finals always draw all.
         let mut preview_settings = settings.clone();
         preview_settings.preview = req.preview;
+        if req.tag & PRINT_TAG != 0 {
+            preview_settings.thin_lines = false;
+        }
         render_into(page, cache, &preview_settings, &rs, pixels.bytes_mut());
         Ok((w.into(), h.into(), pixels, None))
     }));
@@ -3073,6 +3081,42 @@ trailer << /Root 1 0 R >>
         let hidden = render(true);
         assert_eq!(px(&hidden, 75, 25), vec![255, 255, 255, 255], "Hide all comments");
         assert_eq!(px(&hidden, 20, 80), vec![255, 0, 0, 255], "fields stay");
+    }
+
+    /// View ▸ Line weights off draws a 20 pt line and the 8 pt edges of a rectangle (`re`, which
+    /// reaches the device as a rect, not a path) one device pixel wide at every zoom; on, and in a
+    /// print preview, they keep their widths. Coverage is the summed darkness across one row.
+    #[test]
+    fn thin_lines_stroke_one_device_pixel_wide_at_every_zoom() {
+        let content = "0 0 0 RG 20 w 50 10 m 50 90 l S 8 w 75 20 15 60 re S";
+        let pdf = Arc::new(
+            format!(
+                "%PDF-1.4\n\
+                 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n\
+                 2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n\
+                 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Contents 4 0 R >> endobj\n\
+                 4 0 obj << /Length {} >> stream\n{content}\nendstream endobj\n\
+                 trailer << /Root 1 0 R >>\n%%EOF",
+                content.len()
+            )
+            .into_bytes(),
+        );
+        // Darkness summed over the row through the middle of the page, between x0 and x1 (points).
+        let coverage = |thin_lines: bool, scale: f32, tag: u64, x0: f32, x1: f32| {
+            let mut r = PageRenderer::new(pdf.clone(), RenderConfig { thin_lines, ..Default::default() });
+            let page = r.render(RenderRequest { page: 0, kind: RequestKind::Pixels, tile: None, scale, tag, preview: false });
+            assert!(page.error.is_none(), "{:?}", page.error);
+            let y = (50.0 * scale) as u32;
+            ((x0 * scale) as u32..(x1 * scale) as u32).map(|x| f32::from(255 - page.rgba[((y * page.width + x) * 4) as usize]) / 255.0).sum::<f32>()
+        };
+        for scale in [1.0, 4.0] {
+            let (line, rect) = (|t, tag| coverage(t, scale, tag, 30.0, 66.0), |t, tag| coverage(t, scale, tag, 66.0, 99.0));
+            assert!((line(false, 0) - 20.0 * scale).abs() < 1.5, "line weights on: {} px", line(false, 0));
+            assert!((rect(false, 0) - 16.0 * scale).abs() < 1.5, "line weights on: {} px", rect(false, 0));
+            assert!((0.5..=1.5).contains(&line(true, 0)), "thin line at {scale}x: {} px", line(true, 0));
+            assert!((1.0..=3.0).contains(&rect(true, 0)), "thin rectangle edges at {scale}x: {} px", rect(true, 0));
+            assert!((line(true, PRINT_TAG) - 20.0 * scale).abs() < 1.5, "print keeps the width: {} px", line(true, PRINT_TAG));
+        }
     }
 
     #[test]

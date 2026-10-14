@@ -2432,6 +2432,21 @@ fn reading_colors_set_and_invalidated() {
 }
 
 #[test]
+fn thin_lines_set_and_reach_the_renderer() {
+    let (mut s, id) = session_with(1);
+    assert_eq!(s.get(id).map(Document::thin_lines), Some(false));
+    let generation = s.get(id).unwrap().generation;
+    assert!(s.set_thin_lines(id, true));
+    assert!(s.get(id).unwrap().thin_lines());
+    assert!(s.get(id).unwrap().config.thin_lines, "the renderer's config");
+    assert!(s.get(id).unwrap().generation > generation, "cached rasters are dropped");
+    assert!(!s.set_thin_lines(id, true), "unchanged");
+    assert!(s.set_thin_lines(id, false), "back to line weights");
+    assert!(!s.get(id).unwrap().thin_lines());
+    assert!(!s.set_thin_lines(DocId(u64::MAX), true), "no such document");
+}
+
+#[test]
 fn signing_saving_trusting_and_commenting_afterwards() {
     let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
     let digital_id = sign::pkcs12::open(&p12, "test").unwrap();

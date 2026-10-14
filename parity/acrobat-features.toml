@@ -1607,11 +1607,11 @@ title = "Show line weights"
 area = "B"
 tier = "P2"
 milestone = "M12"
-status = "planned"
-commands = []
-tools = []
-evidence = []
-notes = ""
+status = "shipped"
+commands = ["view.line_weights"]
+tools = ["view_line_weights"]
+evidence = ["crates/render/src/raster.rs::thin_lines_stroke_one_device_pixel_wide_at_every_zoom", "crates/engine/src/tests.rs::thin_lines_set_and_reach_the_renderer", "crates/automation/tests/automation.rs::line_weights_through_tools"]
+notes = "View ▸ Line weights (⌘5 / Ctrl+5), on by default: off, every path is stroked one device pixel wide whatever its line width and the zoom, in patterns and Type 3 glyphs too. Per document and not remembered, like Hide all comments. Stroked text (render modes 1, 2) keeps its width. Display only: print previews and print keep the real widths (#1828)."
 
 [[feature]]
 id = "view.cursor-coordinates"

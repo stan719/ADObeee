@@ -120,6 +120,10 @@ pub struct InterpreterSettings {
     /// costs a decode and a resample each for pixels nobody can see. Never set it for a final
     /// render (tiles, whole pages, print, export).
     pub preview: bool,
+    /// PdfCraft patch: the viewer's "Line weights" off (Acrobat's View ▸ Display Options): every
+    /// path is stroked one device pixel wide, whatever its line width and the zoom. Display only;
+    /// never set it for print or export.
+    pub thin_lines: bool,
 }
 
 impl Default for InterpreterSettings {
@@ -142,6 +146,7 @@ impl Default for InterpreterSettings {
             ocg_overrides: Arc::new(Vec::new()),
             cancelled: None,
             preview: false,
+            thin_lines: false,
         }
     }
 }

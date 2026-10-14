@@ -5578,6 +5578,40 @@ fn reading_colors_through_tools() {
     assert_eq!(render(&mut a, 1), page1_off);
 }
 
+/// The `view_line_weights` tool changes what `page_render` draws: with line weights off a 20 pt
+/// stroke covers about one pixel of the row it crosses, and back on it renders as before (#1828).
+#[test]
+fn line_weights_through_tools() {
+    let content = "0 0 0 RG 20 w 100 30 m 100 270 l S";
+    let pdf = format!(
+        "%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] /Contents 4 0 R >> endobj\n4 0 obj << /Length {} >> stream\n{content}\nendstream endobj\ntrailer << /Root 1 0 R >>\n%%EOF",
+        content.len()
+    );
+    let dir = std::env::temp_dir().join(format!("pdfcraft-automation-line-weights-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("a.pdf"), pdf).unwrap();
+    let mut a = auto(&dir);
+    let doc = ok(&mut a, "doc_open", json!({ "path": "a.pdf" }))["doc"].as_u64().unwrap();
+    let render = |a: &mut Automation| png_pixels(&a.call("page_render", &json!({ "doc": doc, "page": 1, "dpi": 72 })).unwrap()[0]);
+    // Summed darkness of the row through the middle of the page.
+    let coverage = |px: &[u8]| (0..200u32).map(|x| f32::from(255 - pixel(px, x, 150)[0]) / 255.0).sum::<f32>();
+
+    let weights = render(&mut a);
+    assert!((coverage(&weights) - 20.0).abs() < 1.5, "line weights: {} px", coverage(&weights));
+
+    assert_eq!(ok(&mut a, "view_line_weights", json!({ "doc": doc, "shown": false })), json!({ "shown": false }));
+    let thin = render(&mut a);
+    assert!((0.5..=1.5).contains(&coverage(&thin)), "thin lines: {} px", coverage(&thin));
+
+    let missing = a.call("view_line_weights", &json!({ "doc": doc }));
+    assert!(matches!(&missing, Err(ToolError::InvalidArgs(m)) if m.contains("shown")), "{missing:?}");
+
+    ok(&mut a, "view_line_weights", json!({ "doc": doc, "shown": true }));
+    assert_eq!(render(&mut a), weights);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn private_crops_with_nested_state_resize_save_reopen_through_tools() {
     use pdfcraft_cos::{Dict, Document, Object, Stream, write_incremental};

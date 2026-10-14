@@ -743,6 +743,9 @@ pub fn tools() -> Vec<ToolDef> {
                 }),
                 &["doc", "mode"],
             )),
+        t("view_line_weights", "Show line weights", "Show the document's line weights, or draw every stroke one device pixel wide whatever its width and the zoom (Acrobat's View ▸ Display Options ▸ Line Weights), in page_render. A view setting: the file doesn't change, and print is unaffected.")
+            .cmd("view.line_weights")
+            .with(schema(json!({ "doc": doc(), "shown": { "type": "boolean", "description": "false draws thin lines." } }), &["doc", "shown"])),
         t("comments_summarize", "Summarize comments", "Make a PDF summarising every comment (number, author, type, date, text, replies), sorted by page, author, date or type.")
             .cmd("comment.summarize")
             .with(schema(

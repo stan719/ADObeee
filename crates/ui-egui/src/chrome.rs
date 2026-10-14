@@ -507,6 +507,16 @@ fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.execute(id);
                 }
                 ui.separator();
+                let id = app.views[i].id;
+                let mut weights = !app.session.get(id).is_some_and(|d| d.thin_lines());
+                // The shortcut is right-aligned like a menu button's.
+                let shortcut = egui::RichText::new(crate::commands::command_shortcut_label(&ctx, "view.line_weights")).weak();
+                if ui.add(widgets::checkbox(&mut weights, (tl!("Line weights"), egui::Atom::grow(), shortcut))).changed() {
+                    ui.close();
+                    app.execute("view.line_weights");
+                    return;
+                }
+                ui.separator();
             }
             crate::commands::registry_menu(app, ui, "View");
             ui.menu_button(tl!("Display theme"), |ui| theme_menu(app, ui));

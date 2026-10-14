@@ -131,7 +131,16 @@ pub(crate) fn stroke_path_impl<'a>(
 
     let base_transform = context.get().ctm;
 
-    let stroke_props = context.stroke_props();
+    let mut stroke_props = context.stroke_props();
+    // PdfCraft patch: `InterpreterSettings::thin_lines` strokes one device pixel wide. The CTM
+    // maps to device pixels here, in a pattern cell or a Type 3 glyph too.
+    if context.settings.thin_lines {
+        let c = base_transform.as_coeffs();
+        let scale = c[0].hypot(c[1]).max(c[2].hypot(c[3]));
+        if scale.is_finite() && scale > 0.0 {
+            stroke_props.line_width = (1.0 / scale) as f32;
+        }
+    }
     device.set_soft_mask(context.get().graphics_state.soft_mask.clone());
     device.set_blend_mode(context.get().graphics_state.blend_mode);
     let paint = get_paint(context, true);
