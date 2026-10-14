@@ -267,6 +267,38 @@ fn document_info_edits_round_trip_with_unicode() {
     assert_eq!(info(&doc, "Producer"), None);
 }
 
+/// Custom document properties (Document Properties ▸ Custom): any `/Info` key the spec does not
+/// name, set and cleared like the standard ones, listed apart from them, and with the names
+/// Acrobat refuses refused here too.
+#[test]
+fn custom_document_properties_are_listed_set_removed_and_their_names_checked() {
+    let mut doc = open(fixture());
+    assert!(custom_info(&doc).is_empty());
+    set_info(&mut doc, "Title", "Report").unwrap();
+    set_info(&mut doc, "Project", "Apollo").unwrap();
+    set_info(&mut doc, "Revision", "7").unwrap();
+    let mut listed = custom_info(&doc);
+    listed.sort();
+    assert_eq!(listed, [("Project".to_string(), "Apollo".to_string()), ("Revision".to_string(), "7".to_string())], "standard keys are not custom");
+    assert_eq!(info(&doc, "Project").as_deref(), Some("Apollo"));
+    set_info(&mut doc, "Project", "").unwrap();
+    let doc = save_and_reopen(&doc);
+    assert_eq!(custom_info(&doc), [("Revision".to_string(), "7".to_string())], "cleared, and the rest survives a save");
+    assert_eq!(info(&doc, "Title").as_deref(), Some("Report"));
+
+    for bad in ["", "Title", "ModDate", "Bad Name", "a/b", "tab\tbed", "hash#tag", "(x)"] {
+        assert!(check_custom_key(bad).is_err(), "{bad:?} must be refused");
+    }
+    let long = "x".repeat(MAX_CUSTOM_KEY_LEN + 1);
+    assert!(check_custom_key(&long).is_err());
+    for good in ["Project", "Révision", "部門", "key-2.0", &"y".repeat(MAX_CUSTOM_KEY_LEN)] {
+        assert!(check_custom_key(good).is_ok(), "{good:?} is a usable name");
+    }
+    let mut doc = open(fixture());
+    assert!(set_info(&mut doc, "Bad Name", "x").is_err(), "set_info checks custom names");
+    assert!(custom_info(&doc).is_empty());
+}
+
 /// A one-page document whose catalog has `xmp` as its (Flate-compressed) XMP packet, and the
 /// same title and author in `/Info`, as LibreOffice writes them.
 fn doc_with_xmp(xmp: &[u8]) -> Document {
