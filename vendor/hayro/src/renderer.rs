@@ -1137,8 +1137,10 @@ impl Renderer {
 
                         let scaled_width = bbox.width() as f32 * xs;
                         let scaled_height = bbox.height() as f32 * ys;
-                        let pix_width = x_step.abs().round() as u16;
-                        let pix_height = y_step.abs().round() as u16;
+                        // PdfCraft patch: a /BBox far wider than the step shrinks the scale until the
+                        // cell rounds to 0 pixels, which vello_common cannot index; keep one pixel.
+                        let pix_width = (x_step.abs().round() as u16).max(1);
+                        let pix_height = (y_step.abs().round() as u16).max(1);
 
                         let mut renderer = Self {
                             ctx: RenderContext::new_with(
