@@ -1,12 +1,17 @@
-//! Who draws the window frame on Linux.
+//! Who draws the window frame.
 //!
-//! Wayland compositors that draw frames for their clients offer `zxdg_decoration_manager_v1`
-//! (KDE, Sway, Hyprland, COSMIC). GNOME doesn't: it leaves the frame to the app, and winit then
-//! drew an imitation of GNOME's. Without that protocol PdfCraft turns winit's frame off and draws
-//! a header bar like GNOME's own apps (`pdfcraft_ui_egui::window_controls`), with the window
-//! buttons GNOME's `button-layout` names. X11 window managers always draw the frame.
+//! Linux: Wayland compositors that draw frames for their clients offer
+//! `zxdg_decoration_manager_v1` (KDE, Sway, Hyprland, COSMIC). GNOME doesn't: it leaves the frame
+//! to the app, and winit then drew an imitation of GNOME's. Without that protocol PdfCraft turns
+//! winit's frame off and draws a header bar like GNOME's own apps
+//! (`pdfcraft_ui_egui::window_controls`), with the window buttons GNOME's `button-layout` names.
+//! X11 window managers always draw the frame. `PDFCRAFT_TITLEBAR=app` or `=system` overrides the
+//! choice.
 //!
-//! `PDFCRAFT_TITLEBAR=app` or `=system` overrides the choice.
+//! Windows: the app may draw the frame too, with the caption buttons at the strip's right, but
+//! only when Preferences ▸ Use system title bar is turned off; Windows' own title bar is the
+//! default. The saved preference is read from `app.ron` before the window is created, so the
+//! window opens with the right frame instead of switching on its first frame.
 
 use pdfcraft_ui_egui::window_controls::Layout;
 
@@ -18,6 +23,29 @@ pub(crate) fn app_drawn() -> Option<Layout> {
         _ => compositor_leaves_frame_to_app(),
     };
     drawn.then(button_layout)
+}
+
+/// Whether the window opens without winit's frame: the app has buttons to draw, and the saved
+/// Use system title bar preference (or, unsaved, the platform's default) doesn't ask for the
+/// system's frame.
+pub(crate) fn app_frame_at_launch(window_controls: bool, saved_system_title_bar: Option<bool>) -> bool {
+    window_controls && !saved_system_title_bar.unwrap_or(cfg!(target_os = "windows"))
+}
+
+/// The saved Use system title bar preference, if `app.ron` in `settings_dir` holds one.
+pub(crate) fn saved_system_title_bar(settings_dir: Option<&std::path::Path>) -> Option<bool> {
+    let text = std::fs::read_to_string(settings_dir?.join("app.ron")).ok()?;
+    system_title_bar_in(&text)
+}
+
+/// eframe's `app.ron` is a map of strings; PdfCraft's settings are the JSON under `pdfcraft`
+/// (or the app's former name). Anything unreadable means "not saved", never an error: the app
+/// reads the same file again through eframe and reports problems there.
+fn system_title_bar_in(ron_text: &str) -> Option<bool> {
+    let kv: std::collections::HashMap<String, String> = ron::from_str(ron_text).ok()?;
+    let json = kv.get("pdfcraft").or_else(|| kv.get(crate::LEGACY_STORAGE_KEY))?;
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    value.get("system_title_bar")?.as_bool()
 }
 
 /// GNOME's button order, or minimize, maximize and close on the right when it names none.
@@ -66,5 +94,38 @@ impl wayland_client::Dispatch<wayland_client::protocol::wl_registry::WlRegistry,
         _: &wayland_client::Connection,
         _: &wayland_client::QueueHandle<Self>,
     ) {
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{app_frame_at_launch, system_title_bar_in};
+
+    #[test]
+    fn the_saved_preference_is_read_from_app_ron() {
+        let ron = r#"{"pdfcraft":"{\"system_title_bar\":false,\"theme\":\"Dark\"}","egui":"{}"}"#;
+        assert_eq!(system_title_bar_in(ron), Some(false));
+        let ron = r#"{"pdfcraft":"{\"system_title_bar\":true}"}"#;
+        assert_eq!(system_title_bar_in(ron), Some(true));
+        // The app's former name still counts.
+        let ron = r#"{"printcraft":"{\"system_title_bar\":true}"}"#;
+        assert_eq!(system_title_bar_in(ron), Some(true));
+        // Not saved, not JSON, not RON: no preference, never an error.
+        assert_eq!(system_title_bar_in(r#"{"pdfcraft":"{\"theme\":\"Dark\"}"}"#), None);
+        assert_eq!(system_title_bar_in(r#"{"pdfcraft":"not json"}"#), None);
+        assert_eq!(system_title_bar_in("not ron"), None);
+        assert_eq!(system_title_bar_in(""), None);
+    }
+
+    #[test]
+    fn the_window_opens_with_the_frame_the_preference_asks_for() {
+        // Nothing to draw: always the system's frame.
+        assert!(!app_frame_at_launch(false, None));
+        assert!(!app_frame_at_launch(false, Some(false)));
+        // A saved choice wins.
+        assert!(app_frame_at_launch(true, Some(false)));
+        assert!(!app_frame_at_launch(true, Some(true)));
+        // Unsaved: the platform's default, which is the system's title bar only on Windows.
+        assert_eq!(app_frame_at_launch(true, None), !cfg!(target_os = "windows"));
     }
 }
