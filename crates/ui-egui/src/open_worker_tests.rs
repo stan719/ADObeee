@@ -406,3 +406,151 @@ fn a_startup_document_waits_for_an_active_document_to_prepare() {
     assert_eq!(harness.state().active, Some(0), "the chosen document keeps focus");
     let _ = std::fs::remove_file(path);
 }
+
+#[allow(clippy::unwrap_used)]
+fn test_path(name: &str, bytes: &[u8]) -> String {
+    let path = std::env::temp_dir().join(format!("pdfcraft-worker-{}-{name}.pdf", std::process::id()));
+    std::fs::write(&path, bytes).unwrap();
+    path.to_string_lossy().into_owned()
+}
+
+#[allow(clippy::unwrap_used)]
+fn encrypted() -> Vec<u8> {
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(fixture(2))).unwrap();
+    doc.set_encryption(&pdfcraft_cos::NewEncryption {
+        algorithm: pdfcraft_cos::Algorithm::Aes256,
+        user_password: "pw",
+        owner_password: "owner",
+        permissions: -1,
+        encrypt_metadata: true,
+        seed: [7; 32],
+    })
+    .unwrap();
+    pdfcraft_cos::write_full(&doc, &Default::default()).unwrap()
+}
+
+fn wait_until(h: &mut Harness<'static, PdfCraftApp>, complete: impl Fn(&PdfCraftApp) -> bool) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !complete(h.state()) {
+        assert!(std::time::Instant::now() < deadline, "asynchronous opening did not reach the expected state");
+        h.step();
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn picker_tool_runs_once_after_plain_or_encrypted_open_and_never_on_cancel() {
+    for run_inline in [false, true] {
+        for (name, bytes, cancel) in [("plain", fixture(2), false), ("encrypted", encrypted(), false), ("cancel", encrypted(), true)] {
+            let path = test_path(&format!("picker-tool-{name}"), &bytes);
+            let (mut h, _) = harness();
+            h.state_mut().run_inline = run_inline;
+            h.state_mut().active = None;
+            h.state_mut().pick_override = Some(vec![path.clone()]);
+            h.state_mut().open_then_run(pdfcraft_engine::commands::command("page.insert_blank").unwrap());
+            wait_until(&mut h, |app| app.password_prompt.is_some() || app.views.len() == 2);
+            if name != "plain" {
+                h.state_mut().submit_password(Some("wrong".into()));
+                wait_until(&mut h, |app| app.password_prompt.is_some());
+                assert!(h.state().password_prompt.as_ref().unwrap().error.is_some());
+                assert_eq!(h.state().views.len(), 1);
+                h.state_mut().submit_password((!cancel).then(|| "pw".into()));
+                if !cancel {
+                    wait_until(&mut h, |app| app.views.len() == 2);
+                }
+            }
+            h.run_steps(3);
+            assert_eq!(h.state().views.len(), if cancel { 1 } else { 2 });
+            assert!(h.state().pending_opens.is_empty());
+            for view in &h.state().views {
+                assert_eq!(h.state().session.get(view.id).unwrap().info.pages.len(), 3, "the old tab is unchanged; the new tab gets one blank page");
+            }
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[test]
+fn background_text_and_image_conversion_only_run_the_tool_after_success() {
+    for run_inline in [false, true] {
+        let mut image = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut image, 2, 2);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder.write_header().unwrap().write_image_data(&[120; 12]).unwrap();
+        }
+        for (name, bytes, succeeds) in [
+            ("valid.txt", b"Synthetic conversion test".to_vec(), true),
+            ("valid.png", image, true),
+            ("invalid.txt", "Unsupported plain-text glyph: \u{4e2d}".as_bytes().to_vec(), false),
+            ("invalid.png", b"invalid PNG".to_vec(), false),
+        ] {
+            let path = std::env::temp_dir().join(format!("pdfcraft-convert-worker-{}-{name}", std::process::id()));
+            std::fs::write(&path, bytes).unwrap();
+            let (mut h, _) = harness();
+            h.state_mut().run_inline = run_inline;
+            h.state_mut().open_path_then(&path.to_string_lossy(), Some("page.insert_blank"));
+            wait_until(&mut h, |app| app.pending_opens.is_empty());
+            h.run_steps(3);
+            let app = h.state();
+            assert_eq!(app.views.len(), if succeeds { 2 } else { 1 }, "{name}");
+            assert_eq!(app.session.get(app.views[0].id).unwrap().info.pages.len(), 3, "existing tab: {name}");
+            if succeeds {
+                let converted = app.session.get(app.views[1].id).unwrap();
+                assert_eq!(converted.info.pages.len(), 2, "one conversion page plus exactly one inserted page: {name}");
+                assert!(converted.dirty && converted.path.is_none());
+            } else {
+                assert!(app.toast.is_some(), "failed conversion is reported: {name}");
+            }
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[test]
+fn startup_bytes_wait_while_a_local_password_retry_is_preparing() {
+    for password in ["wrong", "pw"] {
+        let path = test_path(&format!("startup-retry-{password}"), &encrypted());
+        let (mut h, _) = harness();
+        let (gate, started, release, finished) = open_worker::prepare_gate();
+        h.state_mut().open_prepare_gate = Some(gate);
+        h.state_mut().open_path_then(&path, Some("page.insert_blank"));
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        release.send(()).unwrap();
+        finished.recv_timeout(Duration::from_secs(5)).unwrap();
+        h.step();
+        assert!(h.state().password_prompt.is_some());
+
+        h.state_mut().submit_password(Some(password.into()));
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        h.state().startup_inbox.lock().unwrap().push(("late-encrypted.pdf".into(), encrypted()));
+        h.step();
+        let queued_while_held = h.state().startup_inbox.lock().unwrap().len();
+        let prompt_while_held = h.state().password_prompt.as_ref().map(|p| p.name.clone());
+        let tabs_while_held = h.state().views.len();
+        // Release before asserting so even a failed regression cannot strand a worker.
+        release.send(()).unwrap();
+        finished.recv_timeout(Duration::from_secs(5)).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(queued_while_held, 1, "startup bytes must remain queued during {password:?} preparation");
+        assert_eq!(prompt_while_held, None, "a late file must not occupy the local retry's prompt");
+        assert_eq!(tabs_while_held, 1);
+
+        h.step();
+        if password == "wrong" {
+            assert!(h.state().password_prompt.as_ref().unwrap().error.is_some());
+            assert_eq!(h.state().startup_inbox.lock().unwrap().len(), 1);
+            assert_eq!(h.state().views.len(), 1);
+            h.state_mut().submit_password(None);
+            h.step();
+            assert_eq!(h.state().views.len(), 1, "cancelling must not run the deferred tool on the existing tab");
+        } else {
+            assert_eq!(h.state().views.len(), 2);
+            let app = h.state();
+            assert_eq!(app.session.get(app.views[1].id).unwrap().info.pages.len(), 3, "the tool runs once on the unlocked PDF");
+        }
+        assert_eq!(h.state().password_prompt.as_ref().unwrap().name, "late-encrypted.pdf");
+        assert_eq!(h.state().session.get(h.state().views[0].id).unwrap().info.pages.len(), 3, "the existing tab is untouched");
+    }
+}
