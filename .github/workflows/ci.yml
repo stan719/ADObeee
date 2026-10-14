@@ -69,31 +69,58 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Format
+        id: format
         if: runner.os == 'Linux'
+        continue-on-error: true
         run: cargo fmt --all -- --check
 
       - name: Clippy
+        id: clippy
+        continue-on-error: true
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Test
+        id: test
         if: runner.os != 'Linux'
-        run: cargo test --workspace
+        continue-on-error: true
+        run: cargo test --workspace --no-fail-fast
 
       - name: Test (with craft-fonts)
+        id: test_fonts
         if: runner.os == 'Linux'
-        run: cargo test --workspace
+        continue-on-error: true
+        run: cargo test --workspace --no-fail-fast
 
       - name: Layering
+        id: layers
         if: runner.os == 'Linux'
+        continue-on-error: true
         run: cargo xtask layers
 
       - name: Assets (licences and attribution)
+        id: assets
         if: runner.os == 'Linux'
+        continue-on-error: true
         run: cargo xtask assets
 
       - name: CLI without the MCP server still builds
+        id: cli_no_mcp
         if: runner.os == 'Linux'
+        continue-on-error: true
         run: cargo check -p pdfcraft-cli --no-default-features
+
+      - name: Require every CI phase to pass
+        if: >-
+          always() && (
+            steps.format.outcome == 'failure' ||
+            steps.clippy.outcome == 'failure' ||
+            steps.test.outcome == 'failure' ||
+            steps.test_fonts.outcome == 'failure' ||
+            steps.layers.outcome == 'failure' ||
+            steps.assets.outcome == 'failure' ||
+            steps.cli_no_mcp.outcome == 'failure'
+          )
+        run: exit 1
 
   wasm:
     name: wasm32 check
