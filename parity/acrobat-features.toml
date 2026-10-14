@@ -3173,7 +3173,7 @@ status = "planned"
 commands = []
 tools = []
 evidence = []
-notes = ""
+notes = "Read and set, not played: each page's /Trans (style, duration, dimension, motion, direction, Fly scale and backdrop) and /Dur display time are read with the spec's defaults and listed by doc_info (DocInfo::transitions); page_transition_set (Edit::SetTransition, one undo step) writes or removes them on chosen pages with the values checked first. Not yet: playing them in full screen, auto-advancing on /Dur, and the Page Transitions dialog"
 
 [[feature]]
 id = "organize.page-tab-order"
