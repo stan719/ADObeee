@@ -181,6 +181,9 @@ fn a_tool_chosen_with_no_document_asks_for_one_and_runs_on_it() {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
         app.pick_override = Some(vec![pick]);
+        // Read and prepare the picked file on the frame thread: the worker of a running app
+        // finishes at its own pace, and a fixed number of frames is not a wait.
+        app.run_inline = true;
         app
     });
     h.run_steps(2);
@@ -282,6 +285,8 @@ fn the_open_recent_menu_lists_files_and_opens_one() {
             app.set_option("language", "en").unwrap();
             app.open_bytes("doc.pdf", None, fixture(3)).unwrap();
             app.recent.push(pdfcraft_ui_egui::RecentFile { name: "recent.pdf".into(), path, pages: 2, size: 0 });
+            // As above: the recent file is opened on the frame thread, so the steps below are enough.
+            app.run_inline = true;
             app
         }
     });
