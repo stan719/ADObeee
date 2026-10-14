@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
-use crate::{Args, Automation, Result, ToolError, child, failed, unused, write_atomic};
+use crate::{Args, Automation, Result, ToolError, child, failed, write_atomic};
 
 fn status_id(s: Status) -> &'static str {
     match s {
@@ -760,18 +760,7 @@ impl Automation {
                 .and_then(|bytes| run_on(&action, &name, std::sync::Arc::new(bytes), |_, _| {}));
             out.push(match result {
                 Ok(r) => {
-                    let target = child(&folder, &name);
-                    let target = if target.exists() {
-                        let stem =
-                            std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "document".into());
-                        unused(&folder, &stem)
-                    } else {
-                        target
-                    };
-                    if target.exists() {
-                        return Err(failed(format!("{}: no unused output name available", target.display())));
-                    }
-                    write_atomic(&target, &r.bytes)?;
+                    let target = crate::batch::publish(&child(&folder, &name), &r.bytes)?;
                     json!({ "path": p, "output": target.to_string_lossy(), "log": r.log })
                 }
                 Err(e) => json!({ "path": p, "error": e }),
