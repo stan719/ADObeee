@@ -1693,7 +1693,7 @@ impl PdfCraftApp {
         self.open_path_then(path, None);
     }
 
-    /// Carry the requested tool through reading, conversion and password retries.
+    /// Keep a chosen tool with its file until preparation and any password entry finish.
     #[cfg(not(target_arch = "wasm32"))]
     fn open_path_then(&mut self, path: &str, then: Option<&'static str>) {
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
@@ -1708,15 +1708,15 @@ impl PdfCraftApp {
                     let before = self.views.len();
                     if let Err(error) = self.open_bytes(&name, Some(path.to_string()), bytes) {
                         self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &error)]);
-                    } else if self.views.len() > before
-                        && let Some(doc) = self.views.last().map(|view| view.id)
-                    {
-                        self.watch.known_as(doc, stamp);
+                    } else if let Some(prompt) = self.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path)) {
+                        prompt.then = then;
+                    } else if self.views.len() > before {
+                        if let Some(doc) = self.views.last().map(|view| view.id) {
+                            self.watch.known_as(doc, stamp);
+                        }
                         if let Some(command) = then {
                             self.execute(command);
                         }
-                    } else if let Some(prompt) = self.password_prompt.as_mut().filter(|p| p.path.as_deref() == Some(path)) {
-                        prompt.then = then;
                     }
                 }
                 Err(error) => self.notify_fmt("Couldn't read {name}: {e}", &[("name", &name), ("e", &error.to_string())]),
@@ -1798,6 +1798,20 @@ impl PdfCraftApp {
             Some(a) if a >= self.views.len() => Some(self.views.len() - 1),
             other => other,
         };
+    }
+
+    /// Moves the tab at `from` so it sits at `to` (#1537). The same document stays active
+    /// wherever it lands; an index out of range changes nothing.
+    pub fn move_tab(&mut self, from: usize, to: usize) {
+        if from >= self.views.len() || to >= self.views.len() || from == to {
+            return;
+        }
+        let active = self.active_ids().map(|(_, id)| id);
+        let view = self.views.remove(from);
+        self.views.insert(to, view);
+        if let Some(id) = active {
+            self.active = self.views.iter().position(|v| v.id == id);
+        }
     }
 
     pub fn active_ids(&self) -> Option<(usize, DocId)> {
@@ -2813,13 +2827,12 @@ impl eframe::App for PdfCraftApp {
             }
         }
         // Don't replace a pending prompt or import. A startup file may need its own password
-        // prompt, so its bytes stay queued until the current interaction finishes, including
-        // preparation after submit_password has taken the local prompt off screen.
+        // prompt, so its bytes stay queued until the current interaction finishes.
         #[cfg(not(target_arch = "wasm32"))]
-        let preparing_open = !self.pending_opens.is_empty();
+        let opening = !self.pending_opens.is_empty();
         #[cfg(target_arch = "wasm32")]
-        let preparing_open = false;
-        if !preparing_open
+        let opening = false;
+        if !opening
             && self.password_prompt.is_none()
             && self.image_import.is_none()
             && self.dialog.is_none()

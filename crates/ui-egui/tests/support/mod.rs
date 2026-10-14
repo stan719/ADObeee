@@ -1,16 +1,22 @@
-//! Completion-aware waits for the real background-open path.
-
+//! State-based waits for native preparation, which completes between UI frames.
 use egui_kittest::Harness;
 use pdfcraft_ui_egui::PdfCraftApp;
 
-pub fn wait_for(h: &mut Harness<'static, PdfCraftApp>, ready: impl Fn(&PdfCraftApp) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while !ready(h.state()) {
-        assert!(std::time::Instant::now() < deadline, "document opening did not finish: {:?}", h.state().toast);
+pub fn wait_until(h: &mut Harness<'static, PdfCraftApp>, what: &str, ready: impl Fn(&PdfCraftApp) -> bool) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
         h.step();
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        if ready(h.state()) {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for {what}: views={}, active={:?}, password={:?}, toast={:?}",
+            h.state().views.len(),
+            h.state().active,
+            h.state().password_prompt.as_ref().map(|p| (&p.name, &p.error)),
+            h.state().toast
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    // The model can finish during the frame that first lays out a new modal. Let its
-    // geometry settle before a following test clicks its AccessKit bounds.
-    h.run_steps(2);
 }

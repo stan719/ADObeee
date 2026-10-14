@@ -2,7 +2,6 @@
 //! save/save-as, the unsaved-changes prompt and editable document properties.
 
 mod support;
-use support::wait_for;
 
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
@@ -1673,10 +1672,18 @@ fn files_dropped_before_the_pointer_is_known_wait_for_it() {
 #[test]
 fn files_dropped_outside_the_page_grid_still_open_as_documents() {
     let mut h = harness(2, |_| {});
+    let original = h.state().views[0].id;
     drop_files(&mut h, vec![Dropped("other.pdf", fixture(1))]);
-    wait_for(&mut h, |app| app.views.len() == 2);
+    support::wait_until(&mut h, "dropped document", |app| app.views.len() == 2 && app.password_prompt.is_none());
     assert_eq!(h.state().views.len(), 2);
     assert_eq!(texts_of(h.state(), 0), ["Page 1", "Page 2"]);
+    assert!(h.state().views.iter().any(|view| view.id == original));
+    assert_eq!(h.state().session.get(original).unwrap().bytes.as_slice(), fixture(2).as_slice());
+    let (_, id) = h.state().active_ids().unwrap();
+    let doc = h.state().session.get(id).unwrap();
+    assert_eq!(doc.name, "other.pdf");
+    assert_eq!(doc.info.pages.len(), 1);
+    assert_eq!(doc.bytes.as_slice(), fixture(1).as_slice());
 }
 
 fn grid_zoom(h: &Harness<'static, PdfCraftApp>) -> f32 {
@@ -1910,7 +1917,7 @@ fn password_prompt_opens_and_security_tab_reports_the_details() {
     field.type_text("pw");
     h.run_steps(2);
     h.key_press(Key::Enter);
-    wait_for(&mut h, |app| app.views.len() == 1);
+    support::wait_until(&mut h, "unlocked document", |app| app.views.len() == 1);
     assert_eq!(h.state().views.len(), 1);
     h.state_mut().set_option("dialog", "properties").unwrap();
     h.run_steps(2);
