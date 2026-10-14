@@ -30,6 +30,11 @@
 	Identity	個人情報
 	Name on new comments	新しい注釈の作成者名
 	Open…	開く…
+	Open OFD (early alpha)…	OFDを開く（初期アルファ版）…
+	OFD documents	OFD文書
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD（初期アルファ版）：PDFに変換しました。元の文書と比べてください。
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD（初期アルファ版）：PDFに変換しました。表示されないオブジェクト：{n}。
+	Signatures and seals are not carried over or checked.	署名と印影は引き継がれず、検証もされません。
 	Open Recent	最近のファイルを開く
 	Clear Recent Files	最近のファイルをクリア
 	Remove from Recent	最近のファイルから外す

@@ -3998,7 +3998,9 @@ dependencies = [
  "pdfcraft-cos",
  "pdfcraft-fonts",
  "pdfcraft-model",
+ "pdfcraft-ofd",
  "png 0.18.1",
+ "skrifa 0.44.0",
  "thiserror 2.0.21",
  "tiff",
  "zune-jpeg",
@@ -4144,6 +4146,17 @@ dependencies = [
  "ocrs",
  "pdfcraft-fonts",
  "rten",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pdfcraft-ofd"
+version = "0.7.1"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "proptest",
+ "roxmltree",
  "thiserror 2.0.21",
 ]
 

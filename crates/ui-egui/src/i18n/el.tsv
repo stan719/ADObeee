@@ -17,6 +17,11 @@
 	Identity	Ταυτότητα
 	Name on new comments	Όνομα στα νέα σχόλια
 	Open…	Άνοιγμα…
+	Open OFD (early alpha)…	Άνοιγμα OFD (πρώιμη άλφα)…
+	OFD documents	Έγγραφα OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (πρώιμη άλφα): μετατράπηκε σε PDF. Συγκρίνετέ το με το πρωτότυπο.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (πρώιμη άλφα): μετατράπηκε σε PDF. Αντικείμενα που δεν εμφανίζονται: {n}.
+	Signatures and seals are not carried over or checked.	Οι υπογραφές και οι σφραγίδες δεν μεταφέρονται ούτε ελέγχονται.
 	Open Recent	Άνοιγμα πρόσφατων
 	Clear Recent Files	Εκκαθάριση πρόσφατων αρχείων
 	Remove from Recent	Αφαίρεση από τα πρόσφατα

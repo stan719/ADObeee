@@ -162,6 +162,8 @@ const HELP: Option<&str> = Some("Help");
 /// Every command, in menu order.
 pub const COMMANDS: &[CommandSpec] = &[
     c("file.open", "Open…", FILE, Some(Shortcut::cmd("O")), Nothing, "folder-open"),
+    // Early alpha (#1036): OFD → a new PDF. Visible so testers can find it; the label says so.
+    c("file.open_ofd", "Open OFD (early alpha)…", FILE, None, Nothing, "folder-open"),
     c("file.open_recent", "Open Recent", FILE, None, Nothing, "clock"),
     // Shown at the foot of File ▸ Open Recent and on Home, not as its own File menu item.
     c("file.clear_recent", "Clear Recent Files", None, None, Nothing, "trash-2"),

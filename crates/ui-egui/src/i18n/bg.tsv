@@ -61,6 +61,11 @@
 	Identity	Самоличност
 	Name on new comments	Име в новите коментари
 	Open…	Отвори…
+	Open OFD (early alpha)…	Отваряне на OFD (ранна алфа)…
+	OFD documents	OFD документи
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (ранна алфа): преобразувано в PDF. Сравнете с оригинала.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (ранна алфа): преобразувано в PDF. Непоказани обекти: {n}.
+	Signatures and seals are not carried over or checked.	Подписите и печатите не се пренасят и не се проверяват.
 	Open Recent	Последно отваряни
 	Pin folder to Home…	Закачи папка в Начало…
 	Folders	Папки

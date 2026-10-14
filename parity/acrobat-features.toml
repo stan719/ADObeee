@@ -7199,6 +7199,18 @@ tools = []
 evidence = []
 notes = "Adobe cloud; LibreOffice sidecar instead"
 
+[[feature]]
+id = "create.open-ofd"
+title = "Open OFD (GB/T 33190) files as PDF (early alpha)"
+area = "J"
+tier = "P3"
+milestone = "none"
+status = "partial"
+commands = ["file.open_ofd"]
+tools = ["doc_create"]
+evidence = ["crates/create/src/ofd_tests.rs::pages_get_the_ofd_page_size", "crates/create/src/ofd_tests.rs::paths_keep_colours_width_and_curves", "crates/create/src/ofd_tests.rs::text_is_real_text_with_standard_and_chinese_fallback_fonts", "crates/create/src/ofd_tests.rs::embedded_fonts_are_embedded_with_widths_and_to_unicode", "crates/create/src/ofd_tests.rs::paths_text_and_images_are_clipped_in_page_space", "crates/create/src/ofd_tests.rs::clips_that_cannot_be_drawn_are_skipped_and_reported", "crates/create/src/ofd_tests.rs::axial_and_radial_shadings_fill_paths_and_text", "crates/create/src/ofd_tests.rs::annotations_are_drawn_over_the_page", "crates/create/src/ofd_tests.rs::tiling_patterns_repeat_their_cell_inside_the_outline", "crates/automation/tests/automation.rs::ofd_files_convert_to_a_new_pdf_with_a_report"]
+notes = "not an Acrobat feature (#1036). Early alpha: pages, paths, PNG/JPEG images and text with OFD-embedded fonts; template pages and composite graphic units as shared forms; axial and radial shadings and tiling patterns on paths and text; annotation appearances (stamps, watermarks) drawn as page content; paths, text and images clipped to path clip areas. Not yet: Gouraud, repeating and elliptical shadings, mirrored patterns, clips made of text or of several areas (reported, drawn unclipped), JBIG2, seals and signatures (not carried over or checked). Chinese without an embedded font uses non-embedded STSong-Light (renders in PdfCraft once a CJK fallback lands). All 26 OFD test files of the ofdrw project convert (common writer mistakes tolerated and reported); still unverified against real issuing systems' files"
+
 # ==================================================================================================
 # K. Optimize and standards
 # ==================================================================================================

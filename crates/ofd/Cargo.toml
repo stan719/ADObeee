@@ -1,0 +1,21 @@
+[package]
+name = "pdfcraft-ofd"
+description = "Read OFD (Open Fixed-layout Document, GB/T 33190-2016) packages into a typed model, with container limits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# All three are already in the dependency graph (flate2 and crc32fast through png/lopdf,
+# roxmltree through pdfcraft-xfa and pdfcraft-xfdf): no new third-party crate.
+flate2 = { workspace = true }
+crc32fast = "1.5"
+roxmltree = "0.20"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+flate2 = { workspace = true }
+proptest = { workspace = true }

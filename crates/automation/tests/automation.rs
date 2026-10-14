@@ -5674,6 +5674,94 @@ fn private_crops_with_nested_state_resize_save_reopen_through_tools() {
     }
 }
 
+/// A stored (uncompressed) ZIP of `files`: an OFD file is a ZIP package.
+fn stored_zip(files: &[(&str, &str)]) -> Vec<u8> {
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut c = 0xFFFF_FFFFu32;
+        for &b in bytes {
+            c ^= u32::from(b);
+            for _ in 0..8 {
+                c = if c & 1 == 1 { (c >> 1) ^ 0xEDB8_8320 } else { c >> 1 };
+            }
+        }
+        !c
+    }
+    let (mut out, mut central) = (Vec::new(), Vec::new());
+    for (name, data) in files {
+        let (data, offset) = (data.as_bytes(), out.len() as u32);
+        let header = |central: bool| {
+            let mut h = Vec::new();
+            h.extend(if central { 0x0201_4b50u32 } else { 0x0403_4b50 }.to_le_bytes());
+            if central {
+                h.extend(20u16.to_le_bytes());
+            }
+            h.extend(20u16.to_le_bytes());
+            h.extend(0x0800u16.to_le_bytes());
+            h.extend(0u16.to_le_bytes());
+            h.extend([0u8; 4]);
+            h.extend(crc32(data).to_le_bytes());
+            h.extend((data.len() as u32).to_le_bytes());
+            h.extend((data.len() as u32).to_le_bytes());
+            h.extend((name.len() as u16).to_le_bytes());
+            h.extend(0u16.to_le_bytes());
+            if central {
+                h.extend([0u8; 10]);
+                h.extend(offset.to_le_bytes());
+            }
+            h.extend(name.as_bytes());
+            h
+        };
+        out.extend(header(false));
+        out.extend(data);
+        central.extend(header(true));
+    }
+    let cd = out.len() as u32;
+    out.extend(&central);
+    out.extend(0x0605_4b50u32.to_le_bytes());
+    out.extend([0u8; 4]);
+    out.extend((files.len() as u16).to_le_bytes());
+    out.extend((files.len() as u16).to_le_bytes());
+    out.extend((central.len() as u32).to_le_bytes());
+    out.extend(cd.to_le_bytes());
+    out.extend(0u16.to_le_bytes());
+    out
+}
+
+#[test]
+fn ofd_files_convert_to_a_new_pdf_with_a_report() {
+    let dir = workdir("ofd");
+    let ns = r#"xmlns:ofd="http://www.ofdspec.org/2016""#;
+    let ofd = format!(
+        r#"<ofd:OFD {ns} Version="1.0" DocType="OFD"><ofd:DocBody><ofd:DocInfo/><ofd:DocRoot>Doc_0/Document.xml</ofd:DocRoot></ofd:DocBody></ofd:OFD>"#
+    );
+    let document = format!(
+        r#"<ofd:Document {ns}><ofd:CommonData><ofd:MaxUnitID>9</ofd:MaxUnitID><ofd:PageArea><ofd:PhysicalBox>0 0 100 50</ofd:PhysicalBox></ofd:PageArea></ofd:CommonData><ofd:Pages><ofd:Page ID="1" BaseLoc="Pages/Page_0/Content.xml"/></ofd:Pages></ofd:Document>"#
+    );
+    let page = format!(
+        r#"<ofd:Page {ns}><ofd:Content><ofd:Layer ID="2"><ofd:TextObject ID="3" Boundary="10 10 50 10" Font="4" Size="5"><ofd:TextCode X="0" Y="5">Hi</ofd:TextCode></ofd:TextObject><ofd:CompositeObject ID="5" Boundary="0 0 10 10" ResourceID="6"/></ofd:Layer></ofd:Content></ofd:Page>"#
+    );
+    let package = stored_zip(&[("OFD.xml", &ofd), ("Doc_0/Document.xml", &document), ("Doc_0/Pages/Page_0/Content.xml", &page)]);
+    std::fs::write(dir.join("invoice.ofd"), package).unwrap();
+    let mut a = auto(&dir);
+    let made = ok(&mut a, "doc_create", json!({ "from": "ofd", "path": "invoice.ofd" }));
+    assert_eq!((made["name"].as_str(), made["pages"].as_u64(), made["dirty"].as_bool()), (Some("invoice.pdf"), Some(1), Some(true)), "{made}");
+    let report = &made["ofd"];
+    assert_eq!((report["pages"].as_u64(), report["skipped"].as_u64(), report["signed"].as_bool()), (Some(1), Some(1), Some(false)), "{made}");
+    assert_eq!(report["skipped_by_kind"]["composite graphic units that aren't defined"], 1, "{made}");
+    assert!(report["notes"].as_array().unwrap().iter().any(|n| n.as_str().is_some_and(|n| n.contains("font 4"))), "{made}");
+    // Real text, at the OFD size (100 × 50 mm).
+    let doc = made["doc"].as_u64().unwrap();
+    assert_eq!(page_text(&mut a, doc).iter().map(|t| t.replace(' ', "")).collect::<Vec<_>>(), ["Hi"]);
+    ok(&mut a, "doc_save", json!({ "doc": doc, "path": "invoice.pdf" }));
+    let reopened = ok(&mut a, "doc_open", json!({ "path": "invoice.pdf" }))["doc"].as_u64().unwrap();
+    assert_eq!(page_text(&mut a, reopened).len(), 1);
+    // Errors an agent can act on, not panics: not an OFD, outside the root, no path.
+    assert!(matches!(a.call("doc_create", &json!({ "from": "ofd", "path": "a.pdf" })), Err(ToolError::Failed(_) | ToolError::InvalidArgs(_))));
+    assert!(a.call("doc_create", &json!({ "from": "ofd", "path": "../invoice.ofd" })).is_err());
+    assert!(matches!(a.call("doc_create", &json!({ "from": "ofd" })), Err(ToolError::InvalidArgs(m)) if m.contains("path")));
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn absolute_gotor_consent_does_not_bypass_validation_or_passwords() {
     let (base, root) = sandbox("gotor-absolute-consent");

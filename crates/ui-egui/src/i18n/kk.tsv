@@ -10,6 +10,11 @@
 	Identity	Жеке деректер
 	Name on new comments	Жаңа түсініктемелердегі аты
 	Open…	Ашу…
+	Open OFD (early alpha)…	OFD ашу (ерте альфа)…
+	OFD documents	OFD құжаттары
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (ерте альфа): PDF-ке түрлендірілді. Түпнұсқамен салыстырыңыз.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (ерте альфа): PDF-ке түрлендірілді. Көрсетілмеген нысандар: {n}.
+	Signatures and seals are not carried over or checked.	Қолтаңбалар мен мөрлер көшірілмейді және тексерілмейді.
 	Open Recent	Соңғы файлдарды ашу
 	Pin folder to Home…	Қалтаны Басты бетке бекіту…
 	Folders	Қалталар

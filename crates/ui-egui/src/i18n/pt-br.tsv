@@ -24,6 +24,11 @@
 	Identity	Identidade
 	Name on new comments	Nome nos novos comentários
 	Open…	Abrir…
+	Open OFD (early alpha)…	Abrir OFD (alfa inicial)…
+	OFD documents	Documentos OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (alfa inicial): convertido em PDF. Compare-o com o original.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (alfa inicial): convertido em PDF. Objetos não exibidos: {n}.
+	Signatures and seals are not carried over or checked.	Assinaturas e selos não são transferidos nem verificados.
 	Open Recent	Abrir recentes
 	Clear Recent Files	Limpar arquivos recentes
 	Remove from Recent	Remover dos recentes

@@ -1233,6 +1233,7 @@ impl Automation {
     }
 
     fn doc_create(&mut self, a: &Args) -> Result<Value> {
+        let mut ofd = None;
         let (name, bytes) = match a.str("from")? {
             "blank" => {
                 let n = a.opt_int("pages")?.unwrap_or(1).clamp(1, 10_000) as usize;
@@ -1272,11 +1273,27 @@ impl Automation {
                 })?;
                 (format!("{title}.pdf"), bytes)
             }
+            "ofd" => {
+                let path = self.resolve(a.str("path").map_err(|_| ToolError::InvalidArgs("ofd needs `path`".into()))?, false)?;
+                let bytes = std::fs::read(&path).map_err(|e| failed(format!("{}: {e}", path.display())))?;
+                let file = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let (pdf, report) = self.session.convert_ofd(&file, &bytes).map_err(failed)?;
+                ofd = Some(report);
+                let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "OFD document".into());
+                (format!("{stem}.pdf"), pdf)
+            }
             other => return Err(ToolError::InvalidArgs(format!("unknown source {other:?}"))),
         };
         let name = a.opt_str("name")?.map(str::to_owned).unwrap_or(name);
         let id = self.session.open_new(name, bytes).map_err(failed)?;
-        Ok(summary(self.session.get(id).ok_or_else(|| failed("the document vanished"))?))
+        let mut out = summary(self.session.get(id).ok_or_else(|| failed("the document vanished"))?);
+        if let (Some(r), Some(fields)) = (ofd, out.as_object_mut()) {
+            fields.insert(
+                "ofd".into(),
+                json!({ "pages": r.pages, "skipped": r.skipped, "skipped_by_kind": r.skipped_by_kind, "signed": r.signed, "notes": r.notes }),
+            );
+        }
+        Ok(out)
     }
 
     fn page_set_box(&mut self, a: &Args) -> Result<Value> {

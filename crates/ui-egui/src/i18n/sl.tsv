@@ -1220,6 +1220,11 @@
 	Opened with	Odprto z
 	Opened, but its security settings don't allow combining. Enter the permissions password.	Odprto, vendar njegove varnostne nastavitve ne dovoljujejo združevanja. Vnesite geslo za dovoljenja.
 	Open…	Odpri…
+	Open OFD (early alpha)…	Odpri OFD (zgodnja alfa)…
+	OFD documents	Dokumenti OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (zgodnja alfa): pretvorjeno v PDF. Primerjajte z izvirnikom.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (zgodnja alfa): pretvorjeno v PDF. Neprikazani predmeti: {n}.
+	Signatures and seals are not carried over or checked.	Podpisi in žigi se ne prenesejo in ne preverijo.
 	Optimization cancelled	Optimizacija preklicana
 	Optimization is already running	Optimizacija že poteka
 	Optimize	Optimiziraj

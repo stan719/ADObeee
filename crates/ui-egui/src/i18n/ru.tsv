@@ -23,6 +23,11 @@
 	Identity	Идентификация
 	Name on new comments	Имя в новых комментариях
 	Open…	Открыть…
+	Open OFD (early alpha)…	Открыть OFD (ранняя альфа)…
+	OFD documents	Документы OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (ранняя альфа): преобразовано в PDF. Сравните с оригиналом.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (ранняя альфа): преобразовано в PDF. Не показано объектов: {n}.
+	Signatures and seals are not carried over or checked.	Подписи и печати не переносятся и не проверяются.
 	Open Recent	Открыть недавние
 	Clear Recent Files	Очистить недавние файлы
 	Remove from Recent	Убрать из недавних

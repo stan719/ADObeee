@@ -30,6 +30,11 @@
 	Identity	Identità
 	Name on new comments	Nome sui nuovi commenti
 	Open…	Apri…
+	Open OFD (early alpha)…	Apri OFD (alpha iniziale)…
+	OFD documents	Documenti OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (alpha iniziale): convertito in PDF. Confrontalo con l’originale.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (alpha iniziale): convertito in PDF. Oggetti non mostrati: {n}.
+	Signatures and seals are not carried over or checked.	Firme e sigilli non vengono riportati né verificati.
 	Open Recent	Apri recenti
 	Pin folder to Home…	Fissa una cartella sulla Home…
 	Folders	Cartelle

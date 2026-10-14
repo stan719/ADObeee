@@ -50,6 +50,7 @@ fn harness() -> Harness<'static, PdfCraftApp> {
 /// (Create ▸ Clipboard reads the system clipboard: tests use `create_from_clip`.)
 const PICKERS: &[&str] = &[
     "file.open",
+    "file.open_ofd",
     "page.combine",
     "page.insert",
     "file.save_as",

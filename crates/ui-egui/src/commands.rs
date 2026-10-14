@@ -151,6 +151,7 @@ impl PdfCraftApp {
                 }
             }
             "file.open" => self.open_dialog(),
+            "file.open_ofd" => self.open_ofd_dialog(),
             "file.open_recent" => match self.recent.first().map(|r| r.path.clone()) {
                 // The palette runs commands without a submenu: open the most recent file.
                 Some(p) => self.open_recent(&p),

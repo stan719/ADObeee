@@ -64,6 +64,11 @@
 	Identity	身份
 	Name on new comments	新注释的作者姓名
 	Open…	打开…
+	Open OFD (early alpha)…	打开 OFD（早期 Alpha 版）…
+	OFD documents	OFD 文档
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD（早期 Alpha 版）：已转换为 PDF。请与原件核对。
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD（早期 Alpha 版）：已转换为 PDF。未显示的对象：{n}。
+	Signatures and seals are not carried over or checked.	签名和印章不会被保留，也不会被验证。
 	Open Recent	打开最近的文件
 	Clear Recent Files	清除最近的文件
 	Remove from Recent	从最近的文件中移除

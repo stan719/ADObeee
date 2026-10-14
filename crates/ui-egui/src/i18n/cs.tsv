@@ -43,6 +43,11 @@
 	Enable Acrobat JavaScript	Povolit Acrobat JavaScript
 	OK	OK
 	Open…	Otevřít…
+	Open OFD (early alpha)…	Otevřít OFD (raná alfa)…
+	OFD documents	Dokumenty OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (raná alfa): převedeno do PDF. Porovnejte s originálem.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (raná alfa): převedeno do PDF. Nezobrazené objekty: {n}.
+	Signatures and seals are not carried over or checked.	Podpisy a pečeti se nepřenášejí ani neověřují.
 	Open Recent	Otevřít nedávné soubory
 	Clear Recent Files	Vymazat nedávné soubory
 	Remove from Recent	Odebrat z nedávných souborů

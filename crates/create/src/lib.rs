@@ -6,6 +6,8 @@ use pdfcraft_cos::{Dict, Document, ObjRef, Object, PdfString, Stream};
 
 mod extract;
 pub use extract::{ExtractedImage, ImageExport, extract_images, image_file};
+mod ofd;
+pub use ofd::{OfdReport, from_ofd};
 use pdfcraft_fonts::{literal, win_ansi, wrap};
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -483,6 +485,8 @@ pub enum SourceKind {
     Pdf,
     Image,
     Text,
+    /// An OFD (GB/T 33190) package, converted by [`from_ofd`] (early alpha, #1036).
+    Ofd,
 }
 
 /// File extensions Create converts to PDF (images and plain text).
@@ -511,8 +515,8 @@ fn is_image(bytes: &[u8]) -> bool {
             && bytes.get(14..18).and_then(|h| <[u8; 4]>::try_from(h).ok()).is_some_and(|h| matches!(u32::from_le_bytes(h), 12 | 40 | 52 | 56 | 108 | 124)))
 }
 
-/// Whether `bytes` named `name` is a PDF, an image Create can embed, or plain text (a `.txt` or
-/// `.text` file). `None` for anything else.
+/// Whether `bytes` named `name` is a PDF, an image Create can embed, an OFD package (early
+/// alpha), or plain text (a `.txt` or `.text` file). `None` for anything else.
 pub fn source_kind(name: &str, bytes: &[u8]) -> Option<SourceKind> {
     let head = bytes.get(..bytes.len().min(1024)).unwrap_or_default();
     if head.windows(5).any(|w| w == b"%PDF-") {
@@ -520,6 +524,9 @@ pub fn source_kind(name: &str, bytes: &[u8]) -> Option<SourceKind> {
     }
     if is_image(bytes) {
         return Some(SourceKind::Image);
+    }
+    if pdfcraft_ofd::is_ofd(bytes) {
+        return Some(SourceKind::Ofd);
     }
     let lower = name.to_ascii_lowercase();
     (lower.ends_with(".txt") || lower.ends_with(".text")).then_some(SourceKind::Text)

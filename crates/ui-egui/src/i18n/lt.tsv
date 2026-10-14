@@ -23,6 +23,11 @@
 	Identity	Tapatybė
 	Name on new comments	Naujų komentarų autoriaus vardas
 	Open…	Atverti…
+	Open OFD (early alpha)…	Atverti OFD (ankstyvoji alfa versija)…
+	OFD documents	OFD dokumentai
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (ankstyvoji alfa versija): konvertuota į PDF. Palyginkite su originalu.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (ankstyvoji alfa versija): konvertuota į PDF. Neparodytų objektų: {n}.
+	Signatures and seals are not carried over or checked.	Parašai ir antspaudai neperkeliami ir netikrinami.
 	Open Recent	Atverti paskiausiai naudotus failus
 	Clear Recent Files	Išvalyti paskiausiai naudotų failų sąrašą
 	Remove from Recent	Pašalinti iš paskiausiai naudotų failų

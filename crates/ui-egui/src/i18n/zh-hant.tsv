@@ -23,6 +23,11 @@
 	Identity	個人資訊
 	Name on new comments	新註解的作者名稱
 	Open…	開啟…
+	Open OFD (early alpha)…	開啟 OFD（早期 Alpha 版）…
+	OFD documents	OFD 文件
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD（早期 Alpha 版）：已轉換為 PDF。請與原件核對。
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD（早期 Alpha 版）：已轉換為 PDF。未顯示的物件：{n}。
+	Signatures and seals are not carried over or checked.	簽章與印章不會被保留，也不會被驗證。
 	Open Recent	開啟最近的檔案
 	Clear Recent Files	清除最近的檔案
 	Remove from Recent	從最近的檔案中移除

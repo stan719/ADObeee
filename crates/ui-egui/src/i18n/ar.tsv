@@ -35,6 +35,11 @@
 	Identity	الهوية
 	Name on new comments	الاسم على التعليقات الجديدة
 	Open…	فتح…
+	Open OFD (early alpha)…	فتح OFD (إصدار ألفا مبكر)…
+	OFD documents	مستندات OFD
+	OFD (early alpha): converted to PDF. Compare it with the original.	OFD (إصدار ألفا مبكر): تم التحويل إلى PDF. قارنه بالأصل.
+	OFD (early alpha): converted to PDF. Objects not shown: {n}.	OFD (إصدار ألفا مبكر): تم التحويل إلى PDF. كائنات غير معروضة: {n}.
+	Signatures and seals are not carried over or checked.	لا يتم نقل التوقيعات والأختام ولا التحقق منها.
 	Open Recent	فتح الملفات الأخيرة
 	Pin folder to Home…	تثبيت مجلد في الصفحة الرئيسية…
 	Folders	المجلدات
